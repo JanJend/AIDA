@@ -142,9 +142,10 @@ struct AIDA_config {
     bool show_info; // prints information about the decomposition to console.
     bool compare_hom; // Compares the optimised and non-optimised hom space calculation.
     bool supress_col_sweep; // Does not try to delete subbatches with only the column operations.
+    bool alpha_hom; // Turns the computation of alpha-homs on.
     vec<vec<index>> decomp_failure;
     
-    AIDA_config(bool supress_col_sweep = false, bool sort_output = false, bool sort = false, bool save_base_change = false, bool exhaustive = false, bool brute_force = false, bool progress = false, bool compare_both = false, bool turn_off_hom_optimisation = false, bool show_info = true, bool exhaustive_test = false, bool compare_hom = false)
+    AIDA_config(bool supress_col_sweep = false, bool sort_output = false, bool sort = false, bool save_base_change = false, bool exhaustive = false, bool brute_force = false, bool progress = false, bool compare_both = false, bool turn_off_hom_optimisation = false, bool show_info = true, bool exhaustive_test = false, bool compare_hom = false, bool alpha_hom = true)
         : supress_col_sweep(supress_col_sweep), save_base_change(save_base_change), sort_output(sort_output), sort(sort), exhaustive(exhaustive), brute_force(brute_force), compare_both(compare_both), progress(progress), turn_off_hom_optimisation(turn_off_hom_optimisation), show_info(show_info), exhaustive_test(exhaustive_test), compare_hom(compare_hom) { 
             decomp_failure = vec<vec<index>>();
         }
@@ -491,8 +492,13 @@ struct Block : GradedMatrix {
     BlockType type; // 0 for free module, 1 for cyclic, 2 for interval, 3 for non-interval
 
     vec<index> local_admissible_cols; // Stores the indices of the columns which can be used for column operations.
+    vec<index> local_admissible_rows; // Stores the indices of the rows which can be used for row operations.
+    vec<index> local_basislift; // Stores a set of row indices which map to a basis at the local degree
+    // Careful, these are indices only locally for this block!
+
     // This will store the columns which can be added to the current batch, i.e. local_data = data | admissible_cols.
     std::shared_ptr<Sparse_Matrix> local_data; 
+    std::shared_ptr<Sparse_Matrix> local_cokernel; // Stores the cokernel of the local_data.
 
     /**
      * @brief Get the type of indecomposable (free, interval, ...)
@@ -536,6 +542,26 @@ struct Block : GradedMatrix {
         // TO-DO: Can we make it so that this is already reduced?
         local_data = std::make_shared<Sparse_Matrix>(map_at_degree(d, local_admissible_cols));
     }
+
+    /**
+     * @brief stores the rows of degree <= d for repeated usage.
+     * 
+     * @param d 
+     */
+    void compute_local_generators(degree d){
+        local_admissible_rows = this->admissible_row_indices(d);
+    }
+
+    /**
+     * @brief Computes the local basislift for the block.
+     *  Assumes, that local data has been computed and reduced.
+     * @param d 
+     */
+    void compute_local_basislift(degree d){
+        compute_local_generators(d);
+        local_basislift = local_data->coKernel_basis(local_admissible_rows, rows, true);
+    }
+ 
 
     /**
      * @brief Tries to delete N with the columns in local_data.
@@ -1729,7 +1755,7 @@ void construct_linear_system_extension(Sparse_Matrix& S, vec<hom_info>& hom_stor
  * @param B 
  * @return vec<Sparse_Matrix> 
  */
-Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, degree& alpha){
+Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, degree& alpha, const bool& alpha_hom = false){
 
     vec< pair > row_ops; // we store the matrices Q_i which form the basis of hom(C, B) as vectors
     // This translates from entries of the vector to entries of the matrix.
@@ -1897,7 +1923,7 @@ Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, degree& alpha){
  * @param B 
  * @return vec<Sparse_Matrix> 
  */
-Hom_space compute_hom_space_no_optimisation(GradedMatrix& A, Block& C, Block& B, degree& alpha, Sparse_Matrix& S_compare){
+Hom_space compute_hom_space_no_optimisation(GradedMatrix& A, Block& C, Block& B, degree& alpha, Sparse_Matrix& S_compare, const bool& alpha_hom = false){
     //TO-DO: This function is not working correctly yet, but it is only for testing anyways.
 
     vec< pair > row_ops; // we store the matrices Q_i which form the basis of hom(C, B) as vectors
@@ -2080,7 +2106,7 @@ Hom_space compute_hom_space_no_optimisation(GradedMatrix& A, Block& C, Block& B,
 void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterator>& block_map, indtree& active_blocks, 
                                 Hom_map& hom_spaces, std::unordered_map<index, vec<index>>& domain_keys, 
                                 std::unordered_map<index, vec<index>>& codomain_keys, degree& alpha, AIDA_runtime_statistics& statistics, 
-                                bool turn_off_hom_optimisation, bool compare_hom_space_computation = false){
+                                AIDA_config& config){ //turn_off_hom_optimisation, bool compare_hom_space_computation = false, bool compute_alpha_hom = true
     Block& B = *block_map[b];
     for(index c : active_blocks){
         Block& C = *block_map[c];
@@ -2088,14 +2114,14 @@ void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterator>& blo
             // Do not compute again unless needed; This should save a lot of time hopefully.
             if(hom_spaces.find({c,b}) == hom_spaces.end()){
                 
-                if(turn_off_hom_optimisation){
+                if(config.turn_off_hom_optimisation){
                     //TO-DO: check this
                     Sparse_Matrix S(0,0);
                     #if TIMERS
                         hom_space_test_timer.resume();
                         misc_timer.stop();
                     #endif
-                    hom_spaces.emplace(std::make_pair(c,b), compute_hom_space_no_optimisation(A, C, B, alpha, S));
+                    hom_spaces.emplace(std::make_pair(c,b), compute_hom_space_no_optimisation(A, C, B, alpha, S, config.alpha_hom));
                     #if TIMERS
                         hom_space_test_timer.stop();
                         misc_timer.resume();
@@ -2105,12 +2131,13 @@ void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterator>& blo
                         hom_space_timer.resume();
                         misc_timer.stop();
                     #endif
-                    hom_spaces.emplace(std::make_pair(c,b), compute_hom_space(A, C, B, alpha));
+                    hom_spaces.emplace(std::make_pair(c,b), compute_hom_space(A, C, B, alpha, config.alpha_hom));
                     #if TIMERS
                         hom_space_timer.stop();
                         misc_timer.resume();
                     #endif
                 }
+
                 int dim = hom_spaces[{c,b}].first.num_cols;
                 statistics.dim_hom_vec.push_back(dim);
                 if(dim > statistics.dim_hom_max){
@@ -2132,7 +2159,7 @@ void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterator>& blo
                 #if DETAILS
                     std::cout << "      Hom-space " << c << " -> " << b << " has dimension " << dim << std::endl;
                 #endif
-                if(compare_hom_space_computation){
+                if(config.compare_hom){
                     #if TIMERS
                         hom_space_test_timer.resume();
                         misc_timer.stop();
@@ -2974,7 +3001,7 @@ vec< Merge_data > exhaustive_alpha_decomp(
                         deletion_tracker.push_back({b, 1});
                     #endif
                     auto it = blocks_conflict.erase(--itr.base());
-                    itr = std::reverse_iterator(it); 
+                    itr = std::reverse_iterator<decltype(it)>(it); 
                 } else if ( conflict_resolution ) {
                     
                     #if TIMERS
@@ -2995,7 +3022,7 @@ vec< Merge_data > exhaustive_alpha_decomp(
                             deletion_tracker.push_back({b, 2});
                         #endif
                         auto it = blocks_conflict.erase(--itr.base());
-                        itr = std::reverse_iterator(it);
+                        itr = std::reverse_iterator<decltype(it)>(it);
                     } else {
                         conflict_resolution = false;
                         itr++;
@@ -3045,7 +3072,7 @@ vec< Merge_data > exhaustive_alpha_decomp(
                     }
                     erase_from_sorted_vector(blocks_1, b);
                     auto it = blocks_excl_1.erase(--itr.base());
-                    itr = std::reverse_iterator(it);  
+                    itr = std::reverse_iterator<decltype(it)>(it);  
                     #if DETAILS
                         std::cout << "    In Step 2, deleted " << b << " from side 1." << std::endl;
                         if(std::find(blocks_2.begin(), blocks_2.end(), b) != blocks_2.end()){
@@ -3995,7 +4022,7 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
                 vec<index> active_blocks_vec(active_blocks.begin(), active_blocks.end());
 
                 if( !config.brute_force ){
-                    compute_hom_to_b(A, b, block_map, active_blocks, hom_spaces, domain_keys, codomain_keys, alpha, statistics, config.turn_off_hom_optimisation, config.compare_hom);
+                    compute_hom_to_b(A, b, block_map, active_blocks, hom_spaces, domain_keys, codomain_keys, alpha, statistics, config);
                 }
 
                 #if TIMERS
@@ -4018,7 +4045,7 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
                     block_map[b]->delete_local_data();
                     N_map.erase(b);
                     auto it = active_blocks.erase(--itr.base());
-                    itr = std::reverse_iterator(it);
+                    itr = std::reverse_iterator<decltype(it)>(it);
                 } else {
                     // It is imporant to have the local data be completely reduced 
                     // ( that is, have a canonical representation in the quotient space )

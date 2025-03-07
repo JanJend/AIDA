@@ -1037,11 +1037,15 @@ struct MatrixUtil{
     /**
      * @brief Computes a set of row indices whose images under the quotient map form a basis of the cokernel.
      *          Equivalently, the set of row indices which are not pivots after column-reduction.
+     * @param mask
+     * @param row_indices
      * @return vec<index> 
      */
-    vec<index> coKernel_basis(const vec<index>& mask, const vec<index>& row_indices){
+    vec<index> coKernel_basis(const vec<index>& mask, const vec<index>& row_indices, const bool& no_reduction = false){
         vec<index> basis;
-        column_reduction();
+        if(!no_reduction){
+            column_reduction();
+        }
         for(index i : mask){
             if(pivots.count(row_indices[i]) == 0){
                 basis.push_back(i);
@@ -1049,6 +1053,8 @@ struct MatrixUtil{
         }
         return basis;
     }
+
+
 
 }; //MatrixUtil
 

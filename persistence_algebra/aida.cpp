@@ -38,6 +38,8 @@
 #include <unistd.h> 
 #include <getopt.h>
 
+namespace fs = std::filesystem;
+
 void display_help() {
     std::cout << "Usage: ./aida <input_file> [options]\n"
               << "Options:\n"
@@ -57,6 +59,7 @@ void display_help() {
               << "  -i, --compare_hom    Compares optimised and non-opt hom space calculation at runtime.\n"
               << "  -j, --no_hom_opt     Does not use the optimised hom space calculation.\n"
               << "  -w, --no_col_sweep   Does not use the column sweep optimisation.\n"
+              << "  -f, --no_alpha       Turns the computation of alpha-homs off.\n"
               << "      <file> is optional and will default to the <input_file> with _decomposed appended\n"
               << "      You can pass relative and absolute paths as well as only a directory."
               << "Further Instructions: \n Make sure that the inputfile is a (sequence of) scc or firep presentations that are minimised.\n"
@@ -74,6 +77,7 @@ int main(int argc, char** argv){
     decomposer.config.brute_force = false;
     decomposer.config.sort = false;
     decomposer.config.sort_output = true;
+    decomposer.config.alpha_hom = true;
     bool write_output = false;
 
     bool show_indecomp_statistics = false;
@@ -133,13 +137,14 @@ int main(int argc, char** argv){
         {"compare_hom", no_argument, 0, 'i'},
         {"no_hom_opt", no_argument, 0, 'j'},
         {"no_col_sweep", no_argument, 0, 'w'},
+        {"no_alpha", no_argument, 0, 'f'},
         {0, 0, 0, 0}
     };
 
     int opt;
     int option_index = 0;
 
-    while ((opt = getopt_long(argc, argv, "ho::bsetrpclmvaijw", long_options, &option_index)) != -1) {
+    while ((opt = getopt_long(argc, argv, "ho::bsetrpclmvaijwf", long_options, &option_index)) != -1) {
         switch (opt) {
             case 'h':
                 display_help();
@@ -197,6 +202,9 @@ int main(int argc, char** argv){
                 break;
             case 'w':
                 decomposer.config.supress_col_sweep = true;
+                break;
+            case 'f':
+                decomposer.config.alpha_hom = false;
                 break;
             default:
                 return 1;

@@ -1053,7 +1053,49 @@ struct SparseMatrix : public MatrixUtil<vec<index>, index, SparseMatrix<index>>{
 		return std::move(result);
     }
 
-    
+    /**
+     * @brief Assumes that matrix is reduced and a basislift is computed
+     * Computes the cokernel of a sparse matrix over F_2 by column reducing the matrix first
+     * Notice that the result must be a cokernel to the non-reduced matrix, too, so we can also use a copy instead, if we want to keep the original matrix.
+    *  Assume
+
+    * @return sparseMatrix 
+    */
+   SparseMatrix coKernel_without_prelim(vec<index>& quotientBasis){
+  
+        // TO-DO: Finish this algorithm for alpha_hom computation.
+
+        print_vec(quotientBasis);
+
+        auto indexMap = shiftIndicesMap(quotientBasis);  // Do we need this?
+        SparseMatrix trunc(*this);
+
+        trunc.delete_last_entries();
+
+        transform_matrix(trunc.data, indexMap, true);
+
+        index newRows = quotientBasis.size();
+        index newCols = this->num_rows;
+        SparseMatrix result(newCols, newRows);
+
+        index j = 0;
+        for(index i = 0; i < newCols; i++){
+        // Construct Identity Matrix on the generators which descend to the quotient basis. 
+            if(j < quotientBasis.size() && quotientBasis[j] == i){
+                result.data[i].push_back(j);
+                j++;
+            } else {
+                // Locate the unqiue column with the last entry at i.
+                index colForPivot = *this->col_last_vec[i].begin();
+                result.data[i] = trunc.data[colForPivot];
+            }
+        }
+        assert(j == quotientBasis.size() && "Not all quotient basis elements were used");
+        if(basisLift){
+            *basisLift = quotientBasis;
+        }
+        return std::move(result);
+    }       
 
     /**
      * @brief Returns the number of entries in the matrix.

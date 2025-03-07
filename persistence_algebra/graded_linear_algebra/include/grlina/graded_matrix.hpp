@@ -18,7 +18,8 @@
 
 namespace graded_linalg {
 
-
+template<typename index>
+using Hom_space_temp = std::pair< SparseMatrix<index>, vec<std::pair<index,index>> >;
 
 
 /**
@@ -472,7 +473,7 @@ std::pair< SparseMatrix<index>, vec<std::pair<index,index>> > hom_space(const Gr
     S.data.reserve( A.num_rows + B.num_rows + 1);
     index S_index = 0;
 
-    // TO-DO: Right now we compute map_at_degree possibly multiple times! Fix this.
+    // TO-DO: Right now we compute map_at_degree possibly multiple times! This could be optimised.
     for(index i = 0; i < A.num_rows; i++) {
         // Compute the target space B_alpha for each generator of A to minimise the number of variables.
         auto [B_alpha, rows_alpha] = B.map_at_degree_pair(A.row_degrees[i]);
@@ -617,6 +618,29 @@ std::pair< SparseMatrix<index>, vec<std::pair<index, index> > > block_hom_space_
     //  delete possible linear dependencies.
     K.column_reduction_triangular(true);
     return std::make_pair(K, row_ops);
+}
+
+/**
+ * @brief Computes the quotient space of homomorphisms from A to B which is non-zero at alpha.
+ * 
+ * @tparam D 
+ * @tparam index 
+ * @param full_space 
+ * @param alpha 
+ * @param C
+ * @param B
+ * @param C_local
+ * @param B_local
+ * @param row_indices_A 
+ * @param row_indices_B
+ * @return Hom_space_temp<index> 
+ */
+template <typename D, typename index>
+Hom_space_temp<index> compute_alpha_hom( const Hom_space_temp<index>& full_space, D& alpha, const GradedSparseMatrix<D, index>& C, const GradedSparseMatrix<D, index>& B, 
+    SparseMatrix<index>& C_local, SparseMatrix<index>& B_local, 
+    const vec<index>& row_indices_C = vec<index>(), const vec<index>& row_indices_B = vec<index>()){
+
+        
 }
 
 } // namespace graded_linalg

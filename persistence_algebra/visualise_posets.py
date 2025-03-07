@@ -134,7 +134,7 @@ def visualize_graph(degree_filepath, edge_filepath):
     plt.show()
 
 # Call the function with the correct file paths
-visualize_graph('/home/wsljan/generalized_persistence/code/degreeList.csv', '/home/wsljan/generalized_persistence/code/edgesBeforeReduction.csv')
+# visualize_graph()
 
 
 # Example usage

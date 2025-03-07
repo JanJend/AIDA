@@ -72,6 +72,8 @@
 
 namespace aida{
 
+namespace fs = std::filesystem;
+
 /**
  * @brief Computes and processes statistics about indecomposables
  * 
