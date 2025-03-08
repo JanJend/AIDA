@@ -1057,21 +1057,22 @@ struct SparseMatrix : public MatrixUtil<vec<index>, index, SparseMatrix<index>>{
      * @brief Assumes that matrix is reduced and a basislift is computed
      * Computes the cokernel of a sparse matrix over F_2 by column reducing the matrix first
      * Notice that the result must be a cokernel to the non-reduced matrix, too, so we can also use a copy instead, if we want to keep the original matrix.
-    *  Assume
+    *  Assume that the matrix has been fully (!) reduced and a basis for the cokernel has been computed.
 
     * @return sparseMatrix 
     */
-   SparseMatrix coKernel_without_prelim(vec<index>& quotientBasis){
+    SparseMatrix coKernel_without_prelim(vec<index>& quotientBasis){
   
-        // TO-DO: Finish this algorithm for alpha_hom computation.
+        // TO-DO: This could be done without computing, storing and then deleting trunc. Need to see if we're too slow.
 
         print_vec(quotientBasis);
 
         auto indexMap = shiftIndicesMap(quotientBasis);  // Do we need this?
         SparseMatrix trunc(*this);
 
+        // Since the matrix is fully reduced, every pivot row has a unique last entry in some column 
+        // and this is still stored in the pivot map. Therefore for computation this re-indexed matrix works better.
         trunc.delete_last_entries();
-
         transform_matrix(trunc.data, indexMap, true);
 
         index newRows = quotientBasis.size();
@@ -1085,15 +1086,13 @@ struct SparseMatrix : public MatrixUtil<vec<index>, index, SparseMatrix<index>>{
                 result.data[i].push_back(j);
                 j++;
             } else {
-                // Locate the unqiue column with the last entry at i.
-                index colForPivot = *this->col_last_vec[i].begin();
-                result.data[i] = trunc.data[colForPivot];
+                // If were in a non-basis-column, compute the entries directly:
+                // Locate the unqiue column in the input matrix with the last entry at i.
+                // Observe that the matrix trun is exactly the non-identity part of the matrix as long as we work over F_2
+                result.data[i] = trunc.data[*this->pivots[i]];
             }
         }
         assert(j == quotientBasis.size() && "Not all quotient basis elements were used");
-        if(basisLift){
-            *basisLift = quotientBasis;
-        }
         return std::move(result);
     }       
 

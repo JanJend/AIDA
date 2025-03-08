@@ -51,12 +51,12 @@ def read_presentation(filepath):
 
             while counter < no_rel:
                 line = file.readline().strip()
-                relations.append(parse_line(line))
+                relations.append(parse_line(line, is_relation=True))
                 counter += 1
 
             while counter < no_rel + no_gen:
                 line = file.readline().strip()
-                generators.append(parse_line(line))
+                generators.append(parse_line(line, is_relation=False))
                 counter += 1
 
             return relations, generators
@@ -66,7 +66,7 @@ def read_presentation(filepath):
         return None
 
 
-def parse_line(line):
+def parse_line(line, is_relation):
     # Split the line by semicolon
     parts = line.split(';')
 
@@ -74,20 +74,42 @@ def parse_line(line):
     try:
         real1 = float(parts[0].split()[0])
         real2 = float(parts[0].split()[1])
-        return (real1, real2)
+        if is_relation:
+            integers = list(map(int, parts[1].strip().split()))
+            return (real1, real2, integers)
+        else:
+            return (real1, real2)
     except ValueError:
         print("Error: Unable to parse real numbers from the line.")
         return None
 
+
 def visualize_presentation(generators, relations):
-    # Merge generators and relations
-    data = generators + relations
+    # Unpack x and y coordinates for generators
+    x_gen, y_gen = zip(*generators)
 
-    # Unpack x and y coordinates
-    x, y = zip(*data)
+    # Unpack x and y coordinates for relations
+    x_rel, y_rel, rel_indices = zip(*relations)
 
-    # Plot the points
-    plt.scatter(x, y, label='Data Points', color='blue', marker='o')
+    # Plot the points for generators
+    scatter_gen = plt.scatter(x_gen, y_gen, label='Generators', color='blue', marker='o')
+
+    # Plot the points for relations
+    scatter_rel = plt.scatter(x_rel, y_rel, label='Relations', color='red', marker='x')
+
+    # Get the size of the markers
+    marker_size_gen = scatter_gen.get_sizes()[0] if scatter_gen.get_sizes().size > 0 else 20
+    marker_size_rel = scatter_rel.get_sizes()[0] if scatter_rel.get_sizes().size > 0 else 20
+
+    # Calculate arrow head sizes relative to marker sizes
+    head_width = marker_size_rel ** 0.5 / 200
+    head_length = marker_size_rel ** 0.5 / 200
+
+    # Draw lines from relations to generators
+    for (x_r, y_r, indices) in zip(x_rel, y_rel, rel_indices):
+        for idx in indices:
+            x_g, y_g = generators[idx]
+            plt.plot([x_r, x_g], [y_r, y_g], color='green', linewidth=0.5)
 
     # Add labels and title
     plt.xlabel('X-axis')
@@ -100,45 +122,10 @@ def visualize_presentation(generators, relations):
     # Show the plot
     plt.show()
 
-def visualize_graph(degree_filepath, edge_filepath):
-    try:
-        degree_df = pd.read_csv(degree_filepath)
-        edge_df = pd.read_csv(edge_filepath)
-    except FileNotFoundError as e:
-        print(f"Error: {e}")
-        return
-    except pd.errors.EmptyDataError:
-        print("Error: Empty data in one or both CSV files.")
-        return
-
-    G = nx.DiGraph()
-
-    # Add nodes with positions
-    for index, row in degree_df.iterrows():
-        G.add_node(index, pos=(row['X'], row['Y']))
-
-    # Add edges
-    for _, row in edge_df.iterrows():
-        source, target = row['Source'], row['Target']
-        if source in G.nodes and target in G.nodes:
-            G.add_edge(source, target)
-
-    # Check for nodes without positions
-    nodes_without_position = [node for node, data in G.nodes(data=True) if 'pos' not in data]
-    if nodes_without_position:
-        print(f"Warning: Nodes {nodes_without_position} have no position.")
-
-    # Draw the graph
-    nx.draw(G, pos=nx.get_node_attributes(G, 'pos'), with_labels=False, node_size=700, node_color='skyblue', font_size=8, font_color='black', font_weight='bold', arrowsize=10)
-
-    plt.show()
-
-# Call the function with the correct file paths
-# visualize_graph()
 
 
 # Example usage
-# presentation_data = read_presentation("/home/wsljan/compression_for_2_parameter_persistent_homology_data_and_benchmarks/comparison_with_rivet_datasets/noisy_circle_firep_8_0_min_pres.firep")
-# if presentation_data:
-#    relations, generators = presentation_data
-#    visualize_presentation(generators, relations)
+presentation_data = read_presentation("/home/wsljan/AIDA/persistence_algebra/test_presentations/full_rips_size_1_instance_5_min_pres.scc")
+if presentation_data:
+    relations, generators = presentation_data
+    visualize_presentation(generators, relations)

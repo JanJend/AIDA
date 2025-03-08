@@ -34,6 +34,7 @@ namespace aida{
 using index = int; // Change to large enough int type.
 
 using namespace graded_linalg;
+#include <filesystem>
 namespace fs = std::filesystem;
 using namespace boost::timer;
 
@@ -560,6 +561,10 @@ struct Block : GradedMatrix {
     void compute_local_basislift(degree d){
         compute_local_generators(d);
         local_basislift = local_data->coKernel_basis(local_admissible_rows, rows, true);
+    }
+
+    void compute_local_cokernel(degree d){
+        local_cokernel = std::make_shared<Sparse_Matrix>(local_data->coKernel_without_prelim(local_basislift));
     }
  
 
@@ -2121,6 +2126,8 @@ void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterator>& blo
                         hom_space_test_timer.resume();
                         misc_timer.stop();
                     #endif
+                    if(config.alpha_hom){
+                    }
                     hom_spaces.emplace(std::make_pair(c,b), compute_hom_space_no_optimisation(A, C, B, alpha, S, config.alpha_hom));
                     #if TIMERS
                         hom_space_test_timer.stop();

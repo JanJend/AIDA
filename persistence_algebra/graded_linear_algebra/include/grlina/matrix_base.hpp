@@ -1054,9 +1054,103 @@ struct MatrixUtil{
         return basis;
     }
 
+    
+    // Adds the matrices together, so that we can treat matrices themselves as vectors and do reduction
+    
+    /**
+     * @brief Usual addition of matrices.
+     * 
+     * @param other 
+     * @return DERIVED 
+     */
+    DERIVED operator+(const DERIVED& other) const {
+        // Ensure the matrices have the same dimensions
+        assert(this->num_cols == other.num_cols);
+        assert(this->num_rows == other.num_rows);
 
+        // Create a new DERIVED object to store the result
+        DERIVED result(this->num_cols, this->num_rows);
+
+        // Add the columns of the two matrices
+        for (index i = 0; i < this->num_cols; ++i) {
+            result.data[i] = this->data[i];
+            this->vadd_to(other.data[i], result.data[i]);
+        }
+
+        return result;
+    }
+
+    /**
+     * @brief Adds this matric to the other matrix in place.
+     * 
+     * @param other 
+     */
+    void add_to(const DERIVED& other){
+        // Ensure the matrices have the same dimensions
+        assert(this->num_cols == other.num_cols);
+        assert(this->num_rows == other.num_rows);
+
+        // Add the columns of the two matrices
+        for (index i = 0; i < this->num_cols; ++i) {
+            this->vadd_to(this->data[i], other.data[i]);
+        }
+    }
+
+    /**
+     * @brief Returns the coordinates of the last non-zero entry for reduction
+     * 
+     * @return std::pair<index, index> 
+     */
+    std::pair<index, index> last_entry (){
+        for(index i = num_cols-1; i >= 0; i--){
+            index p = col_last(i);
+            if(p >= 0){
+                return std::make_pair(i, p);
+            }
+        }
+        return std::make_pair(-1, -1);
+    }
 
 }; //MatrixUtil
+
+
+/**
+ * @brief Performs reduction on a vector of matrices
+ * 
+ * @tparam COLUMN 
+ * @tparam index 
+ * @tparam DERIVED 
+ * @param matrices 
+ * @return vec<index> 
+ */
+template<typename COLUMN, typename index, typename DERIVED>
+vec<index> general_reduction(vec<MatrixUtil<COLUMN, index, DERIVED>>& matrices) {
+    // Ensure all matrices have the same dimensions
+    assert(!matrices.empty());
+    index num_cols = matrices[0].num_cols;
+    index num_rows = matrices[0].num_rows;
+    for (const auto& matrix : matrices) {
+        assert(matrix.num_cols == num_cols);
+        assert(matrix.num_rows == num_rows);
+    }
+
+    vec<index> non_zero_indices;
+
+    for (index j = 0; j < matrices.size(); ++j) {
+        auto& matrix = matrices[j];
+        auto [col, row] = matrix.last_entry();
+        if (row != -1) {
+            for (index k = j; k < matrices.size(); k++) {
+                if (j != k && matrices[k].is_nonzero_entry(col, row)) {
+                    matrix.add_to(matrices[k]);
+                }
+            }
+            non_zero_indices.push_back(j);
+        }
+    }
+
+    return non_zero_indices;
+}
 
 /**
  * @brief Treats all matrices in N_map[all_blocks] as stacked on top and column reduces them diagonally 
@@ -1191,6 +1285,8 @@ bool compare_col_space(DERIVED& A, DERIVED& B){
     
     return copy_A.equals(copy_B);
 }
+
+
 
 } // graded_linalg
 
