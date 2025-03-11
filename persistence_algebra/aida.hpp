@@ -39,7 +39,7 @@ namespace fs = std::filesystem;
 using namespace boost::timer;
 
 #ifndef TIMERS
-#define TIMERS 1
+#define TIMERS 0
 #endif
 
 #define DETAILS 0 // For debugging 
@@ -223,6 +223,7 @@ struct AIDA_runtime_statistics {
     index resolvable_cyclic_counter;
     index cyclic_counter;
     index acyclic_counter;
+    index alpha_cycle_avoidance;
     index local_k_max;
     index dim_hom_max;
     vec<index> dim_hom_vec;
@@ -263,6 +264,7 @@ struct AIDA_runtime_statistics {
         resolvable_cyclic_counter = 0;
         cyclic_counter = 0;
         acyclic_counter = 0;
+        alpha_cycle_avoidance = 0;
         dim_hom_max = 0;
 
         #if TIMERS
@@ -302,6 +304,7 @@ struct AIDA_runtime_statistics {
         resolvable_cyclic_counter += other.resolvable_cyclic_counter;
         cyclic_counter += other.cyclic_counter;
         acyclic_counter += other.acyclic_counter;
+        alpha_cycle_avoidance += other.alpha_cycle_avoidance;
         local_k_max = std::max(local_k_max, other.local_k_max);
         dim_hom_max = std::max(dim_hom_max, other.dim_hom_max);
         num_of_pierced_blocks.insert(num_of_pierced_blocks.end(), other.num_of_pierced_blocks.begin(), other.num_of_pierced_blocks.end());
@@ -354,6 +357,7 @@ struct AIDA_runtime_statistics {
         std::cout << "  Acyclic batches " << acyclic_counter << std::endl;
         std::cout << "  Resolvable cyclic batches " << resolvable_cyclic_counter << std::endl;
         std::cout << "  Cyclic batches " << cyclic_counter << std::endl;
+        std::cout << "  Alpha cycle avoidance " << alpha_cycle_avoidance << std::endl;
         std::cout << "  Extra iterations: " << counter_extra_iterations << std::endl;
     }
 
@@ -493,12 +497,13 @@ struct Block : GradedMatrix {
     BlockType type; // 0 for free module, 1 for cyclic, 2 for interval, 3 for non-interval
 
     vec<index> local_admissible_cols; // Stores the indices of the columns which can be used for column operations.
-    vec<index> local_admissible_rows; // Stores the indices of the rows which can be used for row operations.
-    vec<index> local_basislift; // Stores a set of row indices which map to a basis at the local degree
+    vec<index> local_admissible_rows; // Stores the actual row_indices which can be used for row operations.
+    vec<index> local_basislift_indices; // Stores a set of indices defining a subset of local_admissible_rows which forms a basis at the local degree.
     // Careful, these are indices only locally for this block!
 
     // This will store the columns which can be added to the current batch, i.e. local_data = data | admissible_cols.
     std::shared_ptr<Sparse_Matrix> local_data; 
+    std::shared_ptr<Sparse_Matrix> local_data_normalised; // Stores the normalised local_data.
     std::shared_ptr<Sparse_Matrix> local_cokernel; // Stores the cokernel of the local_data.
 
     /**
@@ -541,7 +546,7 @@ struct Block : GradedMatrix {
      */
     void compute_local_data(degree d){
         // TO-DO: Can we make it so that this is already reduced?
-        local_data = std::make_shared<Sparse_Matrix>(map_at_degree(d, local_admissible_cols));
+        local_data = std::make_shared<Sparse_Matrix>(this->map_at_degree(d, local_admissible_cols));
     }
 
     /**
@@ -550,8 +555,17 @@ struct Block : GradedMatrix {
      * @param d 
      */
     void compute_local_generators(degree d){
-        local_admissible_rows = this->admissible_row_indices(d);
+        local_admissible_rows = vec<index>();
+        for( index i = 0; i < num_rows; i++){
+            if( is_admissible_row_operation(d, i)){
+                local_admissible_rows.push_back(rows[i]);
+            }
+        }
+        local_data_normalised = std::make_shared<Sparse_Matrix>(*local_data);
+        local_data_normalised->num_rows = local_admissible_rows.size();
+        local_data_normalised->compute_normalisation_with_pivots(local_admissible_rows);
     }
+
 
     /**
      * @brief Computes the local basislift for the block.
@@ -560,11 +574,12 @@ struct Block : GradedMatrix {
      */
     void compute_local_basislift(degree d){
         compute_local_generators(d);
-        local_basislift = local_data->coKernel_basis(local_admissible_rows, rows, true);
+        // The following returns a subset of the indeices in local_admissible_row_indices.
+        local_basislift_indices = local_data_normalised->coKernel_basis(local_admissible_rows, true);
     }
 
-    void compute_local_cokernel(degree d){
-        local_cokernel = std::make_shared<Sparse_Matrix>(local_data->coKernel_without_prelim(local_basislift));
+    void compute_local_cokernel(){
+        local_cokernel = std::make_shared<Sparse_Matrix>(local_data_normalised->coKernel_transposed_without_prelim(local_basislift_indices));
     }
  
 
@@ -623,6 +638,10 @@ struct Block : GradedMatrix {
     void delete_local_data(){
         local_admissible_cols.clear();
         local_data.reset();
+        local_data_normalised.reset();
+        local_admissible_rows.clear();
+        local_cokernel.reset();
+        local_basislift_indices.clear();
     }
 
     
@@ -858,6 +877,7 @@ void initialise_block_list(const GradedMatrix& A, Block_list& B_list, vec<Block_
     B_list.clear();
     for(int i=0; i < A.get_num_rows(); i++) {
         Block B({},{i}, BlockType::FREE);
+        B.num_rows = 1;
         auto it = B_list.insert(B_list.end(), B);
         block_map.push_back(it);
         (*it).row_degrees[0] = A.row_degrees[i];
@@ -2095,6 +2115,8 @@ Hom_space compute_hom_space_no_optimisation(GradedMatrix& A, Block& C, Block& B,
     return {Sparse_Matrix(0,0), {}};
 }
 
+
+
 /**
  * @brief This computes all hom-spaces (possibly only the alpha-homs) between active blocks and stores them in hom_spaces.
  *      It also keeps track of which hom-spaces have been computed in domain_keys and codomain_keys.
@@ -2117,39 +2139,36 @@ void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterator>& blo
         Block& C = *block_map[c];
         if(b != c){
             // Do not compute again unless needed; This should save a lot of time hopefully.
-            if(hom_spaces.find({c,b}) == hom_spaces.end()){
+            // TO-DO: Run some tests, cannot use if hom_alpha is used
+            if( (hom_spaces.find({c,b}) == hom_spaces.end() || false) || config.alpha_hom){
+                #if TIMERS
+                    hom_space_timer.resume();
+                    misc_timer.stop();
+                #endif
                 
                 if(config.turn_off_hom_optimisation){
-                    //TO-DO: check this
-                    Sparse_Matrix S(0,0);
-                    #if TIMERS
-                        hom_space_test_timer.resume();
-                        misc_timer.stop();
-                    #endif
-                    if(config.alpha_hom){
-                    }
-                    hom_spaces.emplace(std::make_pair(c,b), compute_hom_space_no_optimisation(A, C, B, alpha, S, config.alpha_hom));
-                    #if TIMERS
-                        hom_space_test_timer.stop();
-                        misc_timer.resume();
-                    #endif
-                } else {
-                    #if TIMERS
-                        hom_space_timer.resume();
-                        misc_timer.stop();
-                    #endif
-                    hom_spaces.emplace(std::make_pair(c,b), compute_hom_space(A, C, B, alpha, config.alpha_hom));
-                    #if TIMERS
-                        hom_space_timer.stop();
-                        misc_timer.resume();
-                    #endif
+                    Sparse_Matrix S = Sparse_Matrix(0,0);
+                    hom_spaces.emplace(std::make_pair(c,b), compute_hom_space_no_optimisation(A, C, B, alpha, S, config.alpha_hom));}
+                else {
+                    hom_spaces.emplace(std::make_pair(c,b), compute_hom_space(A, C, B, alpha, config.alpha_hom));    
                 }
-
+                
+                #if TIMERS
+                    hom_space_timer.stop();
+                    misc_timer.resume();
+                #endif
+                
+                
                 int dim = hom_spaces[{c,b}].first.num_cols;
                 statistics.dim_hom_vec.push_back(dim);
                 if(dim > statistics.dim_hom_max){
                     statistics.dim_hom_max = dim;
                 }
+
+                #if DETAILS
+                    std::cout << "      Hom-space " << c << " -> " << b << " computed, dim " << dim << std::endl;
+                #endif
+                 
                 
                 // We need to know for which blocks b we have computed a hom-space from c to b.
                 // When c merges/extends, then these hom-spaces become void.
@@ -2163,9 +2182,7 @@ void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterator>& blo
                 domain_keys[c].push_back(b);	
                 codomain_keys[b].push_back(c);
 
-                #if DETAILS
-                    std::cout << "      Hom-space " << c << " -> " << b << " has dimension " << dim << std::endl;
-                #endif
+                
                 if(config.compare_hom){
                     #if TIMERS
                         hom_space_test_timer.resume();
@@ -3653,56 +3670,25 @@ vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, Block_li
         pro_computation_order = compute_topological_order<index>(pro_condensation); 
 
     }
-
     return pro_blocks;
 }
 
+
 /**
- * @brief Given a list of blocks and all hom_spaces, constructs the digraph on the blocks 
- * where there is a directed edge from block i to block j if Hom(B_i, B_j) != 0, as well as
- * a condensation of this graph and a topological order on the condensation.
+ * @brief Check for directed cycles
  * 
- * @param hom_digraph 
- * @param component 
- * @param scc 
- * @param condensation 
- * @param computation_order 
  * @param pierced_blocks 
- * @param hom_spaces 
- * @param cyclic_counter 
- * @param resolvable_cyclic_counter 
- * @param acyclic_counter 
- * @return false if there are unresolvable cycles 
+ * @param scc 
+ * @param has_cycle 
+ * @param has_unresolvable_cycle 
+ * @param has_multiple_cycles 
  */
-bool construct_graphs_from_hom(Graph& hom_digraph, std::vector<index>& component, vec<vec<index>>& scc, vec<bool>& is_resolvable_cycle,
-        Graph& condensation, vec<index>& computation_order, vec<index>& pierced_blocks, Hom_map& hom_spaces, 
-        index& cyclic_counter, index& resolvable_cyclic_counter, index& acyclic_counter, index& t, vec<Block_iterator>& block_map){
-    
-    // Graph on pierced blocks representing Hom(C,B) != 0 
-    hom_digraph = construct_hom_digraph(hom_spaces, pierced_blocks);
+void get_cycle_information(vec<index>& pierced_blocks, vec<vec<index>>& scc, vec<Block_iterator>& block_map,
+    bool& has_cycle,
+    bool& has_unresolvable_cycle,
+    bool& has_multiple_cycles,
+    vec<bool>& is_resolvable_cycle){
 
-    // Components assigns to each block the index of the strongly connected component it is in.
-    component = vec<index>(boost::num_vertices(hom_digraph));
-    // SCC is a vec< set<index> >, where each set contains the indices of the blocks in the SCC., condensation is a graph on the SCCs.
-    condensation = compute_scc_and_condensation(hom_digraph, component, scc);
-    // Contains the order in which to process the SCCs in reverse
-    computation_order = compute_topological_order<index>(condensation); 
-    
-    is_resolvable_cycle = vec<bool>(scc.size(), true);
-
-    #if DETAILS
-        print_graph(hom_digraph);
-        std::cout << "Component " <<  component << std::endl;
-        std::cout << "SCCs " << scc << std::endl;
-        print_graph(condensation);
-        std::cout << "Computation order " << computation_order << std::endl;
-    #endif
-
-
-    // Check if there are any cycles in the hom-digraph by checking if there is a strongly connected component of size > 1
-    bool has_cycle = false;
-    bool has_unresolvable_cycle = false;
-    bool has_multiple_cycles = false;
     for(index i = 0; i < scc.size(); i++){
         if(scc[i].size() > 1){
             if(has_cycle){
@@ -3732,11 +3718,138 @@ bool construct_graphs_from_hom(Graph& hom_digraph, std::vector<index>& component
             #endif
         }
     }
+}
+
+void reduce_hom_alpha_graph(Hom_map& hom_spaces, vec<index>& local_pierced_blocks, 
+    Graph& hom_digraph, degree& alpha, vec<Block_iterator>& block_map) {
+
+    auto edges = boost::edges(hom_digraph);
+    std::vector<std::pair<Graph::vertex_descriptor, Graph::vertex_descriptor>> edges_to_remove;
+    for (auto edge_it = edges.first; edge_it != edges.second; ++edge_it) {
+        // Get the source and target vertices of the edge
+        auto source_vertex = boost::source(*edge_it, hom_digraph);
+        auto target_vertex = boost::target(*edge_it, hom_digraph);
+
+        index c = local_pierced_blocks[source_vertex];
+        index b = local_pierced_blocks[target_vertex];
+
+        // Access the blocks C and B
+        Block& C = *block_map[c];
+        Block& B = *block_map[b];
+
+        // Perform the steps already present
+        if (B.local_basislift_indices.empty()) {
+            B.compute_local_basislift(alpha);
+        }
+        if (C.local_basislift_indices.empty()) {
+            C.compute_local_basislift(alpha);
+        }
+        if (B.local_cokernel == nullptr) {
+            B.compute_local_cokernel();
+        }
+
+        bool is_zero = hom_quotient_zero(hom_spaces[{c,b}] , *B.local_cokernel, C.local_basislift_indices, C.local_admissible_rows, B.local_admissible_rows, C.rows);
+        
+        if (is_zero) {
+            #if DETAILS
+                std::cout << "  alpha-reduction: Deleted " << c << " to " << b << std::endl;
+            #endif
+            hom_spaces[{c,b}].first.data.clear();
+            hom_spaces[{c,b}].first.num_cols = 0;
+            edges_to_remove.emplace_back(source_vertex, target_vertex);
+        }
+    }
+
+    for (const auto& edge : edges_to_remove) {
+        boost::remove_edge(edge.first, edge.second, hom_digraph);
+    }
+}
+
+
+/**
+ * @brief Given a list of blocks and all hom_spaces, constructs the digraph on the blocks 
+ * where there is a directed edge from block i to block j if Hom(B_i, B_j) != 0, as well as
+ * a condensation of this graph and a topological order on the condensation.
+ * 
+ * @param hom_digraph 
+ * @param component 
+ * @param scc 
+ * @param condensation 
+ * @param computation_order 
+ * @param pierced_blocks 
+ * @param hom_spaces 
+ * @param cyclic_counter 
+ * @param resolvable_cyclic_counter 
+ * @param acyclic_counter 
+ * @return false if there are unresolvable cycles 
+ */
+bool construct_graphs_from_hom(Graph& hom_digraph, std::vector<index>& component, vec<vec<index>>& scc, vec<bool>& is_resolvable_cycle,
+        Graph& condensation, vec<index>& computation_order, vec<index>& pierced_blocks, Hom_map& hom_spaces, 
+        AIDA_runtime_statistics& statistics, AIDA_config& config, index& t, vec<Block_iterator>& block_map, degree& alpha){
+    
+    // Graph on pierced blocks representing Hom(C,B) != 0 
+    hom_digraph = construct_hom_digraph(hom_spaces, pierced_blocks);
+    
+    
+
+    bool test_alpha_cycles = true;
+
+    bool test_has_cycle = false;
+    bool test_has_unresolvable_cycle = false;
+    bool test_has_multiple_cycles = false;
+    vec<bool> test_is_resolvable_cycle;
+
+    if(test_alpha_cycles){
+        std::vector<index> test_component = vec<index>(boost::num_vertices(hom_digraph));
+        vec<vec<index>> test_scc;
+        Graph test_condensation = compute_scc_and_condensation(hom_digraph, test_component, test_scc);
+        test_is_resolvable_cycle = vec<bool>(test_scc.size(), true);
+        get_cycle_information(pierced_blocks, test_scc, block_map, test_has_cycle, test_has_unresolvable_cycle, test_has_multiple_cycles, test_is_resolvable_cycle);
+    }
+
+    reduce_hom_alpha_graph(hom_spaces, pierced_blocks, hom_digraph, alpha, block_map);
+
+
+    // Components assigns to each block the index of the strongly connected component it is in.
+    component = vec<index>(boost::num_vertices(hom_digraph));
+    // SCC is a vec< set<index> >, where each set contains the indices of the blocks in the SCC., condensation is a graph on the SCCs.
+    condensation = compute_scc_and_condensation(hom_digraph, component, scc);
+    // Contains the order in which to process the SCCs in reverse
+    computation_order = compute_topological_order<index>(condensation); 
+    
+    is_resolvable_cycle = vec<bool>(scc.size(), true);
+
+    #if DETAILS
+        print_graph(hom_digraph);
+        std::cout << "Component " <<  component << std::endl;
+        std::cout << "SCCs " << scc << std::endl;
+        print_graph(condensation);
+        std::cout << "Computation order " << computation_order << std::endl;
+    #endif
+
+
+    // Check if there are any cycles in the hom-digraph by checking if there is a strongly connected component of size > 1
+    bool has_cycle = false;
+    bool has_unresolvable_cycle = false;
+    bool has_multiple_cycles = false;
+
+    get_cycle_information(pierced_blocks, scc, block_map, has_cycle, has_unresolvable_cycle, has_multiple_cycles, is_resolvable_cycle);
+
+    if(test_alpha_cycles){
+        if(test_has_unresolvable_cycle && !has_unresolvable_cycle){
+            statistics.alpha_cycle_avoidance ++;
+        } else if (test_has_multiple_cycles && !has_multiple_cycles){
+            // record this?
+        } else if (test_has_cycle && !has_cycle){
+            // record this?
+        }
+    }
+
     #if DETAILS
         std::cout << "Batch " << t << " is ";
     #endif
     if(has_unresolvable_cycle){
-        cyclic_counter++;
+        statistics.cyclic_counter++;
         #if DETAILS
             std::cout << "un-resolvable cyclic." << std::endl;
         #endif
@@ -3745,12 +3858,12 @@ bool construct_graphs_from_hom(Graph& hom_digraph, std::vector<index>& component
             std::cout << "polycyclic." << std::endl;
         #endif
     } else if(has_cycle) {
-        resolvable_cyclic_counter++;
+        statistics.resolvable_cyclic_counter++;
         #if DETAILS
             std::cout << "resolvable cyclic." << std::endl;
         #endif
     } else {
-        acyclic_counter++;
+        statistics.acyclic_counter++;
         #if DETAILS
             std::cout << "acyclic." << std::endl;
         #endif
@@ -4152,9 +4265,11 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
                 } else {
                     Graph hom_digraph; std::vector<index> component; vec<vec<index>> scc; Graph condensation;
                     vec<bool> is_resolvable_cycle;
-                    vec<index> computation_order;     
+                    vec<index> computation_order;
+                    
                     bool is_resolvable = construct_graphs_from_hom(hom_digraph, component, scc, is_resolvable_cycle, condensation, computation_order, 
-                        local_pierced_blocks, hom_spaces, statistics.cyclic_counter, statistics.resolvable_cyclic_counter, statistics.acyclic_counter, t, block_map);
+                            local_pierced_blocks, hom_spaces, statistics, config, t, block_map, alpha);
+
                     vec<Merge_data> result;
                     if(is_resolvable && !config.exhaustive && !config.brute_force && !config.compare_both){
                         #if TIMERS

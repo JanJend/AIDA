@@ -264,6 +264,7 @@ struct MatrixUtil{
      * @brief Sets the pivot to be the first column which has this entry as the latest non-zero entry in the row.
      */
     void set_pivots_without_reducing() {
+        pivots.clear();
         for(index j=0; j<num_cols ; j++) {
             index p = col_last(j);
             if( p >= 0) {
@@ -550,7 +551,7 @@ struct MatrixUtil{
     }
 
     // Copy constructor
-    MatrixUtil(const MatrixUtil& other) : data(other.data), num_cols(other.num_cols), num_rows(other.num_rows) {}
+    MatrixUtil(const MatrixUtil& other) : data(other.data), num_cols(other.num_cols), num_rows(other.num_rows), pivots(other.pivots) {}
 
     MatrixUtil(index m, index n, vec<COLUMN> d) : num_cols(m), num_rows(n), data(d) {}
 
@@ -1054,6 +1055,32 @@ struct MatrixUtil{
         return basis;
     }
 
+    vec<index> coKernel_basis(const vec<index>& row_indices, const bool& no_reduction = false){
+        vec<index> basis;
+        if(!no_reduction){
+            column_reduction();
+        }
+        for(index i = 0 ; i < this->num_rows; i++){
+            if(pivots.count(row_indices[i]) == 0){
+                basis.push_back(i);
+            }
+        }
+        return basis;
+    }
+
+    vec<index> coKernel_basis(const bool& no_reduction = false){
+        vec<index> basis;
+        if(!no_reduction){
+            column_reduction();
+        }
+        for(index i = 0 ; i < this->num_rows; i++){
+            if(pivots.count(i) == 0){
+                basis.push_back(i);
+            }
+        }
+        return basis;
+    }
+
     
     // Adds the matrices together, so that we can treat matrices themselves as vectors and do reduction
     
@@ -1085,7 +1112,7 @@ struct MatrixUtil{
      * 
      * @param other 
      */
-    void add_to(const DERIVED& other){
+    void add_matrix_to(MatrixUtil<COLUMN, index, DERIVED>& other){
         // Ensure the matrices have the same dimensions
         assert(this->num_cols == other.num_cols);
         assert(this->num_rows == other.num_rows);
@@ -1123,13 +1150,13 @@ struct MatrixUtil{
  * @param matrices 
  * @return vec<index> 
  */
-template<typename COLUMN, typename index, typename DERIVED>
-vec<index> general_reduction(vec<MatrixUtil<COLUMN, index, DERIVED>>& matrices) {
+template<typename index, typename T>
+vec<index> general_reduction(vec< T > matrices) {
     // Ensure all matrices have the same dimensions
     assert(!matrices.empty());
     index num_cols = matrices[0].num_cols;
     index num_rows = matrices[0].num_rows;
-    for (const auto& matrix : matrices) {
+    for (const T& matrix : matrices) {
         assert(matrix.num_cols == num_cols);
         assert(matrix.num_rows == num_rows);
     }
@@ -1137,12 +1164,12 @@ vec<index> general_reduction(vec<MatrixUtil<COLUMN, index, DERIVED>>& matrices) 
     vec<index> non_zero_indices;
 
     for (index j = 0; j < matrices.size(); ++j) {
-        auto& matrix = matrices[j];
+        T& matrix = matrices[j];
         auto [col, row] = matrix.last_entry();
         if (row != -1) {
             for (index k = j; k < matrices.size(); k++) {
                 if (j != k && matrices[k].is_nonzero_entry(col, row)) {
-                    matrix.add_to(matrices[k]);
+                    matrix.add_matrix_to(matrices[k]);
                 }
             }
             non_zero_indices.push_back(j);

@@ -737,6 +737,14 @@ struct SparseMatrix : public MatrixUtil<vec<index>, index, SparseMatrix<index>>{
         transform_matrix(this->data, row_map, true);
     }
 
+    void compute_normalisation_with_pivots(const vec<index>& row_indices) {
+        assert(row_indices.size() == this->num_rows);
+        auto row_map = shiftIndicesMap(row_indices);
+        transform_matrix(this->data, row_map, true);
+        // Create a new map with updated keys
+        this->set_pivots_without_reducing();
+    }
+
     void transform_data(const std::unordered_map<index, index>& indexMap) {
         transform_matrix(this->data, indexMap, true);
     }
@@ -1021,7 +1029,7 @@ struct SparseMatrix : public MatrixUtil<vec<index>, index, SparseMatrix<index>>{
                 };
 			}
 		}
-		// print_vec(quotientBasis);
+
 
 		auto indexMap = shiftIndicesMap(quotientBasis);
 		SparseMatrix trunc(*this);
@@ -1055,19 +1063,14 @@ struct SparseMatrix : public MatrixUtil<vec<index>, index, SparseMatrix<index>>{
 
     /**
      * @brief Assumes that matrix is reduced and a basislift is computed
-     * Computes the cokernel of a sparse matrix over F_2 by column reducing the matrix first
-     * Notice that the result must be a cokernel to the non-reduced matrix, too, so we can also use a copy instead, if we want to keep the original matrix.
-    *  Assume that the matrix has been fully (!) reduced and a basis for the cokernel has been computed.
-
+     * Computes the cokernel of a sparse matrix over F_2 
     * @return sparseMatrix 
     */
-    SparseMatrix coKernel_without_prelim(vec<index>& quotientBasis){
+    SparseMatrix coKernel_without_prelim(vec<index>& quotientBasis, vec<index>& row_indices){
   
         // TO-DO: This could be done without computing, storing and then deleting trunc. Need to see if we're too slow.
 
-        print_vec(quotientBasis);
-
-        auto indexMap = shiftIndicesMap(quotientBasis);  // Do we need this?
+        auto indexMap = shiftIndicesMap(row_indices);  // Do we need this?
         SparseMatrix trunc(*this);
 
         // Since the matrix is fully reduced, every pivot row has a unique last entry in some column 
@@ -1081,6 +1084,7 @@ struct SparseMatrix : public MatrixUtil<vec<index>, index, SparseMatrix<index>>{
 
         index j = 0;
         for(index i = 0; i < newCols; i++){
+            result.data.push_back(vec<index>());
         // Construct Identity Matrix on the generators which descend to the quotient basis. 
             if(j < quotientBasis.size() && quotientBasis[j] == i){
                 result.data[i].push_back(j);
@@ -1089,11 +1093,48 @@ struct SparseMatrix : public MatrixUtil<vec<index>, index, SparseMatrix<index>>{
                 // If were in a non-basis-column, compute the entries directly:
                 // Locate the unqiue column in the input matrix with the last entry at i.
                 // Observe that the matrix trun is exactly the non-identity part of the matrix as long as we work over F_2
-                result.data[i] = trunc.data[*this->pivots[i]];
+                result.data[i] = trunc.data[this->pivots[i]];
             }
         }
         assert(j == quotientBasis.size() && "Not all quotient basis elements were used");
         return std::move(result);
+    }       
+
+    
+     /**
+     * @brief Assumes that matrix is reduced and a basislift was computed
+     * Computes the transpose of a cokernel of a sparse matrix over F_2
+    * @return sparseMatrix 
+    */
+   SparseMatrix coKernel_transposed_without_prelim(vec<index>& basislift){
+  
+        // TO-DO: Needs testing
+
+        auto index_map = shiftIndicesMap(basislift);  
+
+        index new_rows_t = this->num_rows;
+        index new_cols_t = basislift.size();
+        SparseMatrix result_t(new_cols_t, new_rows_t);
+
+        result_t.data = vec<vec<index>>(new_cols_t, vec<index>());
+
+        index j = 0;
+
+        for(index i = 0; i < new_rows_t; i++){
+            if (j < basislift.size() && basislift[j] == i) {
+                result_t.data[j].push_back(i);
+                j++;
+            } else  {
+                index k = this->pivots[i];
+                for(index l = 0; this->data[k].size()-1; l++){
+                    index entry = this->data[k][l];
+                    index row_index = index_map[ entry];
+                    result_t.data[row_index].push_back(i);
+                }
+            }
+        }
+
+        return std::move(result_t);
     }       
 
     /**
@@ -1319,6 +1360,8 @@ struct SparseMatrix : public MatrixUtil<vec<index>, index, SparseMatrix<index>>{
 
 }; // SparseMatrix;
 
+
+
 /**
  * @brief Computes the transpose of M, then multiplies the columns.
  * 
@@ -1334,6 +1377,27 @@ SparseMatrix<index> multiply(SparseMatrix<index>& M, SparseMatrix<index>& N){
   for(index i = 0; i < N.get_num_cols(); i++){
     for(index j = 0; j < transpose.get_num_cols(); j++){
       if(scalar_product(transpose.data[j], N.data[i])){ 
+        result.data[i].push_back(j);
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * @brief Computes the transpose of M, then multiplies the columns.
+ * 
+ * @param M 
+ * @param N 
+ * @return product M*N over F_2 
+ */
+template <typename index>
+SparseMatrix<index> multiply_transpose(SparseMatrix<index>& M, SparseMatrix<index>& N){
+  SparseMatrix<index> result(N.get_num_cols(), M.get_num_rows());
+  result.data.resize(result.num_cols);
+  for(index i = 0; i < N.get_num_cols(); i++){
+    for(index j = 0; j < M.get_num_cols(); j++){
+      if(scalar_product(M.data[j], N.data[i])){ 
         result.data[i].push_back(j);
       }
     }
@@ -1578,6 +1642,7 @@ struct SparseMatrix_set : public MatrixUtil<set<index>, index, SparseMatrix_set<
     }
 
 }; // SparseMatrix_set;
+
 
 } // namespace graded_linalg
 

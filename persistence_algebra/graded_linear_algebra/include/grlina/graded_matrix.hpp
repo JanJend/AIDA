@@ -164,7 +164,7 @@ struct GradedSparseMatrix : public SparseMatrix<index> {
     vec<index> admissible_row_indices(D d) {
         vec<index> result;
         for(index i = 0; i < this->num_rows; i++){
-            if(is_admissible_row_operation(i, d)){
+            if(is_admissible_row_operation(d, i)){
                 result.push_back(i);
             }
         }
@@ -182,6 +182,14 @@ struct GradedSparseMatrix : public SparseMatrix<index> {
     bool is_admissible_row_operation(index i, index j) const {
         assert(i != j);
         return Degree_traits<D>::greater_equal( row_degrees[i], row_degrees[j] );
+    }
+
+    bool is_admissible_row_operation(index i, D d) const {
+        return Degree_traits<D>::greater_equal( row_degrees[i], d);
+    }
+
+    bool is_admissible_row_operation(D d, index i) const {
+        return Degree_traits<D>::greater_equal( d, row_degrees[i]);
     }
 
     bool is_strictly_admissible_column_operation(index i, index j) const {
@@ -635,40 +643,147 @@ std::pair< SparseMatrix<index>, vec<std::pair<index, index> > > block_hom_space_
  */
 template <typename index>
 vec<index> hom_quotient( const Hom_space_temp<index>& full_space, 
-    SparseMatrix<index>& coKer_B, vec<index>& basislift_C){
-
-    Hom_space_temp<index> result;
+    SparseMatrix<index>& coKer_B, const vec<index>& basislift_C, vec<index>& C_admissible_rows, vec<index>& B_admissible_rows, vec<index>& C_rows){
 
     // For each map in full_space, we need to compute the induced map at alpha.
     // It is given by first restricting the domain to the rows in basislift_C, 
     // then composing from the left with the coKer_B map, 
-    vec<Sparse_Matrix<index>> induced_maps = vec<Sparse_Matrix<index>>();
+
+    // Because the basislift is given as a subset of the admissible rows, 
+    // we need to re-index the map Q wth the help of the admissible_rows.
+
+    vec<SparseMatrix<index>> induced_maps = vec<SparseMatrix<index>>();
+
+    auto& B_row_index_map = shiftIndicesMap(B_admissible_rows);
 
         for(index i = 0; i < full_space.first.num_cols; i++){
-            vec<index>& current_map = full_space.first.data[i];
+            const vec<index>& current_map = full_space.first.data[i];
             auto& index_pairs = full_space.second; // This is a pair (i,j) where i is the column index, j, the row index, and it is sorted first by i, then by j.
-            Sparse_Matrix<index> restriction_to_basislift_C = Sparse_Matrix<index>(0,0);
-            index i = 0;
+            SparseMatrix<index> Q_basislift_C = SparseMatrix<index>(0,0);
+            index k = 0;
             for(index j : basislift_C){
-                restriction_to_basislift_C.data.push_back(vec<index>());
+                Q_basislift_C.data.push_back(vec<index>());
 
-                while( index_pairs[i].first < j ){
-                    i++;
-                }
+                if(k != current_map.size()){
+     
+                    while( C_rows[ index_pairs[current_map[k]].first ] < C_admissible_rows[j] ){
+                        k++;
+                        if(k == current_map.size()){
+                            break;
+                        }
+                    }
 
-                while( index_pairs[i].first == j ){
-                    restriction_to_basislift_C.data.back().push_back(index_pairs[i].second);
-                    i++;
+                    while( C_rows[ index_pairs[current_map[k]].first ] == C_admissible_rows[j]){
+                        Q_basislift_C.data.back().push_back( B_row_index_map[ index_pairs[current_map[k]].second ]);
+                        k++;
+                        if(k == current_map.size()){
+                            break;
+                        }
+                    }
                 }
             }
-            restriction_to_basislift_C.compute_num_cols();
+            Q_basislift_C.compute_num_cols();
             // Now we have the restriction to the basislift_C, we need to compose with the coKer_B map.
-            induced_maps.emplace_back(coKer_B.multiply_right);
+            //TO-DO: Compute the rows of coKer_B beforehand and then multiply to avoid transposition.
+            induced_maps.emplace_back(multiply_transpose(coKer_B, Q_basislift_C));
         }
 
         // Reduce the vector space of induced homomorphisms
-        return general_reduction<vec<index>, index, Sparse_Matrix<index>>(induced_maps);
+        return general_reduction<index, SparseMatrix<index>> (induced_maps);
 }
+
+/**
+ * @brief Just as hom_quotient, but returns only "true" if the quotient space is zero.
+ * 
+ * @tparam index 
+ * @param full_space 
+ * @param coKer_B 
+ * @param basislift_C 
+ * @param C_admissible_rows 
+ * @param B_admissible_rows 
+ * @return true 
+ * @return false 
+ */
+template <typename index>
+bool hom_quotient_zero( const Hom_space_temp<index>& full_space, 
+    SparseMatrix<index>& coKer_B, const vec<index>& basislift_C, vec<index>& C_admissible_rows, vec<index>& B_admissible_rows, vec<index>& C_rows){
+
+    // For each map in full_space, we need to compute the induced map at alpha.
+    // It is given by first restricting the domain to the rows in basislift_C, 
+    // then composing from the left with the coKer_B map, 
+
+    // Because the basislift is given as a subset of the admissible rows, 
+    // we need to re-index the map Q wth the help of the admissible_rows.
+
+    auto B_row_index_map = shiftIndicesMap(B_admissible_rows);
+
+        for(index i = 0; i < full_space.first.num_cols; i++){
+            const vec<index>& current_map = full_space.first.data[i];
+            auto& index_pairs = full_space.second; // This is a pair (i,j) where i is the column index, j, the row index, and it is sorted first by i, then by j.
+            SparseMatrix<index> Q_basislift_C = SparseMatrix<index>(0,0);
+            index k = 0;
+            for(index j : basislift_C){
+                Q_basislift_C.data.push_back(vec<index>());
+
+                if(k < current_map.size()){
+     
+                    while( C_rows[ index_pairs[current_map[k]].first ] < C_admissible_rows[j] ){
+                        k++;
+                        if(k == current_map.size()){
+                            break;
+                        }
+                    }
+                    if(k == current_map.size()){
+                        break;
+                    }
+                    
+                    while( C_rows[ index_pairs[current_map[k]].first ] == C_admissible_rows[j]){
+                        Q_basislift_C.data.back().push_back( B_row_index_map[ index_pairs[current_map[k]].second ]);
+                        k++;
+                        if(k == current_map.size()){
+                            break;
+                        }
+                    }
+                }
+            }
+            Q_basislift_C.compute_num_cols();
+            // Now we have the restriction to the basislift_C, we need to compose with the coKer_B map.
+            //TO-DO: Compute the rows of coKer_B beforehand and then multiply to avoid transposition.
+            SparseMatrix<index> Q_alpha = multiply_transpose(coKer_B, Q_basislift_C);
+            if ( Q_alpha.is_nonzero() ) {
+                return false;
+            }
+        }
+
+        // Reduce the vector space of induced homomorphisms
+        return true;
+}
+
+/**
+ * @brief 
+ * 
+ * @param A 
+ * @param B 
+ * @param alpha 
+ * @return Hom_space_temp<index> 
+ */
+template <typename D, typename index>
+Hom_space_temp<index> hom_alpha(const GradedSparseMatrix<D, index>& A, const GradedSparseMatrix<D, index>& B, Hom_space_temp<index>& full_hom_space, const D alpha) {
+    
+    Hom_space_temp<index> result;
+    auto& [B_alpha, B_alpha_basis] = B.map_at_degree_pair(alpha);
+    auto& [A_alpha, A_alpha_basis] = A.map_at_degree_pair(alpha);
+
+    SparseMatrix<index> coker_B_alpha = B_alpha.coKernel_without_prelim(B_alpha_basis);
+
+    vec<index> hom_quotient_basis = hom_quotient(full_hom_space, coker_B_alpha, A_alpha_basis);
+
+    result.first = A_alpha.restricted_domain_copy(hom_quotient_basis);
+    result.second = hom_quotient_basis;
+
+    return result;
+}
+
 
 
 } // namespace graded_linalg
