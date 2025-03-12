@@ -51,6 +51,7 @@ struct Degree_traits {
 
     static bool smaller_equal (const D& lhs, const D& rhs);
     
+
     /**
      * @brief This can be any topolgical order on the degrees.
      * 
@@ -87,6 +88,12 @@ struct Degree_traits {
      */
     template <typename OutputStream>
     static void write_degree(OutputStream& os, const D& a);
+
+    /**
+     * @brief Gets the degree from an input stream.
+     */
+    template <typename InputStream>
+    static D from_stream(InputStream& iss);
 
 }; // Degree_traits
 

@@ -1,4 +1,5 @@
-#include "grlina/r2graded_matrix.hpp"  // Replace with the actual name of your header file
+#include "grlina/r2graded_matrix.hpp"  
+#include "grlina/r3graded_matrix.hpp"  
 #include <iostream>
 #include <cassert>
 
@@ -6,7 +7,7 @@ using namespace graded_linalg;
 
 
 void test_order() {
-    R2GradedSparseMatrix<int> M("/home/wsljan/generalized_persistence/persistence_algebra/test_presentations/test_pres_with_nonzero_k_min_pres.firep");
+    R2GradedSparseMatrix<int> M("/home/wsljan/AIDA/persistence_algebra/test_presentations/full_rips_size_1_instance_5_min_pres.scc");
     M.print_graded();
     M.sort_columns_lexicographically();
     M.print_graded();
@@ -24,6 +25,14 @@ void test_order() {
     print_edge_list(scc);
     std::cout << "and edges: " << std::endl;
     print_edge_list(cond);
+}
+
+void test_3d(){
+    R3GradedSparseMatrix<int> M("/home/wsljan/AIDA/persistence_algebra/test_presentations/test_3d.scc", true, true);
+    M.print_graded();
+    std::cout << M.col_batches << std::endl;
+    M.sort_columns_lexicographically();
+    M.print_graded();
 }
 
 void test_boost_graphs(){
@@ -88,6 +97,6 @@ void test_hom_spaces(){
 }
 
 int main() {
-    test_boost_graphs();
+    test_3d();
     return 0;
 }

@@ -46,6 +46,8 @@ struct GradedSparseMatrix : public SparseMatrix<index> {
     // Same here, but not strict.
     array<index> admissible_row_dual;
 
+
+    // This is only relevant for AIDA
     vec<index> rel_k = vec<index>(100, 0);
 	vec<index> gen_k= vec<index>(100, 0);
     index k_max = 1;
@@ -63,6 +65,136 @@ struct GradedSparseMatrix : public SparseMatrix<index> {
     void compute_num_rows(){
         this->num_rows = this->row_degrees.size();
     }
+
+
+    std::pair<D, std::vector<index>> parse_line(const std::string& line,  const bool& hasEntries = false) {
+        std::istringstream iss(line);
+        std::vector<index> rel;
+
+        D deg = Degree_traits<D>::from_stream(iss);
+
+        // Consume the semicolon
+        std::string tmp;
+        iss >> tmp;
+        if(tmp != ";"){
+            std::cerr << "Error: Expecting a semicolon. Invalid format in the following line: " << line << std::endl;
+            std::abort();
+        }
+
+        // Parse relation
+        if(hasEntries){
+            index num;
+            while (iss >> num) {
+                rel.push_back(num);
+            }
+        }
+
+        return std::move(std::make_pair(deg, rel));
+    }
+
+    void parse_stream(std::istream& file_stream, bool lex_sort, bool compute_batches) {
+        std::string line;
+
+        // Read the first line to determine the file type
+        std::getline(file_stream, line);
+        if (line.find("firep") != std::string::npos) {
+            // Skip 2 lines for FIREP
+            std::getline(file_stream, line);
+            std::getline(file_stream, line);
+        } else if (line.find("scc2020") != std::string::npos) {
+            // Skip 1 line for SCC2020
+            std::getline(file_stream, line);
+        } else {
+            // Invalid file type
+            std::cerr << "Error: Unsupported file format. The first line must contain firep or scc2020." << std::endl;
+            std::abort();
+        }
+
+        // Parse the first line after skipping
+        std::getline(file_stream, line);
+        std::istringstream iss(line);
+        index num_rel, num_gen, thirdNumber;
+
+        // Check that there are exactly 3 numbers
+        if (!(iss >> num_rel >> num_gen >> thirdNumber) || thirdNumber != 0) {
+            std::cerr << "Error: Invalid format in the third or fourth line. Expecting exactly 3 numbers with the last one being 0." << std::endl;
+            std::abort();
+        }
+
+        this->num_cols = num_rel;
+        this->num_rows = num_gen;
+
+        this->col_degrees.reserve(num_rel);
+        this->row_degrees.reserve(num_gen);
+        this->data.reserve(num_gen);
+
+        index rel_counter = 0;
+
+        bool first_pass = true;
+        D last_degree;
+        index k_counter = 1;
+        index j = 0;
+        if (compute_batches) {
+            this->col_batches.reserve(num_rel);
+            if(num_rel > 0){
+                this->col_batches.push_back(vec<index>());
+            }
+        }
+
+        while (rel_counter < num_rel + num_gen) {
+            if(!std::getline(file_stream, line)){
+                std::cout << "Error: Unexpected end of file. \n Make sure that the dimensions of the file are correctly given at the beginning of the file." << std::endl;
+            }
+            std::pair<D, std::vector<index>> line_data;
+            if (rel_counter < num_rel) {
+                line_data = parse_line(line, true);
+                if (compute_batches && !lex_sort) {
+                    if (first_pass) {
+                        last_degree = line_data.first;
+                        first_pass = false;
+                    } else if (line_data.first == last_degree) {
+                        k_counter++;
+                        if (k_counter > this->k_max) {
+                            this->k_max = k_counter;
+                        }
+                    } else {
+                        last_degree = line_data.first;
+                        j++;
+                        this->col_batches.push_back(vec<index>());
+                        k_counter = 1;
+                    }
+                    this->col_batches[j].push_back(rel_counter);
+                }
+                this->col_degrees.push_back(line_data.first);
+                this->data.push_back(line_data.second);
+                rel_counter++;
+            } else {
+                line_data = parse_line(line, false);
+                this->row_degrees.push_back(line_data.first);
+                rel_counter++;
+            }
+        }
+
+        if (compute_batches && !lex_sort) {
+            // std::cout << "Loaded graded Matrix with k_max: " << this->k_max << std::endl;
+        }
+
+        if (lex_sort) {
+            std::cout << "Sorting the matrix lexicographically" << std::endl;
+            this->sort_columns_lexicographically();
+            this->sort_rows_lexicographically();
+            if (compute_batches) {
+                this->compute_col_batches();
+                // std::cout << "Loaded graded Matrix with k_max: " << this->k_max << std::endl;
+            }
+        }
+
+        if (!compute_batches) {
+            // std::cout << "Loaded graded Matrix without computing k_max" << std::endl;
+        }
+    } // Constructor from ifstream
+
+
 
     /**
      * @brief Prints the content in scc format to a stream. Partially from MPP_UTILS print_in_rivet_format in Graded_matrix.h
@@ -406,6 +538,15 @@ struct GradedSparseMatrix : public SparseMatrix<index> {
                 std::cout << " ";
             }
     }
+
+    /**
+     * @brief Pure virtual function for kernel computation.
+     * 
+     * @return SparseMatrix<index> 
+     */
+    virtual SparseMatrix<index> kernel() = 0;
+
+
 }; // GradedSparseMatrix
 
 

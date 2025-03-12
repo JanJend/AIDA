@@ -24,7 +24,6 @@ using array = vec<vec<T>>;
 
 
 using degree = std::pair<double, double>;
-using degree_list = vec<degree>;
 
 template<>
 struct Degree_traits<degree> {
@@ -87,7 +86,6 @@ struct Degree_traits<degree> {
     }
 
     
-
     /**
      * @brief Writes the degree to an output stream.
      */
@@ -95,6 +93,14 @@ struct Degree_traits<degree> {
     static void write_degree(OutputStream& os, const degree& a) {
         os << a.first << " " << a.second;
     }
+
+    template <typename InputStream>
+    static degree from_stream(InputStream& iss){
+        degree deg;
+        iss >> deg.first >> deg.second;
+        return deg;
+    }
+
 }; //Degree_traits<degree>
 
 /**
@@ -114,38 +120,6 @@ struct R2GradedSparseMatrix : GradedSparseMatrix<degree, index> {
 
     R2GradedSparseMatrix() : GradedSparseMatrix<degree, index>() {}
     R2GradedSparseMatrix(index m, index n) : GradedSparseMatrix<degree, index>(m, n) {}
-   
-    std::pair<degree, std::vector<index>> parse_line(const std::string& line, bool hasEntries = true) {
-        std::istringstream iss(line);
-        degree deg;
-        std::vector<index> rel;
-
-
-        // Parse degree
-        iss >> deg.first >> deg.second;
-
-
-        // Consume the semicolon
-        std::string tmp;
-        iss >> tmp;
-        if(tmp != ";"){
-            std::cerr << "Error: Expecting a semicolon. Invalid format in the following line: " << line << std::endl;
-            std::abort();
-        }
-
-        // Parse relation
-        if(hasEntries){
-    
-            index num;
-            while (iss >> num) {
-
-                rel.push_back(num);
-            }
-        }
-
-        return std::move(std::make_pair(deg, rel));
-    }
-
     
 
     /**
@@ -184,11 +158,11 @@ struct R2GradedSparseMatrix : GradedSparseMatrix<degree, index> {
             std::cout << "Warning, extension does not match .scc, .firep, .txt, or no extension." << std::endl;
         }
 
-        parse_stream(file, lex_sort, compute_batches);
+        this->parse_stream(file, lex_sort, compute_batches);
 
     } // Constructor from file
 
-    public:
+
     /**
      * @brief Constructs an R^2 graded matrix from an input file stream.
      * 
@@ -198,8 +172,10 @@ struct R2GradedSparseMatrix : GradedSparseMatrix<degree, index> {
      */
     R2GradedSparseMatrix(std::istream& file_stream, bool lex_sort = false, bool compute_batches = false)
         : GradedSparseMatrix<degree, index>() {
-        parse_stream(file_stream, lex_sort, compute_batches);
+        this->parse_stream(file_stream, lex_sort, compute_batches);
     }
+
+    
 
     /**
      * @brief Writes the R^2 graded matrix to an output stream.
@@ -235,110 +211,21 @@ struct R2GradedSparseMatrix : GradedSparseMatrix<degree, index> {
         }
     }
 
-private:
-    void parse_stream(std::istream& file_stream, bool lex_sort, bool compute_batches) {
-        std::string line;
+    /**
+     * @brief Returns a basis for the kernel of a 2d graded matrix.
+     * 
+     * @return SparseMatrix<index> 
+     */
+    SparseMatrix<index> kernel()  override {
+        // Implement
+        return SparseMatrix<index>();
+    }
 
-        // Read the first line to determine the file type
-        std::getline(file_stream, line);
-        if (line.find("firep") != std::string::npos) {
-            // Skip 2 lines for FIREP
-            std::getline(file_stream, line);
-            std::getline(file_stream, line);
-        } else if (line.find("scc2020") != std::string::npos) {
-            // Skip 1 line for SCC2020
-            std::getline(file_stream, line);
-        } else {
-            // Invalid file type
-            std::cerr << "Error: Unsupported file format. The first line must contain firep or scc2020." << std::endl;
-            std::abort();
-        }
 
-        // Parse the first line after skipping
-        std::getline(file_stream, line);
-        std::istringstream iss(line);
-        index num_rel, num_gen, thirdNumber;
 
-        // Check that there are exactly 3 numbers
-        if (!(iss >> num_rel >> num_gen >> thirdNumber) || thirdNumber != 0) {
-            std::cerr << "Error: Invalid format in the third or fourth line. Expecting exactly 3 numbers with the last one being 0." << std::endl;
-            std::abort();
-        }
 
-        this->num_cols = num_rel;
-        this->num_rows = num_gen;
-
-        this->col_degrees.reserve(num_rel);
-        this->row_degrees.reserve(num_gen);
-        this->data.reserve(num_gen);
-
-        index rel_counter = 0;
-
-        bool first_pass = true;
-        degree last_degree;
-        index k_counter = 1;
-        index j = 0;
-        if (compute_batches) {
-            this->col_batches.reserve(num_rel);
-            if(num_rel > 0){
-                this->col_batches.push_back(vec<index>());
-            }
-        }
-
-        while (rel_counter < num_rel + num_gen) {
-            if(!std::getline(file_stream, line)){
-                std::cout << "Error: Unexpected end of file. \n Make sure that the dimensions of the file are correctly given at the beginning of the file." << std::endl;
-            }
-            std::pair<degree, std::vector<index>> line_data;
-            if (rel_counter < num_rel) {
-                line_data = parse_line(line, true);
-                if (compute_batches && !lex_sort) {
-                    if (first_pass) {
-                        last_degree = line_data.first;
-                        first_pass = false;
-                    } else if (line_data.first == last_degree) {
-                        k_counter++;
-                        if (k_counter > this->k_max) {
-                            this->k_max = k_counter;
-                        }
-                    } else {
-                        last_degree = line_data.first;
-                        j++;
-                        this->col_batches.push_back(vec<index>());
-                        k_counter = 1;
-                    }
-                    this->col_batches[j].push_back(rel_counter);
-                }
-                this->col_degrees.push_back(line_data.first);
-                this->data.push_back(line_data.second);
-                rel_counter++;
-            } else {
-                line_data = parse_line(line, false);
-                this->row_degrees.push_back(line_data.first);
-                rel_counter++;
-            }
-        }
-
-        if (compute_batches && !lex_sort) {
-            // std::cout << "Loaded graded Matrix with k_max: " << this->k_max << std::endl;
-        }
-
-        if (lex_sort) {
-            std::cout << "Sorting the matrix lexicographically" << std::endl;
-            this->sort_columns_lexicographically();
-            this->sort_rows_lexicographically();
-            if (compute_batches) {
-                this->compute_col_batches();
-                // std::cout << "Loaded graded Matrix with k_max: " << this->k_max << std::endl;
-            }
-        }
-
-        if (!compute_batches) {
-            // std::cout << "Loaded graded Matrix without computing k_max" << std::endl;
-        }
-    } // Constructor from ifstream
-    
 }; // R2GradedSparseMatrix
+
 
 
 
