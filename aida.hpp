@@ -3,10 +3,14 @@
  * @author Jan Jendrysiak
  * @brief 
  * @version 0.1
- * @date 2024-10-07
+ * @date 2025-03-13
  * 
- * @copyright ?
- * 
+ * @copyright 2025 TU Graz
+    This file is part of the AIDA library. 
+   You can redistribute it and/or modify
+   it under the terms of the GNU Lesser General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
  */
 
 
@@ -524,12 +528,13 @@ struct Block : GradedMatrix {
     }
 
     /**
-     * @brief Returns the indices of the relations with only one entry
+     * @brief Returns the indices of the relations with only one entry. 
+     * If the presented module is an interval, these limit the end of the interval.
      * 
      * @return vec<index> 
      */
-    degree_list endpoints(){
-        degree_list result;
+    vec<degree> endpoints(){
+        vec<degree> result;
         for(index i = 0; i < num_cols; i++){
             if(data[i].size() == 1){
                 result.push_back(col_degrees[i]);

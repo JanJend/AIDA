@@ -55,7 +55,7 @@ struct Block {
     void compute_local_data(GradedMatrix& A, index target){
         // local_data = std::make_shared<Sparse_Matrix>(Sparse_Matrix(0,0));
         for(index i = 0; i < columns.size(); i++){
-            if(A.is_admissable_column_operation(columns[i], target)){
+            if(A.is_admissible_column_operation(columns[i], target)){
                 // std::cout << "  found an addmisible col op from column " << i << ": ";
                 // std::cout << A.col_degrees[columns[i]].first << " " << A.col_degrees[columns[i]].second << " to " <<
                 //     A.col_degrees[target].first << " " << A.col_degrees[target].second << std::endl;
@@ -507,7 +507,7 @@ void construct_linear_system(GradedMatrix& A, std::vector<std::reference_wrapper
                 for(index j = 0; j < B.rows.size(); j++){
                     auto source_index = C.rows[i];
                     auto target_index = B.rows[j];
-                    if(A.is_admissable_row_operation(source_index, target_index)){
+                    if(A.is_admissible_row_operation(source_index, target_index)){
                         #if DETAILS
                             std::cout << "Found admissible row operation from " << source_index << " to " << target_index << std::endl;
                             std::cout << "Degrees: " << A.row_degrees[source_index].first << " " << A.row_degrees[source_index].second << " to " 
@@ -569,7 +569,7 @@ void construct_linear_system(GradedMatrix& A, std::vector<std::reference_wrapper
             Block& C = *it;
             for(index i = 0; i < C.columns.size(); i++){
                 for(index j = 0; j < B.columns.size(); j++){
-                    if(A.is_admissable_column_operation(B.columns[j], C.columns[i])){
+                    if(A.is_admissible_column_operation(B.columns[j], C.columns[i])){
                         S.data.push_back(indvec());
                         for(index row_index : B.indecomp.data[j]){
                             S.data[S_index].emplace_back(A.linearise_position_reverse(C.columns[i], row_index));
@@ -1290,11 +1290,11 @@ void print_block_list(GradedMatrix& A, Block_list& B_list) {
         Block& B = *it;
         B.indecomp.reorder_via_comparison(B.columns);
         std::sort(B.columns.begin(), B.columns.end());
-        degree_list row_degrees;
+        vec<degree> row_degrees;
         for(index i : B.rows){
             row_degrees.push_back(A.row_degrees[i]);
         }
-        degree_list col_degrees;
+        vec<degree> col_degrees;
         for(index i : B.columns){
             col_degrees.push_back(A.col_degrees[i]);
         }

@@ -4,10 +4,14 @@
  * @brief This library was created to provide a set of tools for working with (graded) matrices over F_2 for the
  *        AIDA algorithm which decomposes minimal presentations of persistence modules. 
  * @version 0.1
- * @date 2024-10-07
+ * @date 2025-03-13
  * 
- * @copyright ?
- * 
+ * @copyright 2025 TU Graz
+ *  This file is part of the AIDA library. 
+ *  You can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
  */
 
 #pragma once
@@ -23,6 +27,7 @@
 #include <grlina/matrix_base.hpp>
 #include <grlina/graded_matrix.hpp>
 #include <grlina/r2graded_matrix.hpp>
+#include <grlina/r3graded_matrix.hpp>
 #include <grlina/dense_matrix.hpp>
 
 namespace graded_linalg {

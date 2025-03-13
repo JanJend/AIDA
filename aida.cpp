@@ -1,6 +1,8 @@
 /**
  * @file aida.cpp
  * @author Jan Jendrysiak
+ * @version 0.1
+ * @date 2025-03-13
  * @brief  How to use the AIDA program
  * 
  * 1. create a folder build in the root directory of the project
@@ -26,12 +28,15 @@
  * -i : compare optimised and non-optimised hom space calculation.
  * --h : display detailed description
  * --v : display version
+ * --f : turns the computation of alpha-homs off.
  * 
- * @version 1.0
- * @date 2024-10-07
  * 
- * @copyright ?
- * 
+ * @copyright 2025 TU Graz
+ *  This file is part of the AIDA library. 
+ *  You can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
  */
 
 #include "aida_interface.hpp"
