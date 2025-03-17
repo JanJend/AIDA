@@ -9,7 +9,7 @@ using namespace graded_linalg;
 
 
 void test_order() {
-    R2GradedSparseMatrix<int> M("/home/wsljan/AIDA/persistence_algebra/test_presentations/full_rips_size_1_instance_5_min_pres.scc");
+    R2GradedSparseMatrix<int> M("/home/wsljan/AIDA/test_presentations/full_rips_size_1_instance_5_min_pres.scc");
     M.print_graded();
     M.sort_columns_lexicographically();
     M.print_graded();
@@ -30,7 +30,7 @@ void test_order() {
 }
 
 void test_3d(){
-    R3GradedSparseMatrix<int> M("/home/wsljan/AIDA/persistence_algebra/test_presentations/test_3d.scc", true, true);
+    R3GradedSparseMatrix<int> M("/home/wsljan/AIDA/test_presentations/test_3d.scc", true, true);
     M.print_graded();
     std::cout << M.col_batches << std::endl;
     M.sort_columns_lexicographically();
@@ -100,5 +100,6 @@ void test_hom_spaces(){
 
 int main() {
     test_3d();
+    test_order();
     return 0;
 }
