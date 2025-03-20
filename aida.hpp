@@ -138,7 +138,7 @@ struct AIDA_config {
     bool sort; // Lex-sorts the matrices before processing.
     bool exhaustive; // Uses the exhaustive algorithm for the alpha-decomposition.
     bool brute_force; // Uses the exhaustive algorithm and does not use the hom-spaces.
-    bool sort_output; // Sorts the indecomposables of the decomposition by degree.
+    bool sort_output; // Sorts the indecomposables of the decomposition by r2degree.
     bool compare_both; // Compares the hom space and direct version of block_reduce
     bool exhaustive_test; // Compares exhaustive with aida at runtime.
     bool progress; // Shows progress bar while deecomposing.
@@ -502,7 +502,7 @@ struct Block : GradedMatrix {
 
     vec<index> local_admissible_cols; // Stores the indices of the columns which can be used for column operations.
     vec<index> local_admissible_rows; // Stores the actual row_indices which can be used for row operations.
-    vec<index> local_basislift_indices; // Stores a set of indices defining a subset of local_admissible_rows which forms a basis at the local degree.
+    vec<index> local_basislift_indices; // Stores a set of indices defining a subset of local_admissible_rows which forms a basis at the local r2degree.
     // Careful, these are indices only locally for this block!
 
     // This will store the columns which can be added to the current batch, i.e. local_data = data | admissible_cols.
@@ -533,9 +533,9 @@ struct Block : GradedMatrix {
      * 
      * @return vec<index> 
      */
-    vec<degree> endpoints(){
-        vec<degree> result;
-        for(index i = 0; i < num_cols; i++){
+    vec<r2degree> endpoints(){
+        vec<r2degree> result;
+        for(index i = 0; i < get_num_cols(); i++){
             if(data[i].size() == 1){
                 result.push_back(col_degrees[i]);
             }
@@ -549,17 +549,17 @@ struct Block : GradedMatrix {
      * @brief If admissible_cols has been set, this fetches the columns for further processing.
      * 
      */
-    void compute_local_data(degree d){
+    void compute_local_data(r2degree d){
         // TO-DO: Can we make it so that this is already reduced?
         local_data = std::make_shared<Sparse_Matrix>(this->map_at_degree(d, local_admissible_cols));
     }
 
     /**
-     * @brief stores the rows of degree <= d for repeated usage.
+     * @brief stores the rows of r2degree <= d for repeated usage.
      * 
      * @param d 
      */
-    void compute_local_generators(degree d){
+    void compute_local_generators(r2degree d){
         local_admissible_rows = vec<index>();
         for( index i = 0; i < num_rows; i++){
             if( is_admissible_row_operation(d, i)){
@@ -577,7 +577,7 @@ struct Block : GradedMatrix {
      *  Assumes, that local data has been computed and reduced.
      * @param d 
      */
-    void compute_local_basislift(degree d){
+    void compute_local_basislift(r2degree d){
         compute_local_generators(d);
         // The following returns a subset of the indeices in local_admissible_row_indices.
         local_basislift_indices = local_data_normalised->coKernel_basis(local_admissible_rows, true);
@@ -597,7 +597,7 @@ struct Block : GradedMatrix {
      */
     bool reduce_N( Sparse_Matrix& N){
         // Tries to delete N with the columns in local_data.
-        if(local_data->num_cols == 0){
+        if(local_data->get_num_cols() == 0){
             return false;
         }
         return local_data->solve_col_reduction(N);
@@ -612,7 +612,7 @@ struct Block : GradedMatrix {
      */
     bool reduce_N_fully( Sparse_Matrix& N, bool is_diagonal){
         // Tries to delete N with the columns in local_data.
-        if(local_data->num_cols == 0){
+        if(local_data->get_num_cols() == 0){
             return false;
         }
         return local_data->reduce_fully(N, is_diagonal);
@@ -624,7 +624,7 @@ struct Block : GradedMatrix {
      * 
      * @param N 
      */
-    bool delete_with_col_ops(degree d, Sparse_Matrix& N, bool no_deletion = false) {
+    bool delete_with_col_ops(r2degree d, Sparse_Matrix& N, bool no_deletion = false) {
 
         this->compute_local_data(d);
 
@@ -721,7 +721,7 @@ vec<index> hom_action(index& row_glueing, index& total_num_rows, vec<index>& hom
         auto [i,j] = row_ops[q];
         for(auto it = N._rows[i].rbegin(); it != N._rows[i].rend(); it++){
             if( sub_batch_indices.test(*it)){
-                result.push_back( linearise_position_reverse_ext<index>(*it, (j + row_glueing), N.num_cols, total_num_rows));
+                result.push_back( linearise_position_reverse_ext<index>(*it, (j + row_glueing), N.get_num_cols(), total_num_rows));
             } 
         }
     }
@@ -746,7 +746,7 @@ vec<index> hom_action_full_support(index& row_glueing, index& total_num_rows, ve
     for( index q : hom){
         auto [i,j] = row_ops[q];
         for(auto it = N._rows[i].rbegin(); it != N._rows[i].rend(); it++){
-            result.push_back( linearise_position_reverse_ext<index>(*it, (j + row_glueing), N.num_cols, total_num_rows));
+            result.push_back( linearise_position_reverse_ext<index>(*it, (j + row_glueing), N.get_num_cols(), total_num_rows));
         }
     }
     std::sort(result.begin(), result.end());
@@ -770,7 +770,7 @@ vec<index> hom_action_extension(index& row_glueing, index& total_num_rows, vec<i
     for( index q : hom){
         auto [i,j] = row_ops[q];
         for(auto it = N._rows[i].begin(); it != N._rows[i].end(); it++){
-            result.push_back( linearise_position_ext<index>(*it, (j + row_glueing), N.num_cols, total_num_rows));
+            result.push_back( linearise_position_ext<index>(*it, (j + row_glueing), N.get_num_cols(), total_num_rows));
         }
     }
     std::sort(result.begin(), result.end());
@@ -848,7 +848,7 @@ void update_hom_spaces( vec<Merge_data>& block_partition, Hom_map& hom_spaces,
 /**
  * @brief Constructs the digraph of non-zero homomorphisms between the blocks in vertex_labels.
  *        Not that the way hom_spaces is computed, meanse that there might be extra edges in the digraph, 
- *        where the corresponding homomorphisms are actually zero or zero at the degree of the current batch.
+ *        where the corresponding homomorphisms are actually zero or zero at the r2degree of the current batch.
  * 
  * @param hom_spaces 
  * @param vertex_labels 
@@ -914,9 +914,9 @@ void print_block_list_status(Block_list& B_list) {
  * @param batch_positions 
  * @param batch_indices 
  */
-void extend_block(Block& B, Sparse_Matrix& N, vec<index> batch_indices, bitset& batch_positions, degree& alpha) {
+void extend_block(Block& B, Sparse_Matrix& N, vec<index> batch_indices, bitset& batch_positions, r2degree& alpha) {
     if(batch_positions.empty()){
-        batch_positions = bitset(N.num_cols, true);
+        batch_positions = bitset(N.get_num_cols(), true);
     }
     
     for(auto i = batch_positions.find_first(); i != bitset::npos; i = batch_positions.find_next(i)){
@@ -932,9 +932,9 @@ void extend_block(Block& B, Sparse_Matrix& N, vec<index> batch_indices, bitset& 
             }
         }   
     }
-    B.num_cols += batch_positions.count();
-    assert(B.num_cols == B.columns.size());
-    assert(B.num_cols == B.data.size());
+    B.get_num_cols() += batch_positions.count();
+    assert(B.get_num_cols() == B.columns.size());
+    assert(B.get_num_cols() == B.data.size());
 
     if(B.type == BlockType::FREE){
         B.type = BlockType::CYC;
@@ -974,7 +974,7 @@ struct compare_block_position_column {
  */
 void merge_blocks_into_block(vec<index>& block_indices, vec<Block_list::iterator>& block_map, Block& new_block, 
                             Sub_batch& N_map, bitset& batch_positions, vec<index>& batch_indices, 
-                            vec<index>& row_map, degree& alpha){
+                            vec<index>& row_map, r2degree& alpha){
     
     std::priority_queue<block_position, vec<block_position>, compare_block_position_row> row_heap;
     std::priority_queue<block_position, vec<block_position>, compare_block_position_column> column_heap;
@@ -1003,18 +1003,18 @@ void merge_blocks_into_block(vec<index>& block_indices, vec<Block_list::iterator
         new_block.col_degrees.insert(new_block.col_degrees.end(), B->col_degrees.begin(), B->col_degrees.end());
         */
         new_block.num_rows += B->num_rows;
-        new_block.num_cols += B->num_cols;
+        new_block.get_num_cols() += B->get_num_cols();
     }
     
     new_block.type = BlockType::NON_INT;
 
 
     // Check if we stay being an interval
-    Degree_traits<degree> traits;
+    Degree_traits<r2degree> traits;
     if(batch_positions.count() == 1 && block_indices.size() == 2 && input_is_interval){
         auto i = batch_positions.find_first();
         bool N_is_length_two = true;
-        vec<degree> generators;
+        vec<r2degree> generators;
         for(index b : block_indices){
             if( N_map[b].data[i].size() != 1 ){
                 N_is_length_two = false;
@@ -1032,14 +1032,14 @@ void merge_blocks_into_block(vec<index>& block_indices, vec<Block_list::iterator
 
 
 
-    index batch_threshold = new_block.num_cols;
+    index batch_threshold = new_block.get_num_cols();
 
     new_block.rows.reserve(new_block.num_rows);
     new_block._rows.reserve(new_block.num_rows);
     new_block.row_degrees.reserve(new_block.num_rows);
-    new_block.columns.reserve(new_block.num_cols);
-    new_block.data.reserve(new_block.num_cols);
-    new_block.col_degrees.reserve(new_block.num_cols);
+    new_block.columns.reserve(new_block.get_num_cols());
+    new_block.data.reserve(new_block.get_num_cols());
+    new_block.col_degrees.reserve(new_block.get_num_cols());
 
     // Add columns of the blocks according to the column_heap.
 
@@ -1072,7 +1072,7 @@ void merge_blocks_into_block(vec<index>& block_indices, vec<Block_list::iterator
         }
         std::sort(new_block.data.back().begin(), new_block.data.back().end());
     }
-    new_block.num_cols += batch_positions.count();
+    new_block.get_num_cols() += batch_positions.count();
     // The minheap sorts the row-indices of the blocks in ascending order. 
     // Iteratively, we add this row index, the associated row from the block, and append entries, if the columns of N permit us.
     // TO-DO: Maybe this is much slower than simply sorting everything, I do not know.
@@ -1115,7 +1115,7 @@ void merge_blocks_into_block(vec<index>& block_indices, vec<Block_list::iterator
     assert(new_block._rows.size() == new_block.row_degrees.size());
     assert(new_block.rows.size() == new_block.row_degrees.size());
     assert(new_block.columns.size() == new_block.data.size());
-    assert(new_block.data.size() == new_block.num_cols);
+    assert(new_block.data.size() == new_block.get_num_cols());
 
 }
 
@@ -1130,7 +1130,7 @@ void merge_blocks_into_block(vec<index>& block_indices, vec<Block_list::iterator
  */
 void merge_blocks(Block_list& B_list, Sub_batch& N_map, 
                     vec<Block_list::iterator>& block_map, vec<Merge_data>& block_partition, vec<index>& batch_indices, 
-                    vec<index>& row_map, degree& alpha){ 
+                    vec<index>& row_map, r2degree& alpha){ 
     for(auto& partition : block_partition){
         vec<index>& block_indices = partition.first;
         bitset& batch_positions = partition.second; 
@@ -1217,7 +1217,7 @@ void test_rows_of_A(GradedMatrix& A, index batch){
                 if(j < batch){
                     std::cout << "Warning: The row " << i << " has an entry smaller than the current batch: " << j << std::endl;
                 }
-                if(j > A.num_cols){
+                if(j > A.get_num_cols()){
                     std::cout << "Warning: The row " << i << " has an entry larger than the number of columns: " << j << std::endl;
                 }
             }
@@ -1526,7 +1526,7 @@ void construct_linear_system_hom(vec<index>& batch_indices, bitset& sub_batch_in
         for(index row_index = 0; row_index < B.rows.size(); row_index++){
             for(auto int_col_it = N_B._rows[row_index].rbegin(); int_col_it != N_B._rows[row_index].rend(); int_col_it++){
                 if(sub_batch_indices.test(*int_col_it)){
-                    y.emplace_back(linearise_position_reverse_ext<index>(*int_col_it, row_index + row_glueing, N_B.num_cols, total_num_rows));
+                    y.emplace_back(linearise_position_reverse_ext<index>(*int_col_it, row_index + row_glueing, N_B.get_num_cols(), total_num_rows));
                 }
             }
         }
@@ -1629,7 +1629,7 @@ void construct_linear_system_hom_full_support(vec<index>& batch_indices, bool& r
         for(index row_index = 0; row_index < B.rows.size(); row_index++){
             for(auto int_col_it = N_B._rows[row_index].rbegin(); int_col_it != N_B._rows[row_index].rend(); int_col_it++){
 
-                y.emplace_back(linearise_position_reverse_ext<index>(*int_col_it, row_index + row_glueing, N_B.num_cols, total_num_rows));
+                y.emplace_back(linearise_position_reverse_ext<index>(*int_col_it, row_index + row_glueing, N_B.get_num_cols(), total_num_rows));
 
             }
         }
@@ -1785,7 +1785,7 @@ void construct_linear_system_extension(Sparse_Matrix& S, vec<hom_info>& hom_stor
  * @param B 
  * @return vec<Sparse_Matrix> 
  */
-Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, degree& alpha, const bool& alpha_hom = false){
+Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, r2degree& alpha, const bool& alpha_hom = false){
 
     vec< pair > row_ops; // we store the matrices Q_i which form the basis of hom(C, B) as vectors
     // This translates from entries of the vector to entries of the matrix.
@@ -1805,7 +1805,7 @@ Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, degree& alpha, 
                     counter++;
                 }
             }
-            K.compute_num_cols();
+            K.compute_get_num_cols()();
             return {K, row_ops};
             break;
         }
@@ -1834,7 +1834,7 @@ Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, degree& alpha, 
                     return lex_order( lhs, rhs);
                     });
                 
-                vec<vec<degree>> intersection;
+                vec<vec<r2degree>> intersection;
                 index segment_counter;
 
                 //TO-DO: finish
@@ -1904,7 +1904,7 @@ Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, degree& alpha, 
                 }
             }
  
-            S.compute_num_cols();
+            S.compute_get_num_cols()();
             
             // If M, N present the modules, then the following computes Hom(M,N), i.e. pairs of matrices st. QM = NP.
             K = S.get_kernel();
@@ -1912,7 +1912,7 @@ Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, degree& alpha, 
             // Now we need to delete the entries of K which correspond to the row-operations.
             K.cull_columns(row_op_threshold, false);
             
-            // Last we need to quotient out those Q where for every i the column Q_i - with its degree alpha_i -
+            // Last we need to quotient out those Q where for every i the column Q_i - with its r2degree alpha_i -
             // lies in the image of N, that is, it lies in the image of N|alpha_i.
             // That is equivalent to locally reducing every column of Q.
             
@@ -1920,10 +1920,10 @@ Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, degree& alpha, 
             std::unordered_map< std::pair<index, index>, index, pair_hash<index> > pair_to_index = pair_to_index_map(row_ops);
 
             for(index i = 0; i < C.rows.size(); i++){
-                degree alpha = C.row_degrees[i];
+                r2degree alpha = C.row_degrees[i];
                 vec<index> local_admissible_columns;
                 auto [B_alpha, rows_alpha] = B.map_at_degree_pair(alpha);
-                if(rows_alpha.empty() || B_alpha.num_cols == 0){
+                if(rows_alpha.empty() || B_alpha.get_num_cols() == 0){
                     continue;
                 }
                 std::unordered_map<index, index> reIndexMap;
@@ -1953,7 +1953,7 @@ Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, degree& alpha, 
  * @param B 
  * @return vec<Sparse_Matrix> 
  */
-Hom_space compute_hom_space_no_optimisation(GradedMatrix& A, Block& C, Block& B, degree& alpha, Sparse_Matrix& S_compare, const bool& alpha_hom = false){
+Hom_space compute_hom_space_no_optimisation(GradedMatrix& A, Block& C, Block& B, r2degree& alpha, Sparse_Matrix& S_compare, const bool& alpha_hom = false){
     //TO-DO: This function is not working correctly yet, but it is only for testing anyways.
 
     vec< pair > row_ops; // we store the matrices Q_i which form the basis of hom(C, B) as vectors
@@ -1974,7 +1974,7 @@ Hom_space compute_hom_space_no_optimisation(GradedMatrix& A, Block& C, Block& B,
                     counter++;
                 }
             }
-            K.compute_num_cols();
+            K.compute_get_num_cols()();
             return {K, row_ops};
             break;
         }
@@ -1994,7 +1994,7 @@ Hom_space compute_hom_space_no_optimisation(GradedMatrix& A, Block& C, Block& B,
                     return lex_order( lhs, rhs);
                     });
                 
-                vec<vec<degree>> intersection;
+                vec<vec<r2degree>> intersection;
                 index segment_counter;
 
                 //TO-DO: finish
@@ -2071,12 +2071,12 @@ Hom_space compute_hom_space_no_optimisation(GradedMatrix& A, Block& C, Block& B,
                 }
             }
  
-            S.compute_num_cols();
+            S.compute_get_num_cols()();
             #if SYSTEM_SIZE
-                std::cout << "System size: " << S.num_cols << std::endl;
+                std::cout << "System size: " << S.get_num_cols() << std::endl;
             #endif
 
-            if(S_compare.num_cols != 0){
+            if(S_compare.get_num_cols() != 0){
                 S.print();
                 S_compare.print();
             }
@@ -2087,7 +2087,7 @@ Hom_space compute_hom_space_no_optimisation(GradedMatrix& A, Block& C, Block& B,
             // Now we need to delete the entries of K which correspond to the row-operations.
             K.cull_columns(row_op_threshold, false);
             
-            // Last we need to quotient out those Q where for every i the column Q_i - with its degree alpha_i -
+            // Last we need to quotient out those Q where for every i the column Q_i - with its r2degree alpha_i -
             // lies in the image of N, that is, it lies in the image of N|alpha_i.
             // That is equivalent to locally reducing every column of Q.
             
@@ -2095,10 +2095,10 @@ Hom_space compute_hom_space_no_optimisation(GradedMatrix& A, Block& C, Block& B,
             std::unordered_map< std::pair<index, index>, index, pair_hash<index> > pair_to_index = pair_to_index_map(row_ops);
 
             for(index i = 0; i < C.rows.size(); i++){
-                degree alpha = C.row_degrees[i];
+                r2degree alpha = C.row_degrees[i];
                 vec<index> local_admissible_columns;
                 auto [B_alpha, rows_alpha] = B.map_at_degree_pair(alpha);
-                if(rows_alpha.empty() || B_alpha.num_cols == 0){
+                if(rows_alpha.empty() || B_alpha.get_num_cols() == 0){
                     continue;
                 }
                 std::unordered_map<index, index> reIndexMap;
@@ -2137,7 +2137,7 @@ Hom_space compute_hom_space_no_optimisation(GradedMatrix& A, Block& C, Block& B,
  */
 void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterator>& block_map, indtree& active_blocks, 
                                 Hom_map& hom_spaces, std::unordered_map<index, vec<index>>& domain_keys, 
-                                std::unordered_map<index, vec<index>>& codomain_keys, degree& alpha, AIDA_runtime_statistics& statistics, 
+                                std::unordered_map<index, vec<index>>& codomain_keys, r2degree& alpha, AIDA_runtime_statistics& statistics, 
                                 AIDA_config& config){ //turn_off_hom_optimisation, bool compare_hom_space_computation = false, bool compute_alpha_hom = true
     Block& B = *block_map[b];
     for(index c : active_blocks){
@@ -2164,7 +2164,7 @@ void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterator>& blo
                 #endif
                 
                 
-                int dim = hom_spaces[{c,b}].first.num_cols;
+                int dim = hom_spaces[{c,b}].first.get_num_cols();
                 statistics.dim_hom_vec.push_back(dim);
                 if(dim > statistics.dim_hom_max){
                     statistics.dim_hom_max = dim;
@@ -2199,13 +2199,13 @@ void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterator>& blo
                         hom_space_test_timer.stop();
                         misc_timer.resume();
                     #endif
-                    if(hom_spaces[{c,b}].first.num_cols != non_optimised_hom.first.num_cols){
-                        std::cout << "Error: Hom-spaces " << c << " -> " << b << " do not match: " << dim << " optimised, vs " << non_optimised_hom.first.num_cols << "brute_force" << std::endl;
+                    if(hom_spaces[{c,b}].first.get_num_cols() != non_optimised_hom.first.get_num_cols()){
+                        std::cout << "Error: Hom-spaces " << c << " -> " << b << " do not match: " << dim << " optimised, vs " << non_optimised_hom.first.get_num_cols() << "brute_force" << std::endl;
                     }
                 }
             } else {
                 #if DETAILS
-                    std::cout << "      Hom-space " << c << " -> " << b << " already computed, dim " << hom_spaces[{c,b}].first.num_cols << std::endl;
+                    std::cout << "      Hom-space " << c << " -> " << b << " already computed, dim " << hom_spaces[{c,b}].first.get_num_cols() << std::endl;
                 #endif  
             }
         }
@@ -2297,11 +2297,11 @@ bool block_reduce(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<inde
     #endif
     
     #if SYSTEM_SIZE
-        std::cout << "Solving linear system of size: " << S.num_cols << std::endl;
+        std::cout << "Solving linear system of size: " << S.get_num_cols() << std::endl;
         // S.print();
         // std::cout << "c: " <<  c << std::endl;
     #endif
-    S.compute_num_cols();
+    S.compute_get_num_cols()();
     reduced_to_zero = S.solve_col_reduction(c, solution_long);
     for(long i : solution_long){
         solution.push_back(i);
@@ -2383,11 +2383,11 @@ bool block_reduce_full_support(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_
     #endif
     
     #if SYSTEM_SIZE
-        std::cout << "Solving linear system of size: " << S.num_cols << std::endl;
+        std::cout << "Solving linear system of size: " << S.get_num_cols() << std::endl;
         // S.print();
         // std::cout << "c: " <<  c << std::endl;
     #endif
-    S.compute_num_cols();
+    S.compute_get_num_cols()();
     reduced_to_zero = S.solve_col_reduction(c, solution_long);
     for(long i : solution_long){
         solution.push_back(i);
@@ -2547,11 +2547,11 @@ bool block_reduce_hom(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<
         solve_linear_system_timer.resume();
     #endif
     #if SYSTEM_SIZE
-        std::cout << "  Solving linear system of size " << S.num_cols << "." << std::endl;
+        std::cout << "  Solving linear system of size " << S.get_num_cols() << "." << std::endl;
         // S.print(true, true);
         // std::cout << "  c: " <<  c;
     #endif
-    S.compute_num_cols();
+    S.compute_get_num_cols()();
     reduced_to_zero = S.solve_col_reduction(c, solution);
 
     #if TIMERS
@@ -2636,11 +2636,11 @@ bool block_reduce_hom_full_support(GradedMatrix& A, vec<index>& b_vec, Sub_batch
         solve_linear_system_timer.resume();
     #endif
     #if SYSTEM_SIZE
-        std::cout << "  Solving linear system of size " << S.num_cols << "." << std::endl;
+        std::cout << "  Solving linear system of size " << S.get_num_cols() << "." << std::endl;
         // S.print(true, true);
         // std::cout << "  c: " <<  c;
     #endif
-    S.compute_num_cols();
+    S.compute_get_num_cols()();
     reduced_to_zero = S.solve_col_reduction(c, solution);
 
     #if TIMERS
@@ -2855,7 +2855,7 @@ vec< Batch_transform > compute_internal_col_ops(Merge_data& virtual_source_block
     }
 
     // Reduction to independent column operations:
-    S.compute_num_cols();
+    S.compute_get_num_cols()();
     auto K = S.get_kernel();
     K.cull_columns(col_op_threshold, false);
     K.column_reduction_triangular(hom_threshold, true);
@@ -2893,7 +2893,7 @@ void compute_touched_blocks(indtree& active_blocks, vec<Block_iterator>& block_m
     for(index j = 0; j < batch.size(); j++){
         index bj = batch[j];
         // Q: Is this the fastest way to do it? It is possible we want a specific sorting function.
-        std::sort(A.data[bj].begin(), A.data[bj].end());
+        A.sort_column(bj);
         convert_mod_2(A.data[bj]); 
         #if DETAILS
             std::cout << "  Batch-col " << j << " after sorting: " << A.data[bj] << std::endl;
@@ -3217,9 +3217,9 @@ bool alpha_extension_decomposition(GradedMatrix& A, index& b, bitset& b_non_zero
         solve_linear_system_timer.resume();
     #endif
     #if SYSTEM_SIZE
-        std::cout << "  Solving linear system of size " << S.num_cols << "." << std::endl;
+        std::cout << "  Solving linear system of size " << S.get_num_cols() << "." << std::endl;
     #endif
-    S.compute_num_cols();
+    S.compute_get_num_cols()();
     bool reduced_to_zero = S.solve_col_reduction(y, solution);
     #if TIMERS
         solve_linear_system_timer.stop();  
@@ -3299,9 +3299,9 @@ bool virtual_alpha_extension_decomposition(GradedMatrix& A, index& b, bitset& b_
         solve_linear_system_timer.resume();
     #endif
     #if SYSTEM_SIZE
-        std::cout << "  Solving linear system of size " << S.num_cols << "." << std::endl;
+        std::cout << "  Solving linear system of size " << S.get_num_cols() << "." << std::endl;
     #endif
-    S.compute_num_cols();
+    S.compute_get_num_cols()();
     bool reduced_to_zero = S.solve_col_reduction(y, solution);
     #if TIMERS
         solve_linear_system_timer.stop();  
@@ -3726,7 +3726,7 @@ void get_cycle_information(vec<index>& pierced_blocks, vec<vec<index>>& scc, vec
 }
 
 void reduce_hom_alpha_graph(Hom_map& hom_spaces, vec<index>& local_pierced_blocks, 
-    Graph& hom_digraph, degree& alpha, vec<Block_iterator>& block_map) {
+    Graph& hom_digraph, r2degree& alpha, vec<Block_iterator>& block_map) {
 
     auto edges = boost::edges(hom_digraph);
     std::vector<std::pair<Graph::vertex_descriptor, Graph::vertex_descriptor>> edges_to_remove;
@@ -3760,7 +3760,7 @@ void reduce_hom_alpha_graph(Hom_map& hom_spaces, vec<index>& local_pierced_block
                 std::cout << "  alpha-reduction: Deleted " << c << " to " << b << std::endl;
             #endif
             hom_spaces[{c,b}].first.data.clear();
-            hom_spaces[{c,b}].first.num_cols = 0;
+            hom_spaces[{c,b}].first.get_num_cols() = 0;
             edges_to_remove.emplace_back(source_vertex, target_vertex);
         }
     }
@@ -3790,7 +3790,7 @@ void reduce_hom_alpha_graph(Hom_map& hom_spaces, vec<index>& local_pierced_block
  */
 bool construct_graphs_from_hom(Graph& hom_digraph, std::vector<index>& component, vec<vec<index>>& scc, vec<bool>& is_resolvable_cycle,
         Graph& condensation, vec<index>& computation_order, vec<index>& pierced_blocks, Hom_map& hom_spaces, 
-        AIDA_runtime_statistics& statistics, AIDA_config& config, index& t, vec<Block_iterator>& block_map, degree& alpha){
+        AIDA_runtime_statistics& statistics, AIDA_config& config, index& t, vec<Block_iterator>& block_map, r2degree& alpha){
     
     // Graph on pierced blocks representing Hom(C,B) != 0 
     hom_digraph = construct_hom_digraph(hom_spaces, pierced_blocks);
@@ -3886,7 +3886,7 @@ bool construct_graphs_from_hom(Graph& hom_digraph, std::vector<index>& component
  */
 vec<Merge_data> find_prelim_decomposition(Sub_batch& N_map, const vec<index>& blocks, const bitset& support){
     index k = support.size();
-    assert(k == N_map[blocks[0]].num_cols);
+    assert(k == N_map[blocks[0]].get_num_cols());
     vec<Merge_data> block_to_columns; 
     for(index i = 0; i< blocks.size(); i++){
         index b = blocks[i];
@@ -3947,7 +3947,7 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
     #if OBSERVE
         // Continuous monitoring of the content of a batch
         observe_row_indices = vec<index>();
-        Degree_traits<degree> degree_traits;
+        Degree_traits<r2degree> degree_traits;
         std::cout << "Observing batch " << observe_batch_index << " with columns " << A.col_batches[observe_batch_index] << " at " << std::endl;
         degree_traits.print_degree(A.col_degrees[A.col_batches[observe_batch_index][0]]);
         std::cout << " and with content:" << std::endl;
@@ -4026,7 +4026,7 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
         vec<index> batch_indices = A.col_batches[t]; // Indices of the columns in the batch
         int k_ = batch_indices.size(); // Number of columns in the batch
         // TO-DO: Have seen rounding errors here, investigate.
-        degree alpha = A.col_degrees[batch_indices[0]]; // Degree of the batch
+        r2degree alpha = A.col_degrees[batch_indices[0]]; // r2degree of the batch
         
         #if DETAILS
             std::cout << "Processing batch " << t << " with " << k_ << " columns at the indices " << batch_indices <<  std::endl;
@@ -4139,7 +4139,7 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
 
             
             // Then delete with previously computed hom-spaces.
-            // We want to start with the blocks of lowest degree, because the spaces of homomorphisms with these codomains are smaller.
+            // We want to start with the blocks of lowest r2degree, because the spaces of homomorphisms with these codomains are smaller.
 
             for(auto itr = active_blocks.rbegin(); itr != active_blocks.rend();) {
                 index b = *itr; vec<index> b_vec = {b}; 
