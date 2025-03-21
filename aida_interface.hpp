@@ -331,7 +331,7 @@ struct AIDA_functor {
         }
 
         if(config.sort_output){
-            B_list_cumulative.sort(Compare_by_degrees<degree, index>());
+            B_list_cumulative.sort(Compare_by_degrees<r2degree, index>());
         }
 
         for(auto& indecomposable : B_list_cumulative){
