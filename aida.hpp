@@ -38,7 +38,7 @@ namespace aida{
 using index = int; // Change to large enough int type.
 
 using namespace graded_linalg;
-#include <filesystem>
+
 namespace fs = std::filesystem;
 using namespace boost::timer;
 
@@ -46,7 +46,7 @@ using namespace boost::timer;
 #define TIMERS 0
 #endif
 
-#define DETAILS 0 // For debugging 
+#define DETAILS 1 // For debugging 
 #define OBSERVE 0 // For debugging
 #define CHECK_INT 0 // obsolete?
 #define SYSTEM_SIZE 0 // (should) tracks sizes of linear systems solved to compare the "actual" computation time of the different algorithms without overhead.
@@ -3795,8 +3795,6 @@ bool construct_graphs_from_hom(Graph& hom_digraph, std::vector<index>& component
     // Graph on pierced blocks representing Hom(C,B) != 0 
     hom_digraph = construct_hom_digraph(hom_spaces, pierced_blocks);
     
-    
-
     bool test_alpha_cycles = true;
 
     bool test_has_cycle = false;
@@ -3812,8 +3810,9 @@ bool construct_graphs_from_hom(Graph& hom_digraph, std::vector<index>& component
         get_cycle_information(pierced_blocks, test_scc, block_map, test_has_cycle, test_has_unresolvable_cycle, test_has_multiple_cycles, test_is_resolvable_cycle);
     }
 
-    reduce_hom_alpha_graph(hom_spaces, pierced_blocks, hom_digraph, alpha, block_map);
-
+    if(config.alpha_hom){
+      //  reduce_hom_alpha_graph(hom_spaces, pierced_blocks, hom_digraph, alpha, block_map);
+    }
 
     // Components assigns to each block the index of the strongly connected component it is in.
     component = vec<index>(boost::num_vertices(hom_digraph));
@@ -4389,7 +4388,7 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
         misc_timer.stop();
     #endif
     
-    
+    /** 
     #if DETAILS
         std::cout << "Full merge details: " << std::endl;
         for(index i = 0; i < merge_info.size(); i++){
@@ -4400,6 +4399,7 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
             std::cout << std::endl;
         }
     #endif
+    */
 } //AIDA
 
 
@@ -4411,7 +4411,7 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
  */
 void compare_merge_info(Full_merge_info& merge_info_1, Full_merge_info& merge_info_2){
     assert(merge_info_1.size() == merge_info_2.size());
-    
+    bool success = true;
     for(index i = 0; i < merge_info_1.size(); i++){
         auto& merge_vec_1 = merge_info_1[i];
         auto& merge_vec_2 = merge_info_2[i];
@@ -4428,6 +4428,7 @@ void compare_merge_info(Full_merge_info& merge_info_1, Full_merge_info& merge_in
         std::sort(merge_vec_2.begin(), merge_vec_2.end(), comparator);
 
         if(merge_vec_1.size() != merge_vec_2.size()){
+            success = false;
             std::cout << "Different number of merges at batch " << i << std::endl;
             for(auto& merge : merge_vec_1){
                 std::cout << "(" << merge.first << ") ";
@@ -4444,6 +4445,7 @@ void compare_merge_info(Full_merge_info& merge_info_1, Full_merge_info& merge_in
                 Merge_data& merge_1 = merge_vec_1[j];
                 Merge_data& merge_2 = merge_vec_2[j];
                 if(merge_1.first.size() != merge_2.first.size()){
+                    success = false;
                     std::cout << "Different number of blocks in merge at batch " << i << std::endl;
                     for(auto& block : merge_1.first){
                         std::cout << block << " ";
@@ -4476,6 +4478,9 @@ void compare_merge_info(Full_merge_info& merge_info_1, Full_merge_info& merge_in
                 }
             }
         }
+    }
+    if(success){
+        std::cout << "The number of blocks at each merge point is the same." << std::endl;
     }
 } // Compare_merge_info
 

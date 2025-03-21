@@ -1,8 +1,8 @@
 /**
  * @file aida.cpp
  * @author Jan Jendrysiak
- * @version 0.1
- * @date 2025-03-13
+ * @version 0.2
+ * @date 2025-03-21
  * @brief  How to use the AIDA program
  * 
  * 1. create a folder build in the root directory of the project
@@ -50,7 +50,7 @@ void display_help() {
               << "Options:\n"
               << "  -h, --help           Display this help message\n"
               << "  -v, --version        Display version information\n"
-              << "  -b, --bruteforce     Stops hom-space calculation and thus all optimisation. \n"
+              << "  -b, --bruteforce     Stops hom-space calculation and thus most optimisation. \n"
               << "  -s, --sort           Lexicographically sorts the relations of the input\n"
               << "  -e, --exhaustive     Always iterates over all decompositions of a batch\n"
               << "  -t, --statistics     Show statistics about indecomposable summands\n"
@@ -65,6 +65,7 @@ void display_help() {
               << "  -j, --no_hom_opt     Does not use the optimised hom space calculation.\n"
               << "  -w, --no_col_sweep   Does not use the column sweep optimisation.\n"
               << "  -f, --no_alpha       Turns the computation of alpha-homs off.\n"
+              << "  -x, -test_files          Runs the algorithm on some test files.\n"
               << "      <file> is optional and will default to the <input_file> with _decomposed appended\n"
               << "      You can pass relative and absolute paths as well as only a directory."
               << "Further Instructions: \n Make sure that the inputfile is a (sequence of) scc or firep presentations that are minimised.\n"
@@ -72,7 +73,60 @@ void display_help() {
 }
 
 void display_version() {
-    std::cout << "AIDA version 1.0 -- 21st Oct 2024\n";
+    std::cout << "AIDA version 02 -- 21st Mar 2025\n";
+}
+
+void run_on_test_files(aida::AIDA_functor& decomposer, std::ostringstream& ostream){
+    // Get the path of the this -cpp file
+    fs::path cpp_path = fs::path(__FILE__).parent_path();
+    fs::path test_file_folder = cpp_path / "Persistence-Algebra/test_presentations";
+    fs::path test_file1 = test_file_folder / "toy_example_2.scc";
+    fs::path test_file2 = test_file_folder / "full_rips_size_1_instance_5_min_pres.scc";
+    fs::path test_file3 = test_file_folder / "k_fold_46_10_2_min_pres.firep";
+    fs::path test_file4 = test_file_folder / "multi_cover_077_10_1_min_pres.scc";
+    // fs::path test_file5 = test_file_folder / "multi_cover_218_10_1_min_pres.scc";
+    std::ifstream istream(test_file1);
+    decomposer(istream, ostream);
+    istream = std::ifstream(test_file2);
+    decomposer(istream, ostream);   
+    istream = std::ifstream(test_file3);
+    decomposer(istream, ostream);
+    istream = std::ifstream(test_file4);
+    decomposer(istream, ostream);
+    // istream = std::ifstream(test_file5);
+    // decomposer(istream, ostream);
+
+}
+
+void write_to_file(std::ostringstream& ostream, std::string& output_file_path, std::string& input_directory, std::string& file_without_extension, std::string& extension, std::string& output_string){
+
+    if(output_string.empty()){
+        output_file_path = input_directory + "/" + file_without_extension + "_decomposition" + extension;
+    } else {
+        std::filesystem::path output_path(output_string);
+        if (output_path == ".") {
+            output_file_path = std::filesystem::current_path().string() + "/" + file_without_extension + "_decomposition" + extension;
+        } else if (output_path.is_relative()) {
+            output_file_path = std::filesystem::current_path().string() + "/" + output_string;
+        } else if (std::filesystem::is_directory(output_path)) {
+            output_file_path = output_path.string() + "/" + file_without_extension + "_decomposition" + extension;
+        } else if (output_path.is_absolute()) {
+            output_file_path = output_string;
+        } else {
+            output_file_path = input_directory + "/" + output_string;
+        }
+    }
+
+    std::filesystem::create_directories(std::filesystem::path(output_file_path).parent_path());
+
+    std::ofstream file_out(output_file_path);
+    if(file_out.is_open()){
+        file_out << ostream.str();
+        file_out.close();
+        std::cout << "Decomposition written to " << output_file_path << std::endl;
+    } else {
+        std::cout << "Error: Could not write decomposition to file: " << output_file_path << std::endl;
+    }
 }
 
 int main(int argc, char** argv){
@@ -94,7 +148,7 @@ int main(int argc, char** argv){
     decomposer.config.exhaustive_test = false;
 
     bool compare_hom_internal = false; // Cannot be used with the functor right now.
-
+    bool test_files = false;
 
     std::string input_directory;
     std::string filename;
@@ -143,13 +197,14 @@ int main(int argc, char** argv){
         {"no_hom_opt", no_argument, 0, 'j'},
         {"no_col_sweep", no_argument, 0, 'w'},
         {"no_alpha", no_argument, 0, 'f'},
+        {"test_files", no_argument, 0, 'x'},
         {0, 0, 0, 0}
     };
 
     int opt;
     int option_index = 0;
 
-    while ((opt = getopt_long(argc, argv, "ho::bsetrpclmvaijwf", long_options, &option_index)) != -1) {
+    while ((opt = getopt_long(argc, argv, "ho::bsetrpclmvaijwfx", long_options, &option_index)) != -1) {
         switch (opt) {
             case 'h':
                 display_help();
@@ -211,6 +266,9 @@ int main(int argc, char** argv){
             case 'f':
                 decomposer.config.alpha_hom = false;
                 break;
+            case 'x':
+                test_files = true;
+                break;
             default:
                 return 1;
         }
@@ -218,6 +276,7 @@ int main(int argc, char** argv){
 
     std::string file_without_extension;
     std::string extension;
+
 
     if (optind < argc) {
         std::filesystem::path fs_path(argv[optind]);
@@ -236,21 +295,29 @@ int main(int argc, char** argv){
             file_without_extension = filename.substr(0, dot_position);
             extension = filename.substr(dot_position);
         }
+    } else if (test_files) {
+        // Do nothing
     } else {
         std::cerr << "No input file specified. Please provide an input file." << std::endl;
         return 1;
     }
+    
+    std::ostringstream ostream;
+    if(!test_files){
+        std::ifstream istream(matrix_path);
+        if (!istream.is_open()) {
+                std::cerr << "Error: Could not open input file: " << matrix_path << std::endl;
+                return 0;
+        }
+        std::cout << "Decomposing " + filename << std::endl;
 
-    std::ifstream istream(matrix_path);
-    if (!istream.is_open()) {
-            std::cerr << "Error: Could not open input file: " << matrix_path << std::endl;
-            return 0;
+        
+        decomposer(istream, ostream);
+        
+    } else {
+        run_on_test_files(decomposer, ostream);
     }
 
-    std::cout << "Decomposing " + filename << std::endl;
-
-    std::ostringstream ostream;
-    decomposer(istream, ostream);
     if(show_indecomp_statistics){
         decomposer.cumulative_statistics.print_statistics();
     }
@@ -274,35 +341,7 @@ int main(int argc, char** argv){
     aida::index num_indecomp = decomposer.cumulative_statistics.num_of_summands;
     
     if(write_output){
-        if(output_string.empty()){
-            output_file_path = input_directory + "/" + file_without_extension + "_decomposition" + extension;
-        } else {
-            std::filesystem::path output_path(output_string);
-            if (output_path == ".") {
-                output_file_path = std::filesystem::current_path().string() + "/" + file_without_extension + "_decomposition" + extension;
-            } else if (output_path.is_relative()) {
-                output_file_path = std::filesystem::current_path().string() + "/" + output_string;
-            } else if (std::filesystem::is_directory(output_path)) {
-                output_file_path = output_path.string() + "/" + file_without_extension + "_decomposition" + extension;
-            } else if (output_path.is_absolute()) {
-                output_file_path = output_string;
-            } else {
-                output_file_path = input_directory + "/" + output_string;
-            }
-        }
-
-        std::filesystem::create_directories(std::filesystem::path(output_file_path).parent_path());
-
-        std::ofstream file_out(output_file_path);
-        if(file_out.is_open()){
-            file_out << ostream.str();
-            file_out.close();
-            if(decomposer.config.show_info){
-                std::cout << "Decomposition written to " << output_file_path << std::endl;
-            }
-        } else {
-            std::cout << "Error: Could not write decomposition to file: " << output_file_path << std::endl;
-        }
+        write_to_file(ostream, output_file_path, input_directory, file_without_extension, extension, output_string);
     }
 
     if(decomposer.config.compare_both|| compare_time || decomposer.config.exhaustive_test){
