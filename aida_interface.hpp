@@ -240,6 +240,25 @@ struct AIDA_functor {
         }
     }
 
+    void load_existing_decompositions(int& k_max){
+        if(k_max > vector_space_decompositions.size() + 1){
+            std::string decomp_path = findDecompositionsDir();
+            int largest_local_decomposition_list = findLargestNumberInFilenames(decomp_path);
+            if(k_max <= largest_local_decomposition_list){
+                if(config.show_info){
+                    std::cout << "Loading vector space decompositions up to dim " << k_max << std::endl;
+                }
+                load_vector_space_decompositions(k_max, decomp_path);
+            } else {
+                load_vector_space_decompositions(largest_local_decomposition_list, decomp_path);
+                if(config.show_info){
+                    std::cout << "k_max is " << k_max << " but only found decompositions up to dim " << largest_local_decomposition_list << 
+                ". \n It is possible that the computation will produce an error if we need to decompose more relations at the same time." << std::endl;
+                }
+            }
+        }
+    }
+
     void compute_vector_space_decompositions_faulty(const std::string& path){
         // Rewrite this.
         const std::string command = "../generate_decompositions -at -cover -transitions ";
@@ -272,22 +291,7 @@ struct AIDA_functor {
             }
         }
 
-        if(k_max > vector_space_decompositions.size() + 1){
-            std::string decomp_path = findDecompositionsDir();
-            int largest_local_decomposition_list = findLargestNumberInFilenames(decomp_path);
-            if(k_max <= largest_local_decomposition_list){
-                if(config.show_info){
-                    std::cout << "Loading vector space decompositions up to dim " << k_max << std::endl;
-                }
-                load_vector_space_decompositions(k_max, decomp_path);
-            } else {
-                load_vector_space_decompositions(largest_local_decomposition_list, decomp_path);
-                if(config.show_info){
-                    std::cout << "k_max is " << k_max << " but only found decompositions up to dim " << largest_local_decomposition_list << 
-                ". \n It is possible that the computation will produce an error if we need to decompose more relations at the same time." << std::endl;
-                }
-            }
-        }
+        load_existing_decompositions(k_max);
 
         for (GradedMatrix& A : matrices) {
 
@@ -337,6 +341,55 @@ struct AIDA_functor {
         for(auto& indecomposable : B_list_cumulative){
             indecomposable.to_stream(ofstr);
         }
+    }
+
+    template<typename GradedMatrix>
+    void operator()(GradedMatrix& input, Block_list& B_list) {
+        
+        int k_max = input.k_max;
+        load_existing_decompositions(k_max);
+
+        if(config.show_info && matrices.size() == 1){
+            std::cout << " Matrix has " << A.get_num_rows() << " rows and " << A.get_num_cols() << 
+            " columns, k_max is " << A.k_max << ", and there are " << A.col_batches.size() << " batches." << std::endl;
+        }
+        std::shared_ptr<Base_change_virtual> base_change;
+        if(config.save_base_change){
+            base_change = std::make_shared<Base_change>();
+        } else {
+            base_change = std::make_shared<Null_base_change>();
+        }
+        base_changes.push_back(base_change);
+        statistics_vec.push_back(AIDA_statistics());
+        runtime_statistics.push_back(AIDA_runtime_statistics());
+        Full_merge_info merge_info;
+
+        #if TIMERS
+            runtime_statistics.back().initialise_timers();
+        #endif
+
+        AIDA(input, B_list, vector_space_decompositions, base_changes.back(), runtime_statistics.back(), config, merge_info);
+        #if TIMERS
+            runtime_statistics.back().evaluate_timers();
+        #endif
+
+        merge_data_vec.push_back(merge_info);
+        statistics_vec.back().compute_statistics(B_list);
+        
+        
+        std::cout << B_list.size() << " indecomposable summands." << std::endl;
+
+        cumulative_statistics = AIDA_statistics();
+        cumulative_statistics.compute_statistics(B_list);
+        cumulative_runtime_statistics = AIDA_runtime_statistics();
+        for(auto& runtime_stat : runtime_statistics){
+            cumulative_runtime_statistics += runtime_stat;
+        }
+
+        if(config.sort_output){
+            B_list.sort(Compare_by_degrees<r2degree, index>());
+        }
+
     }
     
 };
