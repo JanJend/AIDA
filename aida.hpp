@@ -46,7 +46,7 @@ using namespace boost::timer;
 #define TIMERS 0
 #endif
 
-#define DETAILS 1 // For debugging 
+#define DETAILS 0 // For debugging 
 #define OBSERVE 0 // For debugging
 #define CHECK_INT 0 // obsolete?
 #define SYSTEM_SIZE 0 // (should) tracks sizes of linear systems solved to compare the "actual" computation time of the different algorithms without overhead.
@@ -3970,7 +3970,7 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
             std::cout << "The entered matrix has no columns and is thus trivially decomposable w.r.t. any basis." << std::endl;   
         }
         return;
-    }
+    } 
     #if TIMERS
         misc_timer.resume();
         update_block_timer.stop();
@@ -4002,7 +4002,7 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
                 if (percent != last_percent) {
                     // Calculate the number of symbols to display in the progress bar
                     int num_symbols = percent / 2;
-                    std::cout << "\r" << t + 1 << " of " << batches << " batches : [";
+                    std::cout << "\r" << t + 1 << " batches : [";
                     // Print the progress bar
                     for (int i = 0; i < 50; ++i) {
                         if (i < num_symbols) {

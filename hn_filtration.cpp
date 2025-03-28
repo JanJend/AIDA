@@ -1,47 +1,7 @@
-/**
- * @file aida.cpp
- * @author Jan Jendrysiak
- * @version 0.2
- * @date 2025-03-21
- * @brief  How to use the AIDA program
- * 
- * 1. create a folder build in the root directory of the project
- * 2. run cmake -DCMAKE_BUILD_TYPE=Release .. in the build directory
- * 3. run make 
- * 4. run ./aida <path_to_file> to decompose a file
- * 
- * OPTIONS:
- * -o : writes the output to a file with the name <input_file_name>_decomposition.scc in the current directory.
- * -o <output_file> : writes the output to the specified file. Can be a relative or absolute path.
- * -o <output_directory> : writes the output to the specified directory with the name <input_file_name>_decomposition.scc
- * -o<argument>: As above but without the space between the option and the argument.
- * -sort : sorts the input matrices lexicographically
- * -c : saves the base change for each decomposition
- * -p : shows progress bar while decomposing 
- * -t : shows statistics about the indecomposables
- * -r : shows runtime statistics
- * -e : uses the exhaustive algorithm
- * -b : uses the DeyXin (bruteforce) algorithm. This implies -e automatically.
- * -m : compares the hom space and direct version (i.e -b) of block_reduce. Only for debugging.
- * -l : suppresses most console output
- * -a : compares the exhaustive and aida alpha-decomp. Only for debugging.
- * -i : compare optimised and non-optimised hom space calculation.
- * --h : display detailed description
- * --v : display version
- * --f : turns the computation of alpha-homs on.
- * 
- * 
- * @copyright 2025 TU Graz
- *  This file is part of the AIDA library. 
- *  You can redistribute it and/or modify
- *  it under the terms of the GNU Lesser General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- */
-
 #include "aida_interface.hpp"
 #include <unistd.h> 
 #include <getopt.h>
+#include "hn_filtration.hpp"
 
 namespace fs = std::filesystem;
 
@@ -49,6 +9,7 @@ void display_help() {
     std::cout << "Usage: ./aida <input_file> [options]\n"
               << "Options:\n"
               << "  -h, --help           Display this help message\n"
+              << "  -d, --is_decomposed   Specify if the input is already decomposed\n"
               << "  -v, --version        Display version information\n"
               << "  -b, --bruteforce     Stops hom-space calculation and thus most optimisation. \n"
               << "  -s, --sort           Lexicographically sorts the relations of the input\n"
@@ -149,6 +110,7 @@ int main(int argc, char** argv){
 
     bool compare_hom_internal = false; // Cannot be used with the functor right now.
     bool test_files = false;
+    bool is_decomposed = false;
 
     std::string input_directory;
     std::string filename;
@@ -198,13 +160,14 @@ int main(int argc, char** argv){
         {"no_col_sweep", no_argument, 0, 'w'},
         {"alpha", no_argument, 0, 'f'},
         {"test_files", no_argument, 0, 'x'},
+        {"is_decomposed", no_argument, 0, 'd'},
         {0, 0, 0, 0}
     };
 
     int opt;
     int option_index = 0;
 
-    while ((opt = getopt_long(argc, argv, "ho::bsetrpclmvaijwfx", long_options, &option_index)) != -1) {
+    while ((opt = getopt_long(argc, argv, "ho::bsetrpclmvaijwfxd", long_options, &option_index)) != -1) {
         switch (opt) {
             case 'h':
                 display_help();
@@ -269,6 +232,9 @@ int main(int argc, char** argv){
             case 'x':
                 test_files = true;
                 break;
+            case 'd':
+                is_decomposed = true;
+                break;
             default:
                 return 1;
         }
@@ -309,75 +275,33 @@ int main(int argc, char** argv){
                 std::cerr << "Error: Could not open input file: " << matrix_path << std::endl;
                 return 0;
         }
-        std::cout << "Decomposing " + filename << std::endl;
-
-        decomposer.to_stream(istream, ostream);
+         std::cout << "Decomposing, then generating submodules at grid points and decomposing them again of " + filename << std::endl;
         
-    } else {
-        run_on_test_files(decomposer, ostream);
-    }
+        hnf::full_grid_induced_decomposition(decomposer, istream, show_indecomp_statistics, show_runtime_statistics, is_decomposed);
+         
+     } else {
+         run_on_test_files(decomposer, ostream);
+     }
+ 
 
-    if(show_indecomp_statistics){
-        decomposer.cumulative_statistics.print_statistics();
-    }
-    if(show_runtime_statistics){
-        decomposer.cumulative_runtime_statistics.print();
-        #if TIMERS
-            decomposer.cumulative_runtime_statistics.print_timers();
-        #endif
-    }
-    if(decomposer.config.save_base_change){
-        int total_row_ops = 0;
-        for(auto& base_change : decomposer.base_changes){
-           total_row_ops += base_change->performed_row_ops.size();
-        }
-        if(decomposer.config.show_info){
-            std::cout << "Basechange: Performed " << total_row_ops << " row operations in total." << std::endl;
-        }
-    }
-    
-    aida::Full_merge_info merge_data = decomposer.merge_data_vec[0];
-    aida::index num_indecomp = decomposer.cumulative_statistics.num_of_summands;
-    
-    if(write_output){
-        write_to_file(ostream, output_file_path, input_directory, file_without_extension, extension, output_string);
-    }
-
-    if(decomposer.config.compare_both|| compare_time || decomposer.config.exhaustive_test){
-        
-        std::ifstream istream_test(matrix_path);
-        std::ostringstream ostream_test;
-        aida::AIDA_functor test_decomposer = aida::AIDA_functor();
-        test_decomposer.config = decomposer.config;
-        if(decomposer.config.exhaustive_test){
-            decomposer.config.exhaustive_test = false;
-            test_decomposer.config.exhaustive = true;
-        }
-        if(decomposer.config.compare_both){
-            test_decomposer.config.compare_both = false;
-            test_decomposer.config.exhaustive = true;
-            test_decomposer.config.brute_force = true;
-        }
-        std::ifstream test_istream(matrix_path);
-
-        test_decomposer.to_stream(test_istream, ostream);
-        aida::Full_merge_info merge_data_test = test_decomposer.merge_data_vec[0];
-
-        aida::index num_indecomp_test = test_decomposer.statistics_vec.back().num_of_summands;
-        if(num_indecomp != num_indecomp_test){
-            std::cout << "Decomposition is different. AIDA: " << num_indecomp << ", test: " << num_indecomp_test << std::endl;
-        }
-        for(int t = 0; t < merge_data.size(); t++){
-            if(merge_data[t].empty()){
-                std::cout << "Warning: Empty merge data at " << t << std::endl;
-            }
-        }
-        if(true){
-            aida::compare_merge_info(merge_data, merge_data_test);
-        }
-    } 
-
-    return 0;
-} //main
-
-
+     if(decomposer.config.save_base_change){
+         int total_row_ops = 0;
+         for(auto& base_change : decomposer.base_changes){
+            total_row_ops += base_change->performed_row_ops.size();
+         }
+         if(decomposer.config.show_info){
+             std::cout << "Basechange: Performed " << total_row_ops << " row operations in total." << std::endl;
+         }
+     }
+     
+     aida::index num_indecomp = decomposer.cumulative_statistics.num_of_summands;
+     
+     if(write_output){
+         write_to_file(ostream, output_file_path, input_directory, file_without_extension, extension, output_string);
+     }
+ 
+     return 0;
+ } //main
+ 
+ 
+ 

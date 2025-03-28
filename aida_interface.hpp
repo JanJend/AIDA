@@ -324,7 +324,9 @@ struct AIDA_functor {
             B_list_cumulative.splice(B_list_cumulative.end(), B_list);
         }
         
-        std::cout << B_list_cumulative.size() << " indecomposable summands." << std::endl;
+        if(config.show_info){
+            std::cout << B_list_cumulative.size() << " indecomposable summands." << std::endl;
+        }
 
         cumulative_statistics = AIDA_statistics();
         cumulative_statistics.compute_statistics(B_list_cumulative);
@@ -343,16 +345,16 @@ struct AIDA_functor {
         Block_list B_list;
         operator()(ifstr, B_list);
         for (Block& B : B_list) {
-            ofstr << B;
+            B.to_stream_r2(ofstr);
         }
     }
 
-    template<typename GradedMatrix>
-    void operator()(GradedMatrix& A, Block_list& B_list) {
+
+    void operator()(R2GradedSparseMatrix<index>& A, Block_list& B_list) {
         int k_max = A.k_max;
         load_existing_decompositions(k_max);
 
-        if(config.show_info && matrices.size() == 1){
+        if(config.show_info){
             std::cout << " Matrix has " << A.get_num_rows() << " rows and " << A.get_num_cols() << 
             " columns, k_max is " << A.k_max << ", and there are " << A.col_batches.size() << " batches." << std::endl;
         }
@@ -379,8 +381,9 @@ struct AIDA_functor {
         merge_data_vec.push_back(merge_info);
         statistics_vec.back().compute_statistics(B_list);
         
-        
-        std::cout << B_list.size() << " indecomposable summands." << std::endl;
+        if(config.show_info){
+            std::cout << B_list.size() << " indecomposable summands." << std::endl;
+        }
 
         cumulative_statistics = AIDA_statistics();
         cumulative_statistics.compute_statistics(B_list);
