@@ -269,9 +269,8 @@ struct AIDA_functor {
         vector_space_decompositions.clear();
     }
 
-    template<typename InputStream, typename OutputStream>
-    void operator()(InputStream& ifstr, OutputStream& ofstr) {
-        Block_list B_list_cumulative;
+    template<typename InputStream>
+    void operator()(InputStream& ifstr, Block_list& B_list_cumulative) {
         // Decompose the stream into matrices and process each one
         vec<GradedMatrix> matrices;
         #if TIMERS
@@ -337,16 +336,20 @@ struct AIDA_functor {
         if(config.sort_output){
             B_list_cumulative.sort(Compare_by_degrees<r2degree, index>());
         }
+    }
 
-        for(auto& indecomposable : B_list_cumulative){
-            indecomposable.to_stream(ofstr);
+    template<typename InputStream, typename OutputStream>
+    void to_stream(InputStream& ifstr, OutputStream& ofstr) {
+        Block_list B_list;
+        operator()(ifstr, B_list);
+        for (Block& B : B_list) {
+            ofstr << B;
         }
     }
 
     template<typename GradedMatrix>
-    void operator()(GradedMatrix& input, Block_list& B_list) {
-        
-        int k_max = input.k_max;
+    void operator()(GradedMatrix& A, Block_list& B_list) {
+        int k_max = A.k_max;
         load_existing_decompositions(k_max);
 
         if(config.show_info && matrices.size() == 1){
@@ -368,7 +371,7 @@ struct AIDA_functor {
             runtime_statistics.back().initialise_timers();
         #endif
 
-        AIDA(input, B_list, vector_space_decompositions, base_changes.back(), runtime_statistics.back(), config, merge_info);
+        AIDA(A, B_list, vector_space_decompositions, base_changes.back(), runtime_statistics.back(), config, merge_info);
         #if TIMERS
             runtime_statistics.back().evaluate_timers();
         #endif

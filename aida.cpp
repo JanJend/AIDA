@@ -86,13 +86,13 @@ void run_on_test_files(aida::AIDA_functor& decomposer, std::ostringstream& ostre
     fs::path test_file4 = test_file_folder / "multi_cover_077_10_1_min_pres.scc";
     // fs::path test_file5 = test_file_folder / "multi_cover_218_10_1_min_pres.scc";
     std::ifstream istream(test_file1);
-    decomposer(istream, ostream);
+    decomposer.to_stream(istream, ostream);
     istream = std::ifstream(test_file2);
-    decomposer(istream, ostream);   
+    decomposer.to_stream(istream, ostream);   
     istream = std::ifstream(test_file3);
-    decomposer(istream, ostream);
+    decomposer.to_stream(istream, ostream);
     istream = std::ifstream(test_file4);
-    decomposer(istream, ostream);
+    decomposer.to_stream(istream, ostream);
     // istream = std::ifstream(test_file5);
     // decomposer(istream, ostream);
 
@@ -311,8 +311,7 @@ int main(int argc, char** argv){
         }
         std::cout << "Decomposing " + filename << std::endl;
 
-        
-        decomposer(istream, ostream);
+        decomposer.to_stream(istream, ostream);
         
     } else {
         run_on_test_files(decomposer, ostream);
@@ -361,7 +360,7 @@ int main(int argc, char** argv){
         }
         std::ifstream test_istream(matrix_path);
 
-        test_decomposer(test_istream, ostream);
+        test_decomposer.to_stream(test_istream, ostream);
         aida::Full_merge_info merge_data_test = test_decomposer.merge_data_vec[0];
 
         aida::index num_indecomp_test = test_decomposer.statistics_vec.back().num_of_summands;
