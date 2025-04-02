@@ -9,6 +9,18 @@ using namespace graded_linalg;
 
 namespace hnf{
 
+using Block = aida::Block;
+using Module_w_slope = std::pair<Block, double>;
+using Block_list = aida::Block_list;
+using HN_factors = std::list<Module_w_slope>;
+
+HN_factors skyscraper_invariant(Block_list& summands){
+    for(Block X : summands){
+
+    }
+}
+
+
 void calculate_stats(const std::vector<int>& all_dimensions) {
     if (all_dimensions.empty()) {
         std::cout << "The vector is empty!" << std::endl;
@@ -50,6 +62,8 @@ vec<r2degree> get_grid_points( pair<r2degree> bounds, int grid_size) {
     }
     return grid_points;
 }
+
+ 
 
 template<typename Container>
 void process_list_of_summands(aida::AIDA_functor& decomposer, std::ifstream& istream, const Container& indecomps) {
@@ -119,6 +133,8 @@ void process_list_of_summands(aida::AIDA_functor& decomposer, std::ifstream& ist
                 aida::Block_list sub_B_list;
                 B_induced.compute_col_batches();
                 decomposer(B_induced, sub_B_list);
+                // HN of sub_B_list
+
                 for(auto& sub_B : sub_B_list){
                     all_dimensions.push_back(sub_B.get_num_rows());
                 }
