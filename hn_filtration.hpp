@@ -14,9 +14,28 @@ using Module_w_slope = std::pair<Block, double>;
 using Block_list = aida::Block_list;
 using HN_factors = std::list<Module_w_slope>;
 
-HN_factors skyscraper_invariant(Block_list& summands){
+HN_factors skyscraper_invariant(Block_list& summands, vec<vec<SparseMatrix<int>>>& subspaces){
     for(Block X : summands){
-
+        int k = X.get_num_rows();
+        if(subspaces.size() < k){
+            std::cerr << "Have not loaded enough subspaces" << std::endl;
+            std::exit(1);
+        }
+        double max_slope = 0;
+        R2Resolution<int> scss;
+        for(auto ungraded_subspace : subspaces[k-1]){
+            int num_gens = ungraded_subspace.get_num_cols();
+            R2GradedSparseMatrix<int> subspace = R2GradedSparseMatrix<int>(ungraded_subspace);
+            subspace.row_degrees = X.row_degrees;
+            subspace.col_degrees = vec<r2degree>(num_gens, X.row_degrees[0]);
+            R2GradedSparseMatrix<int> submodule_pres = X.submodule_generated_by(subspace);
+            R2Resolution<int> res(submodule_pres);
+            double slope = res.slope(); 
+            if(slope > max_slope){
+                max_slope = slope;
+                scss = res;
+            }
+        }
     }
 }
 
