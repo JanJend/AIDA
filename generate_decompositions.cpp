@@ -17,7 +17,7 @@ using namespace graded_linalg;
 namespace fs = std::filesystem;
 
 // For a given bitset returns all non-set positions in a col-echelon matrix whose pivots are given by the input.
-std::vector<std::pair<int, int>> getEchelonPositions(const boost::dynamic_bitset<> &bitset) {
+std::vector<std::pair<int, int>> getEchelonPositions_local(const boost::dynamic_bitset<> &bitset) {
     size_t countOnes = 0;
     std::vector<std::pair<int, int>> positions;
 
@@ -109,7 +109,7 @@ std::vector<VecDecomp> getComplementsToMatrix(boost::dynamic_bitset<> pivots, co
 }
 
 
-std::vector<DenseMatrix > pivotsToEchelon(const boost::dynamic_bitset<> &pivots, std::vector<std::pair<int,int>> &positions ){
+std::vector<DenseMatrix > pivotsToEchelon_local(const boost::dynamic_bitset<> &pivots, std::vector<std::pair<int,int>> &positions ){
     std::vector<DenseMatrix> reducedMatrices;
     
     size_t n = pivots.size();
@@ -139,7 +139,7 @@ DecompBranch getComplements(const boost::dynamic_bitset<>& pivots, bool removeDo
 }
 
 
-void generateCombinations(boost::dynamic_bitset<> &bitset, int offset, int k, std::vector<boost::dynamic_bitset<>> &combinations) {
+void generateCombinations_local(boost::dynamic_bitset<> &bitset, int offset, int k, std::vector<boost::dynamic_bitset<>> &combinations) {
     if (k == 0) {
         combinations.push_back(bitset);
         return;
@@ -147,7 +147,7 @@ void generateCombinations(boost::dynamic_bitset<> &bitset, int offset, int k, st
 
     for (int i = offset ; i < bitset.size(); i++) {
         bitset.set(i);
-        generateCombinations(bitset, i + 1, k - 1, combinations);
+        generateCombinations_local(bitset, i + 1, k - 1, combinations);
         bitset.reset(i);
     }
 }
@@ -159,7 +159,7 @@ void generateCombinations(boost::dynamic_bitset<> &bitset, int offset, int k, st
  * @param k 
  * @return std::vector<boost::dynamic_bitset<>> 
  */
-std::vector<boost::dynamic_bitset<>> generateAllBitsetsWithKOnes(int n, int k) {
+std::vector<boost::dynamic_bitset<>> generateAllBitsetsWithKOnes_local(int n, int k) {
     std::vector<boost::dynamic_bitset<>> combinations;
     boost::dynamic_bitset<> bitset(n, 0);
     generateCombinations(bitset,  0, k, combinations);
@@ -172,14 +172,14 @@ std::vector<boost::dynamic_bitset<>> generateAllBitsetsWithKOnes(int n, int k) {
  * @param n 
  * @return std::vector<boost::dynamic_bitset<>> 
  */
-std::vector<boost::dynamic_bitset<>> generateHalfBitsets(int n) {
+std::vector<boost::dynamic_bitset<>> generateHalfBitsets_local(int n) {
     // Check if n is even
     if (n % 2 != 0 || n <= 0) {
         throw std::invalid_argument("n must be a positive even number.");
     }
 
     // Generate all bitsets of length n-1 with n/2 - 1 bits set
-    std::vector<boost::dynamic_bitset<>> bitsets = generateAllBitsetsWithKOnes(n - 1, n / 2 - 1);
+    std::vector<boost::dynamic_bitset<>> bitsets = generateAllBitsetsWithKOnes_local(n - 1, n / 2 - 1);
 
     // Prepend a '1' to each bitset
     for (auto& bitset : bitsets) {
@@ -191,7 +191,7 @@ std::vector<boost::dynamic_bitset<>> generateHalfBitsets(int n) {
     return bitsets;
 }
 
-std::vector<boost::dynamic_bitset<>> generateBitsets(int n) {
+std::vector<boost::dynamic_bitset<>> generateBitsets_local(int n) {
     std::vector<boost::dynamic_bitset<>> bitsets;
 
     // Start k from the largest possible value less than n/2 (if n is even) or less than n/2 rounded down (if n is odd)
@@ -292,7 +292,7 @@ vec<transition> compute_transitions(DecompTree& tree, int n){
                 int k_1 = first.get_num_cols();
                 first.append_matrix(second);
                 DenseMatrix T = first.divide_left(lastMatrix);
-                vec<int> permutation = T.rectify();
+                vec<int> permutation = T.rectify_invertible();
                 T.reorder_columns(permutation);
 
                 assert(T.test_diagonal_entries());
@@ -510,7 +510,7 @@ void test_transitions(int n, bool mode = false, bool print_all = false){
                     std::cout << "But the first subspace needs to be"; first.print();
                     test_passed = false;
                 } 
-                if(false && !compare_matrices(second, nextMatrix2)){
+                if(!second.equals(nextMatrix2, true)){
                     std::cout << "Error: " << std::endl;
                     std::cout << "expected is: "; second.print();
                     std::cout << "but restriction gives "; nextMatrix2.print();
@@ -611,7 +611,7 @@ std::string findDecompositionsDir() {
 }
 
 int main(int argc, char* argv[]) {
-    bool test_transition_computation = false;
+    bool test_transition_computation = true;
     bool test_save_and_load = false;
     bool test_sizes = false;
     int dim = 5;

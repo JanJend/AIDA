@@ -10,19 +10,31 @@ using namespace graded_linalg;
 namespace hnf{
 
 using Block = aida::Block;
-using Module_w_slope = std::pair<Block, double>;
+using Module_w_slope = std::pair<R2Resolution<int>, double>;
 using Block_list = aida::Block_list;
-using HN_factors = std::list<Module_w_slope>;
+using HN_factors = vec<Module_w_slope>;
 
-HN_factors skyscraper_invariant(Block_list& summands, vec<vec<SparseMatrix<int>>>& subspaces){
-    for(Block X : summands){
-        int k = X.get_num_rows();
+struct slope_comparator{
+    bool operator()(const Module_w_slope& X, const Module_w_slope& Y) const noexcept {
+        return X.second > Y.second;
+    }
+};
+
+
+Module_w_slope find_scss(const R2GradedSparseMatrix<int>& X, vec<vec<SparseMatrix<int>>>& subspaces){
+    int k = X.get_num_rows();
+    double max_slope = 0;
+    R2Resolution<int> scss;
+    if(k == 1){
+        scss = R2Resolution<int>(X);
+        max_slope = scss.slope();
+    } else {
+        assert(k < 4);
         if(subspaces.size() < k){
             std::cerr << "Have not loaded enough subspaces" << std::endl;
             std::exit(1);
         }
-        double max_slope = 0;
-        R2Resolution<int> scss;
+        
         for(auto ungraded_subspace : subspaces[k-1]){
             int num_gens = ungraded_subspace.get_num_cols();
             R2GradedSparseMatrix<int> subspace = R2GradedSparseMatrix<int>(ungraded_subspace);
@@ -33,10 +45,23 @@ HN_factors skyscraper_invariant(Block_list& summands, vec<vec<SparseMatrix<int>>
             double slope = res.slope(); 
             if(slope > max_slope){
                 max_slope = slope;
-                scss = res;
+                scss = std::move(res);
             }
         }
     }
+    if(X.get_num_rows() > scss.d1.get_num_rows()){
+        // TO-DO: compute quotient, use recursion;
+    }
+    return std::make_pair(scss, max_slope); 
+}
+
+
+HN_factors skyscraper_invariant(Block_list& summands, vec<vec<SparseMatrix<int>>>& subspaces){
+    HN_factors result;
+    for(Block X : summands){
+        result.emplace_back(find_scss(X, subspaces));
+    }
+    return result;
 }
 
 
@@ -137,8 +162,8 @@ void process_list_of_summands(aida::AIDA_functor& decomposer, std::ifstream& ist
         }
         pair<r2degree> bounds = B.bounding_box();
         vec<r2degree> support = B.discrete_support();
-        if(support.size() <= grid_size){
-            grid_size = support.size();
+        if(support.size() <= grid_size/2){
+            grid_size = 2*support.size();
         }
         vec<r2degree> grid_points = get_grid_points(bounds, grid_size);
 
@@ -152,10 +177,12 @@ void process_list_of_summands(aida::AIDA_functor& decomposer, std::ifstream& ist
                 aida::Block_list sub_B_list;
                 B_induced.compute_col_batches();
                 decomposer(B_induced, sub_B_list);
-                // HN of sub_B_list
+                int max_dim = 3;
+                auto subspaces = all_sparse_proper_subspaces(max_dim);
+                auto skyscraper_degree = skyscraper_invariant(sub_B_list, subspaces);
 
-                for(auto& sub_B : sub_B_list){
-                    all_dimensions.push_back(sub_B.get_num_rows());
+                for(auto& hn_factor : skyscraper_degree){
+                    all_dimensions.push_back(hn_factor.first.d1.get_num_rows());
                 }
             }
         }
