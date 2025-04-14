@@ -614,7 +614,7 @@ int main(int argc, char* argv[]) {
     bool test_transition_computation = true;
     bool test_save_and_load = false;
     bool test_sizes = false;
-    int dim = 5;
+    int dim = 2;
     if(test_transition_computation){
         test_transitions(dim, true);
     }
