@@ -50,30 +50,32 @@ void display_help() {
               << "Options:\n"
               << "  -h, --help           Display this help message\n"
               << "  -v, --version        Display version information\n"
+              << " General Options:\n"
+              << "  -o, --output <file>  Specify output file\n"
+              << "      <file> is optional and will default to the <input_file> with _decomposed appended\n"
+              << "      You can pass relative and absolute paths as well as only a directory."
+              << "  -p, --progress       Show progressbar\n"
               << "  -b, --bruteforce     Stops hom-space calculation and thus most optimisation. \n"
               << "  -s, --sort           Lexicographically sorts the relations of the input\n"
               << "  -e, --exhaustive     Always iterates over all decompositions of a batch\n"
               << "  -t, --statistics     Show statistics about indecomposable summands\n"
               << "  -r, --runtime        Show runtime statistics and timers\n"
-              << "  -p, --progress       Show progressbar\n"
               << "  -c, --basechange     Save base change\n"
-              << "  -o, --output <file>  Specify output file\n"
               << "  -l, --less_console   Suppreses most console output\n"
+              << "  -f, --alpha          Turns the computation of alpha-homs on.\n"
+              << "  -j, --no_hom_opt     Does not use the optimised hom space calculation.\n"
+              << " For Testing and Debugging:\n"
               << "  -m, --compare_b      Compares with -b at runtime, then runs with only -b and compares.\n"
               << "  -a, --compare_e      Compares exhaustive and brute force at runtime.\n"
               << "  -i, --compare_hom    Compares optimised and non-opt hom space calculation at runtime.\n"
-              << "  -j, --no_hom_opt     Does not use the optimised hom space calculation.\n"
               << "  -w, --no_col_sweep   Does not use the column sweep optimisation.\n"
-              << "  -f, --alpha       Turns the computation of alpha-homs on.\n"
-              << "  -x, -test_files          Runs the algorithm on some test files.\n"
-              << "      <file> is optional and will default to the <input_file> with _decomposed appended\n"
-              << "      You can pass relative and absolute paths as well as only a directory."
+              << "  -x, --test_files      Runs the algorithm on some test files.\n"
               << "Further Instructions: \n Make sure that the inputfile is a (sequence of) scc or firep presentations that are minimised.\n"
               << std::endl;
 }
 
 void display_version() {
-    std::cout << "AIDA version 02 -- 21st Mar 2025\n";
+    std::cout << "AIDA version 0.2.1 -- 14th April 2025\n";
 }
 
 void run_on_test_files(aida::AIDA_functor& decomposer, std::ostringstream& ostream){

@@ -476,15 +476,15 @@ void test_transitions(int n, bool mode = false, bool print_all = false){
     bool test_passed = true;
     for(auto& [pivots, branch] : tree){
         for(int i=0; i< branch.size(); i++){
-            for(auto& [first, second] : branch[i]){
+            for(auto& [target_first, target_second] : branch[i]){
                 if(print_all){
                     std::cout << "Transition:   ";
                     it->first.print();
                     std::cout << "Subspace:   ";
                     print_bitset(it->second);
                     std::cout << "Expected decomposition:   ";
-                    first.print();
-                    second.print();
+                    target_first.print();
+                    target_second.print();
                 }
                 DenseMatrix nextMatrix = last.multiply_right(it->first);
                 // nextMatrix.print();
@@ -499,7 +499,7 @@ void test_transitions(int n, bool mode = false, bool print_all = false){
                 }
                 DenseMatrix nextMatrix1 = nextMatrix.restricted_domain_copy(restriction1);
                 DenseMatrix nextMatrix2 = nextMatrix.restricted_domain_copy(restriction2);
-                if(test_passed && !compare_col_space<DenseMatrix>(first, nextMatrix1)){
+                if(test_passed && !compare_col_space<DenseMatrix>(target_first, nextMatrix1)){
                     std::cout << "First error at position : " << std::distance(transitions.begin(), it) << std::endl;
                     std::cout << "Last matrix was: "; last.print();
                     std::cout << "Transition is: "; it->first.print();
@@ -507,12 +507,12 @@ void test_transitions(int n, bool mode = false, bool print_all = false){
                     std::cout << "Associated first subspace is: "; print_bitset(it->second);
                     std::cout << "corresponding indices are: " << restriction1 << std::endl;
                     std::cout << "Multiplication and restriction gives "; nextMatrix1.print();
-                    std::cout << "But the first subspace needs to be"; first.print();
+                    std::cout << "But the first subspace needs to be"; target_first.print();
                     test_passed = false;
                 } 
-                if(!second.equals(nextMatrix2, true)){
+                if(!target_second.equals(nextMatrix2, true)){
                     std::cout << "Error: " << std::endl;
-                    std::cout << "expected is: "; second.print();
+                    std::cout << "expected is: "; target_second.print();
                     std::cout << "but restriction gives "; nextMatrix2.print();
                 }
                 last = nextMatrix;
@@ -526,14 +526,14 @@ void test_transitions(int n, bool mode = false, bool print_all = false){
 }
 
 void test_save_load(int n, bool mode = false){
-    save_decomposition(n, "tests", mode );
+    save_decomposition(n, "test_decompositions", mode );
     DecompTree tree_original = generateDecompositions(n, mode);
-    save_transitions(n, "tests", mode );
+    save_transitions(n, "test_decompositions", mode );
     vec<transition> transitions_original = generateTransitions(n, mode);
-    std::cout << "Test files saved in folder tests." << std::endl;
+    std::cout << "Test files saved in folder test_decompositions." << std::endl;
     std::string file_ending = (mode ? "reduced_" : "") + std::to_string(n) + ".bin";
-    DecompTree tree = loadDecompTree("tests/decompositions_" + file_ending);
-    vec<transition> transitions = load_transition_list("tests/transitions_" + file_ending);
+    DecompTree tree = loadDecompTree("test_decompositions/decompositions_" + file_ending);
+    vec<transition> transitions = load_transition_list("test_decompositions/transitions_" + file_ending);
     
     if(true){
         if(tree.size() != tree_original.size()){
@@ -611,10 +611,10 @@ std::string findDecompositionsDir() {
 }
 
 int main(int argc, char* argv[]) {
-    bool test_transition_computation = true;
+    bool test_transition_computation = false;
     bool test_save_and_load = false;
     bool test_sizes = false;
-    int dim = 2;
+    int dim = 5;
     if(test_transition_computation){
         test_transitions(dim, true);
     }
