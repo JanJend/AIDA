@@ -280,7 +280,11 @@ struct AIDA_functor {
         #if TIMERS
             aida::load_matrices_timer.stop();
             double load_matrices = aida::load_matrices_timer.elapsed().wall/1e9;
-            std::cout << "Time to load matrices: " << load_matrices << std::endl;
+            if(config.show_info){
+                std::cout << "Loaded " << matrices.size() << " matrix/ces in time: " 
+                << load_matrices << " s." << std::endl;
+            }
+            
         #endif
         
         int k_max = 0;

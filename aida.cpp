@@ -15,20 +15,26 @@
  * -o <output_file> : writes the output to the specified file. Can be a relative or absolute path.
  * -o <output_directory> : writes the output to the specified directory with the name <input_file_name>_decomposition.scc
  * -o<argument>: As above but without the space between the option and the argument.
- * -sort : sorts the input matrices lexicographically
- * -c : saves the base change for each decomposition
- * -p : shows progress bar while decomposing 
- * -t : shows statistics about the indecomposables
- * -r : shows runtime statistics
- * -e : uses the exhaustive algorithm
- * -b : uses the DeyXin (bruteforce) algorithm. This implies -e automatically.
- * -m : compares the hom space and direct version (i.e -b) of block_reduce. Only for debugging.
- * -l : suppresses most console output
- * -a : compares the exhaustive and aida alpha-decomp. Only for debugging.
- * -i : compare optimised and non-optimised hom space calculation.
- * --h : display detailed description
- * --v : display version
- * --f : turns the computation of alpha-homs on.
+* -h, --help           Display this help message\n"
+* -v, --version        Display version information\n"
+* General Options:\n"
+*  -p, --progress       Show progressbar\n"
+*  -b, --bruteforce     Stops hom-space calculation and thus most optimisation. \n"
+*  -s, --sort           Lexicographically sorts the relations of the input\n"
+*  -e, --exhaustive     Always iterates over all decompositions of a batch\n"
+*  -t, --statistics     Show statistics about indecomposable summands\n"
+*  -r, --runtime        Show runtime statistics and timers\n"
+*  -c, --basechange     Save base change\n"
+*  -l, --less_console   Suppreses most console output\n"
+*  -f, --alpha          Turns the computation of alpha-homs on.\n"
+*  -j, --no_hom_opt     Does not use the optimised hom space calculation.\n"
+* For Testing and Debugging:\n"
+*  -m, --compare_b      Compares with -b at runtime, then runs with only -b and compares.\n"
+*  -a, --compare_e      Compares exhaustive and brute force at runtime.\n"
+*  -i, --compare_hom    Compares optimised and non-opt hom space calculation at runtime.\n"
+*  -w, --no_col_sweep   Does not use the column sweep optimisation.\n"
+*  -x, --test_files      Runs the algorithm on some test files.\n"
+* Further Instructions: \n Make sure that the inputfile is a (sequence of) scc or firep presentations that are minimised.\n"
  * 
  * 
  * @copyright 2025 TU Graz
@@ -53,8 +59,8 @@ void display_help() {
               << " General Options:\n"
               << "  -o, --output <file>  Specify output file\n"
               << "      <file> is optional and will default to the <input_file> with _decomposed appended\n"
-              << "      You can pass relative and absolute paths as well as only a directory."
-              << "  -p, --progress       Show progressbar\n"
+              << "      You can pass relative and absolute paths as well as only a directory. \n"
+              << "  -p, --progress       Hide progressbar\n"
               << "  -b, --bruteforce     Stops hom-space calculation and thus most optimisation. \n"
               << "  -s, --sort           Lexicographically sorts the relations of the input\n"
               << "  -e, --exhaustive     Always iterates over all decompositions of a batch\n"
@@ -134,16 +140,24 @@ void write_to_file(std::ostringstream& ostream, std::string& output_file_path, s
 int main(int argc, char** argv){
     aida::AIDA_functor decomposer = aida::AIDA_functor();
     
-    decomposer.config.exhaustive = false;
-    decomposer.config.brute_force = false;
-    decomposer.config.sort = false;
-    decomposer.config.sort_output = true;
-    decomposer.config.alpha_hom = false;
-    bool write_output = false;
-
+    decomposer.config.progress = true;
+    decomposer.config.show_info = true;
     bool show_indecomp_statistics = false;
     bool show_runtime_statistics = false;
-    decomposer.config.show_info = true;
+
+
+    decomposer.config.sort = false;
+    decomposer.config.sort_output = true;
+    bool write_output = false;
+
+    decomposer.config.exhaustive = false;
+    decomposer.config.brute_force = false;
+    decomposer.config.alpha_hom = false;
+    
+    
+
+    
+
 
     decomposer.config.compare_both = false; // Compares normal functioning and brute force at runtime, then also compares output.
     bool compare_time = false;
@@ -242,7 +256,7 @@ int main(int argc, char** argv){
                 show_runtime_statistics = true;
                 break;
             case 'p':
-                decomposer.config.progress = true;
+                decomposer.config.progress = false;
                 break;
             case 'c':
                 decomposer.config.save_base_change = true;

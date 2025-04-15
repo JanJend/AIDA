@@ -53,9 +53,9 @@ using namespace boost::timer;
 
 
 #if OBSERVE
-    index observe_batch_index = 218;
+    index observe_batch_index = 193;
     vec<index> observe_row_indices;
-    index observe_block_index = 263;
+    index observe_block_index = 51;
 #endif
 
 #if TIMERS
@@ -1785,7 +1785,7 @@ void construct_linear_system_extension(Sparse_Matrix& S, vec<hom_info>& hom_stor
  * @param B 
  * @return vec<Sparse_Matrix> 
  */
-Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, r2degree& alpha, const bool& alpha_hom = false){
+Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, r2degree& alpha, const bool& optimised = false, const bool& alpha_hom = false){
 
     vec< pair > row_ops; // we store the matrices Q_i which form the basis of hom(C, B) as vectors
     // This translates from entries of the vector to entries of the matrix.
@@ -1812,13 +1812,22 @@ Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, r2degree& alpha
 
         case BlockType::CYC : {
             //TO-DO: Implement
-            return hom_space(C, B, C.rows, B.rows);
+            if(optimised){
+                return hom_space_optimised(C, B, C.rows, B.rows);
+            } else {
+                return hom_space(C, B, C.rows, B.rows);
+            }
+            
             break;
         }
 
         case BlockType::INT : {
-            
-            return hom_space(C, B, C.rows, B.rows);
+            //TO-DO: Implement
+            if(optimised){
+                return hom_space_optimised(C, B, C.rows, B.rows);
+            } else {
+                return hom_space(C, B, C.rows, B.rows);
+            }
             break;
             #if CHECK_INT
             if( B.type == BlockType::INT ){
@@ -1858,7 +1867,11 @@ Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, r2degree& alpha
         }
 
         case BlockType::NON_INT : {
-            return hom_space(C, B, C.rows, B.rows);
+            if(optimised){
+                return hom_space_optimised(C, B, C.rows, B.rows);
+            } else {
+                return hom_space(C, B, C.rows, B.rows);
+            }
             /*
             Non-optimised version
             Sparse_Matrix S(0,0);
@@ -1946,13 +1959,12 @@ Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, r2degree& alpha
 
 
 /**
- * @brief Computes a basis for the hom-space Hom(C, B).
+ * @brief Obsolete; Computes a basis for the hom-space Hom(C, B).
  * 
  * @param A 
  * @param C
  * @param B 
  * @return vec<Sparse_Matrix> 
- */
 Hom_space compute_hom_space_no_optimisation(GradedMatrix& A, Block& C, Block& B, r2degree& alpha, Sparse_Matrix& S_compare, const bool& alpha_hom = false){
     //TO-DO: This function is not working correctly yet, but it is only for testing anyways.
 
@@ -2119,7 +2131,7 @@ Hom_space compute_hom_space_no_optimisation(GradedMatrix& A, Block& C, Block& B,
 
     return {Sparse_Matrix(0,0), {}};
 }
-
+*/
 
 
 /**
@@ -2151,12 +2163,9 @@ void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterator>& blo
                     misc_timer.stop();
                 #endif
                 
-                if(config.turn_off_hom_optimisation){
-                    Sparse_Matrix S = Sparse_Matrix(0,0);
-                    hom_spaces.emplace(std::make_pair(c,b), compute_hom_space_no_optimisation(A, C, B, alpha, S, config.alpha_hom));}
-                else {
-                    hom_spaces.emplace(std::make_pair(c,b), compute_hom_space(A, C, B, alpha, config.alpha_hom));    
-                }
+                
+                hom_spaces.emplace(std::make_pair(c,b), compute_hom_space(A, C, B, alpha, !config.turn_off_hom_optimisation, config.alpha_hom));    
+                
                 
                 #if TIMERS
                     hom_space_timer.stop();
@@ -2194,7 +2203,7 @@ void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterator>& blo
                         misc_timer.stop();
                     #endif
                     Sparse_Matrix S(0,0);
-                    auto non_optimised_hom = compute_hom_space_no_optimisation(A, C, B, alpha, S);
+                    auto non_optimised_hom = compute_hom_space(A, C, B, alpha, false, config.alpha_hom);
                     #if TIMERS
                         hom_space_test_timer.stop();
                         misc_timer.resume();
@@ -3543,6 +3552,15 @@ vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, Block_li
                             A, b, b_non_zero_columns, non_processed_blocks, pro_block, incoming_vertices, pro_blocks, deleted_cocycles[0],
                             hom_graph, hom_spaces, batch_transforms, base_change, external_incoming_vertices, component_transforms,
                             block_map, row_map, N_map);
+                        if(deleted_cocycles[0][pro_b]){
+                            #if DETAILS
+                                std::cout << "      No deletion of cocycle at " << b << " and " << pro_block << std::endl;
+                            #endif
+                        } else {
+                            #if DETAILS
+                                std::cout << "      Deleted cocycle at " << b << " and " << pro_block << std::endl;
+                            #endif
+                        }
                     } else {
                         #if DETAILS
                         std::cout << "      0 cocyle at " << b << " and " << pro_block << std::endl;
@@ -3575,6 +3593,15 @@ vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, Block_li
                             A, b, b_non_zero_columns, non_processed_blocks, pro_block, internal_incoming_vertices, pro_blocks, deleted_cocycles[i],
                             hom_graph, hom_spaces, batch_transforms, base_change, external_incoming_vertices, component_transforms,
                             block_map, row_map, N_map); 
+                        if(deleted_cocycles[i][pro_b]){
+                            #if DETAILS
+                                std::cout << "      No deletion of cocycle at " << b << " and " << pro_block << ", " << i << std::endl;
+                            #endif
+                        } else {
+                            #if DETAILS
+                                std::cout << "      Deleted cocycle at " << b << " and " << pro_block << ", " << i << std::endl;
+                            #endif
+                        }
                         #if DETAILS
                             for(index i = 0; i < local_pierced_blocks.size(); i++){
                                 for(index j = 0; j < k; j++){
@@ -3946,9 +3973,9 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
     #if OBSERVE
         // Continuous monitoring of the content of a batch
         observe_row_indices = vec<index>();
-        Degree_traits<r2degree> degree_traits;
+
         std::cout << "Observing batch " << observe_batch_index << " with columns " << A.col_batches[observe_batch_index] << " at " << std::endl;
-        degree_traits.print_degree(A.col_degrees[A.col_batches[observe_batch_index][0]]);
+        Degree_traits<r2degree>::print_degree(A.col_degrees[A.col_batches[observe_batch_index][0]]);
         std::cout << " and with content:" << std::endl;
         Sparse_Matrix observed_batch_comparison = A.restricted_domain_copy(A.col_batches[observe_batch_index]);
         observed_batch_comparison.print();

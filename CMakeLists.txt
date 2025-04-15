@@ -39,7 +39,7 @@ add_executable(aida_with_stats ${CMAKE_SOURCE_DIR}/aida.cpp)
 add_executable(aida_without_stats ${CMAKE_SOURCE_DIR}/aida.cpp)
 
 # For Decomposition of Vectorspaces temporarily deactivated
-# add_executable(generate_decompositions ${CMAKE_SOURCE_DIR}/generate_decompositions.cpp)
+add_executable(generate_decompositions ${CMAKE_SOURCE_DIR}/generate_decompositions.cpp)
 
 target_compile_options(aida_with_stats PUBLIC -DAIDA_WITH_STATS=1)
 target_compile_options(aida_without_stats PUBLIC -DAIDA_WITH_STATS=0)
