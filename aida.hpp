@@ -499,6 +499,38 @@ struct Block : GradedMatrix {
     vec<index> rows;
     vec<index> columns;
 
+    Block& operator= (const Block& other) {
+        if (this != &other) {
+            GradedMatrix::operator=(other);
+            rows = other.rows;
+            columns = other.columns;
+        }
+        return *this;
+    }
+
+    Block& operator= (Block&& other) {
+        if (this != &other) {
+            GradedMatrix::operator=(std::move(other));
+            rows = std::move(other.rows);
+            columns = std::move(other.columns);
+        }
+        return *this;
+    }
+
+    Block() : GradedMatrix() {
+        rows = vec<index>();
+        columns = vec<index>();
+    }
+
+    Block(const Block& other) : GradedMatrix(other) {
+        rows = other.rows;
+        columns = other.columns;
+    }
+    Block(Block&& other) : GradedMatrix(std::move(other)) {
+        rows = std::move(other.rows);
+        columns = std::move(other.columns);
+    }
+
     BlockType type; // 0 for free module, 1 for cyclic, 2 for interval, 3 for non-interval
 
     vec<index> local_admissible_cols; // Stores the indices of the columns which can be used for column operations.
@@ -676,7 +708,6 @@ struct Block : GradedMatrix {
     }
 
     
-    Block() : GradedMatrix() {}
     
     void clear() {
       this->rows.clear();

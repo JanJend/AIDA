@@ -16,7 +16,7 @@ void display_help() {
               << "  -e, --exhaustive     Always iterates over all decompositions of a batch\n"
               << "  -t, --statistics     Show statistics about indecomposable summands\n"
               << "  -r, --runtime        Show runtime statistics and timers\n"
-              << "  -p, --progress       Show progressbar\n"
+              << "  -p, --progress       Turn off progressbar\n"
               << "  -c, --basechange     Save base change\n"
               << "  -o, --output <file>  Specify output file\n"
               << "  -l, --less_console   Suppreses most console output\n"
@@ -98,6 +98,7 @@ int main(int argc, char** argv){
     decomposer.config.sort = false;
     decomposer.config.sort_output = true;
     decomposer.config.alpha_hom = false;
+    decomposer.config.progress = true;
     bool write_output = false;
 
     bool show_indecomp_statistics = false;
@@ -203,7 +204,7 @@ int main(int argc, char** argv){
                 show_runtime_statistics = true;
                 break;
             case 'p':
-                decomposer.config.progress = true;
+                decomposer.config.progress = false;
                 break;
             case 'c':
                 decomposer.config.save_base_change = true;

@@ -21,7 +21,14 @@ struct slope_comparator{
 };
 
 
-Module_w_slope find_scss(const R2GradedSparseMatrix<int>& X, vec<vec<SparseMatrix<int>>>& subspaces){
+/**
+ * @brief Computes the submodule with the highest slope in the given module if X is generated at a single degree.
+ * 
+ * @param X 
+ * @param subspaces 
+ * @return Module_w_slope 
+ */
+Module_w_slope find_scss_bruteforce(const R2GradedSparseMatrix<int>& X, vec<vec<SparseMatrix<int>>>& subspaces, R2GradedSparseMatrix<int>& max_subspace){
     int k = X.get_num_rows();
     double max_slope = 0;
     R2Resolution<int> scss;
@@ -40,26 +47,35 @@ Module_w_slope find_scss(const R2GradedSparseMatrix<int>& X, vec<vec<SparseMatri
             R2GradedSparseMatrix<int> subspace = R2GradedSparseMatrix<int>(ungraded_subspace);
             subspace.row_degrees = X.row_degrees;
             subspace.col_degrees = vec<r2degree>(num_gens, X.row_degrees[0]);
+            assert(subspace.get_num_rows() == X.get_num_rows());
+            assert(subspace.get_num_cols() == num_gens);
             R2GradedSparseMatrix<int> submodule_pres = X.submodule_generated_by(subspace);
             R2Resolution<int> res(submodule_pres);
             double slope = res.slope(); 
             if(slope > max_slope){
                 max_slope = slope;
                 scss = std::move(res);
+                max_subspace = subspace;
             }
         }
-    }
-    if(X.get_num_rows() > scss.d1.get_num_rows()){
-        // TO-DO: compute quotient, use recursion;
     }
     return std::make_pair(scss, max_slope); 
 }
 
 
+
 HN_factors skyscraper_invariant(Block_list& summands, vec<vec<SparseMatrix<int>>>& subspaces){
     HN_factors result;
     for(Block X : summands){
-        result.emplace_back(find_scss(X, subspaces));
+        while(X.get_num_rows() > 1){
+            R2GradedSparseMatrix<int> subspace;
+            result.emplace_back(find_scss_bruteforce(X, subspaces, subspace));
+            if(result.back().first.d1.get_num_rows() == X.get_num_rows()){
+                break;
+            } else {
+                X.quotient_by(subspace);
+            }
+        }
     }
     return result;
 }
