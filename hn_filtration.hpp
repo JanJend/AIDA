@@ -147,12 +147,12 @@ void write_slopes_to_csv(const vec<vec<double>>& slopes,
     }
 
     for (int i = 0; i < slopes.size(); ++i) {
-        file << grid_points[i] << ",";
+        file << grid_points[i] << ";";
 
         const auto& slopes_at_degree = slopes[i];
         for (int j = 0; j < slopes_at_degree.size(); ++j) {
             file << slopes_at_degree[j];
-            if (j < slopes_at_degree[j] - 1) {
+            if (j < slopes_at_degree.size() - 1) {
                 file << ",";
             }
         }    
@@ -167,9 +167,9 @@ void process_list_of_summands(aida::AIDA_functor& decomposer, std::ifstream& ist
     int grid_size = 50;
     
     bool progress_bar = false;
-    if (!decomposer.config.progress){
+    if (decomposer.config.progress){
         progress_bar = true;
-        decomposer.config.progress = true;
+        decomposer.config.progress = false;
     } 
     bool show_info = false;
     if (decomposer.config.show_info) {
@@ -198,7 +198,8 @@ void process_list_of_summands(aida::AIDA_functor& decomposer, std::ifstream& ist
         bounds = {lower_bound, upper_bound};
     }
 
-    r2degree slope_bound = 2*bounds.second;
+    // TO-DO: FIX THIS, if bounds are negative this cannot work!
+    r2degree slope_bound = {2*bounds.second.first, 2*bounds.second.second};
     vec<r2degree> grid_points = get_grid_points(bounds, grid_size);
         
     vec<vec<double>> slopes = vec<vec<double>>(grid_points.size(), vec<double>());  
@@ -237,6 +238,11 @@ void process_list_of_summands(aida::AIDA_functor& decomposer, std::ifstream& ist
                 all_scss_dimensions.push_back(1);
                 R2Resolution<int> res(B_induced);
                 double slope = res.slope(slope_bound);
+                if(slope == INFINITY){
+                    assert(false);
+                    std::cerr << "Slope is infinite, consider passing a bound." << std::endl;
+                }
+
                 slopes[i].push_back(slope);
                 Module_w_slope single_stable = std::make_pair(res, slope);
                 to_stream(ostream, single_stable);
@@ -259,6 +265,9 @@ void process_list_of_summands(aida::AIDA_functor& decomposer, std::ifstream& ist
 
                 for(auto& hn_factor : skyscraper_degree){
                     all_scss_dimensions.push_back(hn_factor.first.d1.get_num_rows());
+                    if(hn_factor.second == INFINITY){
+                        assert(false);
+                    }
                     slopes[i].push_back(hn_factor.second);
                     to_stream(ostream, hn_factor);
                 }
