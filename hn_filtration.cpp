@@ -62,7 +62,7 @@ void run_on_test_files(aida::AIDA_functor& decomposer, std::ostringstream& ostre
 void write_to_file(std::ostringstream& ostream, std::string& output_file_path, std::string& input_directory, std::string& file_without_extension, std::string& extension, std::string& output_string){
 
     if(output_string.empty()){
-        output_file_path = input_directory + "/" + file_without_extension + "_decomposition" + extension;
+        output_file_path = input_directory + "/" + file_without_extension + "_hn_filtration" + extension;
     } else {
         std::filesystem::path output_path(output_string);
         if (output_path == ".") {
@@ -70,7 +70,7 @@ void write_to_file(std::ostringstream& ostream, std::string& output_file_path, s
         } else if (output_path.is_relative()) {
             output_file_path = std::filesystem::current_path().string() + "/" + output_string;
         } else if (std::filesystem::is_directory(output_path)) {
-            output_file_path = output_path.string() + "/" + file_without_extension + "_decomposition" + extension;
+            output_file_path = output_path.string() + "/" + file_without_extension + "_hn_filtration" + extension;
         } else if (output_path.is_absolute()) {
             output_file_path = output_string;
         } else {
@@ -84,9 +84,9 @@ void write_to_file(std::ostringstream& ostream, std::string& output_file_path, s
     if(file_out.is_open()){
         file_out << ostream.str();
         file_out.close();
-        std::cout << "Decomposition written to " << output_file_path << std::endl;
+        std::cout << "HN filtration written to " << output_file_path << std::endl;
     } else {
-        std::cout << "Error: Could not write decomposition to file: " << output_file_path << std::endl;
+        std::cout << "Error: Could not write HN filtration to file: " << output_file_path << std::endl;
     }
 }
 
@@ -278,7 +278,7 @@ int main(int argc, char** argv){
         }
          std::cout << "Decomposing, then generating submodules at grid points and decomposing them again of " + filename << std::endl;
         
-        hnf::full_grid_induced_decomposition(decomposer, istream, show_indecomp_statistics, show_runtime_statistics, is_decomposed);
+        hnf::full_grid_induced_decomposition(decomposer, istream, ostream, show_indecomp_statistics, show_runtime_statistics, is_decomposed);
          
      } else {
          run_on_test_files(decomposer, ostream);

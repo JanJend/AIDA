@@ -28,15 +28,18 @@ struct slope_comparator{
  * @param subspaces 
  * @return Module_w_slope 
  */
-Module_w_slope find_scss_bruteforce(const R2GradedSparseMatrix<int>& X, vec<vec<SparseMatrix<int>>>& subspaces, R2GradedSparseMatrix<int>& max_subspace){
+Module_w_slope find_scss_bruteforce(const R2GradedSparseMatrix<int>& X, 
+        vec<vec<SparseMatrix<int>>>& subspaces, 
+        R2GradedSparseMatrix<int>& max_subspace,
+        const r2degree& bound){
     int k = X.get_num_rows();
     double max_slope = 0;
     R2Resolution<int> scss;
     if(k == 1){
         scss = R2Resolution<int>(X);
-        max_slope = scss.slope();
+        max_slope = scss.slope(bound);
     } else {
-        assert(k < 4);
+        assert(k < 6);
         if(subspaces.size() < k){
             std::cerr << "Have not loaded enough subspaces" << std::endl;
             std::exit(1);
@@ -51,7 +54,7 @@ Module_w_slope find_scss_bruteforce(const R2GradedSparseMatrix<int>& X, vec<vec<
             assert(subspace.get_num_cols() == num_gens);
             R2GradedSparseMatrix<int> submodule_pres = X.submodule_generated_by(subspace);
             R2Resolution<int> res(submodule_pres);
-            double slope = res.slope(); 
+            double slope = res.slope(bound); 
             if(slope > max_slope){
                 max_slope = slope;
                 scss = std::move(res);
@@ -64,12 +67,18 @@ Module_w_slope find_scss_bruteforce(const R2GradedSparseMatrix<int>& X, vec<vec<
 
 
 
-HN_factors skyscraper_invariant(Block_list& summands, vec<vec<SparseMatrix<int>>>& subspaces){
+HN_factors skyscraper_invariant(Block_list& summands, 
+        vec<vec<SparseMatrix<int>>>& subspaces, 
+        const r2degree& bound){
     HN_factors result;
     for(Block X : summands){
+        int dim_at_degree = X.get_num_rows();
+        if(dim_at_degree > 4){
+            assert(false);
+        }
         while(X.get_num_rows() > 1){
             R2GradedSparseMatrix<int> subspace;
-            result.emplace_back(find_scss_bruteforce(X, subspaces, subspace));
+            result.emplace_back(find_scss_bruteforce(X, subspaces, subspace, bound));
             if(result.back().first.d1.get_num_rows() == X.get_num_rows()){
                 break;
             } else {
@@ -123,39 +132,86 @@ vec<r2degree> get_grid_points( pair<r2degree> bounds, int grid_size) {
     return grid_points;
 }
 
- 
+template< typename Outputstream>
+void to_stream(Outputstream& ostream, Module_w_slope& scss){
+    ostream << "Slope: " << scss.second << std::endl;
+    scss.first.d1.to_stream_r2(ostream);
+}
 
-template<typename Container>
-void process_list_of_summands(aida::AIDA_functor& decomposer, std::ifstream& istream, const Container& indecomps) {
+void write_slopes_to_csv(const vec<vec<double>>& slopes,
+        const vec<r2degree>& grid_points,
+        const std::string& filename) {
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        throw std::runtime_error("Unable to open file");
+    }
+
+    for (int i = 0; i < slopes.size(); ++i) {
+        file << grid_points[i] << ",";
+
+        const auto& slopes_at_degree = slopes[i];
+        for (int j = 0; j < slopes_at_degree.size(); ++j) {
+            file << slopes_at_degree[j];
+            if (j < slopes_at_degree[j] - 1) {
+                file << ",";
+            }
+        }    
+        file << "\n";
+    }
+    file.close();
+}
+
+template<typename Container, typename Outputstream>
+void process_list_of_summands(aida::AIDA_functor& decomposer, std::ifstream& istream, Outputstream& ostream, const Container& indecomps) {
     
     int grid_size = 50;
     
     bool progress_bar = false;
-    if (decomposer.config.progress){
+    if (!decomposer.config.progress){
         progress_bar = true;
-        decomposer.config.progress = false;
+        decomposer.config.progress = true;
     } 
     bool show_info = false;
     if (decomposer.config.show_info) {
         decomposer.config.show_info = false;
+        show_info = true;
     }
     int num_of_summands = indecomps.size();
     if (show_info) {
         std::cout << "The first decomposition has " << num_of_summands << " indecomposable summands." << std::endl;
     }
-    vec<int> all_dimensions;
-    int current_block = 0;
-    for(auto& B : indecomps){
-        current_block++;
+    int total_generators = 0;
+    
+    vec<int> all_scss_dimensions;
+    vec<int> first_ind_dimensions;
+    vec<int> grid_ind_dimensions;
+    int processed_generators = 0;
 
+    pair<r2degree> bounds = indecomps.front().bounding_box();
+
+    for (auto& B : indecomps) {
+        total_generators += B.get_num_rows();
+        pair<r2degree> B_bounds = B.bounding_box();
+        first_ind_dimensions.push_back(B.get_num_rows());
+        r2degree lower_bound = Degree_traits<r2degree>::meet(bounds.first, B_bounds.first);
+        r2degree upper_bound = Degree_traits<r2degree>::join(bounds.second, B_bounds.second);
+        bounds = {lower_bound, upper_bound};
+    }
+
+    r2degree slope_bound = 2*bounds.second;
+    vec<r2degree> grid_points = get_grid_points(bounds, grid_size);
+        
+    vec<vec<double>> slopes = vec<vec<double>>(grid_points.size(), vec<double>());  
+    for(int i = 0; i< grid_points.size(); i++){ 
+        r2degree degree = grid_points[i];
         if (progress_bar) {
             static int last_percent = -1;
             // (-)^{1.5} progress bar for now, but not clear that computational time increases with this exponent.
-            int percent = static_cast<int>(pow(static_cast<double>(current_block) / num_of_summands, 1.5) * 100);
+            int percent = static_cast<int>(static_cast<double>(i) / grid_points.size() * 100);
             if (percent != last_percent) {
                 // Calculate the number of symbols to display in the progress bar
                 int num_symbols = percent / 2;
-                std::cout << "\r" << current_block << " summands : [";
+                std::cout << "\r" << i << " grid points : [";
                 // Print the progress bar
                 for (int i = 0; i < 50; ++i) {
                     if (i < num_symbols) {
@@ -168,52 +224,68 @@ void process_list_of_summands(aida::AIDA_functor& decomposer, std::ifstream& ist
                 std::flush(std::cout);
                 last_percent = percent;
             }
-            if (current_block == num_of_summands) {
+            if (processed_generators >= total_generators) {
                 std::cout << std::endl;
             }
         }
-
-        if(B.get_num_rows() == 1){
-            all_dimensions.push_back(1);
-        }
-        pair<r2degree> bounds = B.bounding_box();
-        vec<r2degree> support = B.discrete_support();
-        if(support.size() <= grid_size/2){
-            grid_size = 2*support.size();
-        }
-        vec<r2degree> grid_points = get_grid_points(bounds, grid_size);
-
-        for(auto& degree : support){           
+        ostream << degree << std::endl;
+        for(auto& B : indecomps){
+ 
             auto B_induced = B.submodule_generated_at(degree);
             if(B_induced.get_num_rows() == 1){
-                all_dimensions.push_back(1);
-            } else if ( B_induced.get_num_rows() == 0){
+                grid_ind_dimensions.push_back(1);
+                all_scss_dimensions.push_back(1);
+                R2Resolution<int> res(B_induced);
+                double slope = res.slope(slope_bound);
+                slopes[i].push_back(slope);
+                Module_w_slope single_stable = std::make_pair(res, slope);
+                to_stream(ostream, single_stable);
 
+            } else if ( B_induced.get_num_rows() == 0){
+                ostream << "0" << std::endl;
             } else {
                 aida::Block_list sub_B_list;
                 B_induced.compute_col_batches();
                 decomposer(B_induced, sub_B_list);
-                int max_dim = 3;
+                int max_dim = 0;
+                for(Block sub_B : sub_B_list){
+                    if(sub_B.get_num_rows() > max_dim){
+                        max_dim = sub_B.get_num_rows();
+                    }
+                    grid_ind_dimensions.push_back(sub_B.get_num_rows());
+                }
                 auto subspaces = all_sparse_proper_subspaces(max_dim);
-                auto skyscraper_degree = skyscraper_invariant(sub_B_list, subspaces);
+                auto skyscraper_degree = skyscraper_invariant(sub_B_list, subspaces, slope_bound);
 
                 for(auto& hn_factor : skyscraper_degree){
-                    all_dimensions.push_back(hn_factor.first.d1.get_num_rows());
+                    all_scss_dimensions.push_back(hn_factor.first.d1.get_num_rows());
+                    slopes[i].push_back(hn_factor.second);
+                    to_stream(ostream, hn_factor);
                 }
             }
         }
+
+        std::sort(slopes[i].begin(), slopes[i].end());
     }
-    std::cout << " tracked the dimension of " << all_dimensions.size() << " indecomposable summands." << std::endl;
-    calculate_stats(all_dimensions);
+
+
+
+    std::cout << " tracked the dimensions of " << grid_ind_dimensions.size() << " indecomposable summands." << std::endl;
+
+    calculate_stats(grid_ind_dimensions);
+    calculate_stats(all_scss_dimensions);
+
+    write_slopes_to_csv(slopes, grid_points, "slopes.csv");
+
 }
 
-
-void full_grid_induced_decomposition(aida::AIDA_functor& decomposer, std::ifstream& istream, bool show_indecomp_statistics, bool show_runtime_statistics, bool is_decomposed = false){
+template <typename Outputstream>
+void full_grid_induced_decomposition(aida::AIDA_functor& decomposer, std::ifstream& istream, Outputstream& ostream, bool show_indecomp_statistics, bool show_runtime_statistics, bool is_decomposed = false){
     
     if(is_decomposed){
         vec<R2GradedSparseMatrix<int>> matrices;
         graded_linalg::construct_matrices_from_stream(matrices, istream);
-        process_list_of_summands(decomposer, istream, matrices);
+        process_list_of_summands(decomposer, istream, ostream, matrices);
     } else {
         aida::Block_list B_list;
         decomposer(istream, B_list);
@@ -226,7 +298,7 @@ void full_grid_induced_decomposition(aida::AIDA_functor& decomposer, std::ifstre
                 decomposer.cumulative_runtime_statistics.print_timers();
             #endif
         }
-        process_list_of_summands(decomposer, istream, B_list);
+        process_list_of_summands(decomposer, istream, ostream, B_list);
     }
     
 } // full_grid_induced_decomposition
