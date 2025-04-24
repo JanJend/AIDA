@@ -277,7 +277,7 @@ int main(int argc, char** argv){
                 return 0;
         }
          std::cout << "Decomposing, then generating submodules at grid points and decomposing them again of " + filename << std::endl;
-        
+         ostream << std::fixed << std::setprecision(17);
         hnf::full_grid_induced_decomposition(decomposer, istream, ostream, show_indecomp_statistics, show_runtime_statistics, is_decomposed);
          
      } else {
