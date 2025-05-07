@@ -114,22 +114,20 @@ void calculate_stats(const std::vector<int>& all_dimensions) {
     std::cout << "Standard Deviation: " << standard_deviation << std::endl;
 }
 
-vec<r2degree> get_grid_points( pair<r2degree> bounds, int grid_size) {
-    vec<r2degree> grid_points;
+vec<r2degree> get_grid_diagonal( pair<r2degree> bounds, int grid_length) {
+    vec<r2degree> grid_diagonal = vec<r2degree>();
     double x_min = bounds.first.first;
     double x_max = bounds.second.first;
     double y_min = bounds.first.second;
     double y_max = bounds.second.second;
 
-    double x_step = (x_max - x_min) / (grid_size - 1);
-    double y_step = (y_max - y_min) / (grid_size - 1);
+    double x_step = (x_max - x_min) / (grid_length - 1);
+    double y_step = (y_max - y_min) / (grid_length - 1);
 
-    for (int i = 0; i < grid_size; ++i) {
-        for (int j = 0; j < grid_size; ++j) {
-            grid_points.push_back({x_min + i * x_step, y_min + j * y_step});
-        }
+    for (int i = 0; i < grid_length; ++i) {
+        grid_diagonal.push_back({x_min + i * x_step, y_min + i * y_step});
     }
-    return grid_points;
+    return grid_diagonal;
 }
 
 template< typename Outputstream>
@@ -137,7 +135,7 @@ void to_stream(Outputstream& ostream, Module_w_slope& scss){
     if(scss.first.d1.get_num_rows() == 1){
         ostream << scss.second;
         for(r2degree d : scss.first.d1.col_degrees){
-            ostream << "," << d;
+            ostream << "," << "(" << d.first << ";" << d.second << ")";
         }
         ostream << std::endl;
     } else {
@@ -172,12 +170,37 @@ void write_slopes_to_csv(const vec<vec<double>>& slopes,
     file.close();
 }
 
+void show_progress_bar(int& i, int& total, std::string& name) {
+
+    static int last_percent = -1;
+    int percent = static_cast<int>(static_cast<double>(i) / total * 100);
+    if (percent != last_percent) {
+        // Calculate the number of symbols to display in the progress bar
+        int num_symbols = percent / 2;
+        std::cout << "\r" << i << " " << name << " : [";
+        // Print the progress bar
+        for (int j = 0; j < 50; ++j) {
+            if (j < num_symbols) {
+                std::cout << "#";
+            } else {
+                std::cout << " ";
+            }
+        }
+        std::cout << "] " << percent << "%";
+        std::flush(std::cout);
+        last_percent = percent;
+    }
+    if (i >= total) {
+        std::cout << std::endl;
+    }
+}
+
 template<typename Container, typename Outputstream>
 void process_list_of_summands(aida::AIDA_functor& decomposer, 
     std::ifstream& istream, Outputstream& ostream, 
     vec<r2degree>& grid_points, const Container& indecomps) {
     
-    int grid_size = 50;
+    int grid_length = 50;
     
     bool progress_bar = false;
     if (decomposer.config.progress){
@@ -213,7 +236,12 @@ void process_list_of_summands(aida::AIDA_functor& decomposer,
         bounds = {lower_bound, upper_bound};
     }
 
-    grid_points = get_grid_points(bounds, grid_size);
+    vec<r2degree> grid_diagonal = get_grid_diagonal(bounds, grid_length);
+    ostream << "HNF" << std::endl;
+    assert(grid_diagonal.size() == grid_length);
+    ostream << grid_length << " " << grid_length << std::endl;
+    ostream << grid_diagonal << std::endl;
+    int grid_size = grid_diagonal.size()*grid_diagonal.size();
 
     // Since a lot of applications will create unbounded modules, we need to set a bound where to cut off
     // OR use a measure where the dimension function is still integrable
@@ -229,36 +257,19 @@ void process_list_of_summands(aida::AIDA_functor& decomposer,
     std::cout << "  Presentation is bounded by " << bounds.first << " and " << bounds.second << std::endl;
     std::cout << "  Modules are cut off at " << slope_bounds.second << std::endl;
     
-    vec<vec<double>> slopes = vec<vec<double>>(grid_points.size(), vec<double>());  
+    // array<vec<double>> slopes;  
 
-    vec<HN_factors> composition_factors(grid_points.size());
+    vec<HN_factors> composition_factors(grid_size);
 
-    for(int i = 0; i< grid_points.size(); i++){ 
-        ostream << "G" << i << " " << grid_points[i] << std::endl;
-        r2degree degree = grid_points[i];
+    for(int i = 0; i < grid_length; i++){ 
+      for(int j = 0; j < grid_length; j++){
+        r2degree degree = {grid_diagonal[i].first, grid_diagonal[j].second};
+        ostream << "G," << i << "," << j << ", " << degree << std::endl;
+
         if (progress_bar) {
-            static int last_percent = -1;
-            // (-)^{1.5} progress bar for now, but not clear that computational time increases with this exponent.
-            int percent = static_cast<int>(static_cast<double>(i) / grid_points.size() * 100);
-            if (percent != last_percent) {
-                // Calculate the number of symbols to display in the progress bar
-                int num_symbols = percent / 2;
-                std::cout << "\r" << i << " grid points : [";
-                // Print the progress bar
-                for (int i = 0; i < 50; ++i) {
-                    if (i < num_symbols) {
-                        std::cout << "#";
-                    } else {
-                        std::cout << " ";
-                    }
-                }
-                std::cout << "] " << percent << "%";
-                std::flush(std::cout);
-                last_percent = percent;
-            }
-            if (processed_generators >= total_generators) {
-                std::cout << std::endl;
-            }
+            int current_index = i * grid_length + j;
+            std::string name = "Grid point";
+            show_progress_bar(current_index, grid_size, name);
         }
         for(auto& B : indecomps){
  
@@ -273,7 +284,7 @@ void process_list_of_summands(aida::AIDA_functor& decomposer,
                     std::cerr << "Slope is infinite, consider passing a bound." << std::endl;
                 }
 
-                slopes[i].push_back(slope);
+                // slopes[i].push_back(slope);
                 Module_w_slope single_stable = std::make_pair(res, slope);
                 to_stream(ostream, single_stable);
 
@@ -300,15 +311,15 @@ void process_list_of_summands(aida::AIDA_functor& decomposer,
                         std::cout << "  Consider passing a bound." << std::endl;
                         assert(false);
                     }
-                    slopes[i].push_back(hn_factor.second);
+                    // slopes[i].push_back(hn_factor.second);
                     to_stream(ostream, hn_factor);
                 }
             }
         }
 
-        std::sort(slopes[i].begin(), slopes[i].end());
+        // std::sort(slopes[i].begin(), slopes[i].end());
+      }
     }
-
 
     std::cout << std::endl;
     std::cout << "  Tracked the dimensions of " << grid_ind_dimensions.size() << " indecomposable summands." << std::endl;
@@ -319,7 +330,7 @@ void process_list_of_summands(aida::AIDA_functor& decomposer,
     std::cout << "  The dimensions of the composition factors at the grid points are distributed as:" << std::endl;
     calculate_stats(all_scss_dimensions);
 
-    write_slopes_to_csv(slopes, grid_points, "slopes.csv");
+    // write_slopes_to_csv(slopes, grid_points, "slopes.csv");
 
 }
 

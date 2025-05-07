@@ -401,6 +401,30 @@ struct AIDA_functor {
         }
 
     }
+
+    /** Get the new basis by computing the inverse to the change of basis that was applied 
+     * 
+     */
+    Sparse_Matrix get_row_basis(index i, index m){
+        vec<pair>& performed_row_ops = base_changes[i]->performed_row_ops;
+        Sparse_Matrix result = Sparse_Matrix(m, m, "Identity");
+        for(index j = performed_row_ops.size()-1; j > -1; j--){
+            result.row_op_on_cols(performed_row_ops[j].first, performed_row_ops[j].second);
+        }
+        return result;
+    }
+
+    /** Get the new basis by computing the inverse to the change of basis that was applied 
+     * 
+     */
+    Sparse_Matrix get_row_basis(index m){
+        vec<pair>& performed_row_ops = base_changes.back()->performed_row_ops;
+        Sparse_Matrix result = Sparse_Matrix(m, m, "Identity");
+        for(index j = performed_row_ops.size()-1; j > -1; j--){
+            result.row_op_on_cols(performed_row_ops[j].first, performed_row_ops[j].second);
+        }
+        return result;
+    }
     
 };
 

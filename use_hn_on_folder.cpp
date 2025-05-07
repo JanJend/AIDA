@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
     }
 
     for (const auto& file : files) {
-        std::string command = hn_filtration + " " + file;
+        std::string command = hn_filtration + " " + file + " -o ";
         std::cout << "Running: " << command << std::endl;
         int ret_code = std::system(command.c_str());
         if (ret_code != 0) {
