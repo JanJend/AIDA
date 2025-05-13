@@ -20,6 +20,11 @@ struct slope_comparator{
     }
 };
 
+double evaluate_slope_polynomial( std::array<double, 4>& coeffs, r2degree d){
+    double& x = d.first;
+    double& y = d.second;
+    return coeffs[0] + coeffs[1]*x + coeffs[2]*y + coeffs[3]*x*y;
+}
 
 /**
  * @brief Computes the submodule with the highest slope in the given module if X is generated at a single degree.
