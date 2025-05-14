@@ -230,15 +230,19 @@ void process_list_of_summands(aida::AIDA_functor& decomposer,
 
     pair<r2degree> bounds = indecomps.front().bounding_box();
 
-    // This is super ineffcient and should be computed earlier directly from the module before decomposition
-    // TO-DO: There is also a computation error here, the upper bound is not computed correctly.
+    
     for (auto& B : indecomps) {
+        // This is super ineffcient and should be computed earlier directly from the module before decomposition
+        // TO-DO: There is also a computation error here, the upper bound is not computed correctly.
         total_generators += B.get_num_rows();
         pair<r2degree> B_bounds = B.bounding_box();
         first_ind_dimensions.push_back(B.get_num_rows());
         r2degree lower_bound = Degree_traits<r2degree>::meet(bounds.first, B_bounds.first);
         r2degree upper_bound = Degree_traits<r2degree>::join(bounds.second, B_bounds.second);
         bounds = {lower_bound, upper_bound};
+
+        // Get a Grid for each component, so that we do not have to recompoute the submodules and their decomposition
+        B.compute_grid_representation();
     }
 
     vec<r2degree> grid_diagonal = get_grid_diagonal(bounds, grid_length);
