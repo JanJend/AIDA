@@ -1,9 +1,9 @@
 
 #include "aida_interface.hpp"
+#include "grlina/orders_and_graphs.hpp"
 #include "grlina/r2graded_matrix.hpp"
 #include <unistd.h> 
 #include <getopt.h>
-
 namespace fs = std::filesystem;
 
 using namespace graded_linalg;
@@ -14,8 +14,11 @@ namespace hnf{
 
 template<typename index>
 struct Uni_B1{
+
     R2GradedSparseMatrix<index> d1;
     R2GradedSparseMatrix<index> d2;
+
+    std::array<double, 4> area_polynomial;
 
     // Default constructor
     Uni_B1() = default;
@@ -45,7 +48,7 @@ struct Uni_B1{
     }
 
     // Copy constructor 
-    Uni_B1(R2GradedSparseMatrix<index>& d1_, bool is_minimal = false)
+    Uni_B1(const R2GradedSparseMatrix<index>& d1_, bool is_minimal = false)
         : d1(d1_) {
         // Kernel computation is easy if the presentation is minimal, sorted, and has one generator.
         //TO-DO: Test this:
@@ -149,6 +152,56 @@ struct Uni_B1{
         return normalised_area;
     }
 
+    /**
+     * @brief Returns a polynomial a[0] + a[1]*x + a[2]*y + a[3]*x*y
+     * which gives the area of the module after shifting the (assumed to be) single generator by (x,y)
+     * 
+     * @param bounds 
+     * @return std::array<double, 4> 
+     */
+    void compute_area_polynomial (const pair<r2degree>& bounds) {
+        int num_rows = d1.get_num_rows();
+        assert(num_rows == 1);
+
+        // For normalisation, so that area is always <=1
+        r2degree range = bounds.second-bounds.first;
+        double range_area = range.first * range.second;
+
+        const r2degree& gen_degree = this->d1.row_degrees[0]; 
+        
+        // vector from generators to the max bound
+        r2degree gen_vector = bounds.second - gen_degree; 
+        // Generators are at gen_degree + (x,y), so the base value they add to the area is spanned by
+        area_polynomial[0] += num_rows * gen_vector.first * gen_vector.second; 
+        // subtract what happens when shifted to (x,y)
+        area_polynomial[1] -= num_rows * gen_vector.second;
+        area_polynomial[2] -= num_rows * gen_vector.first;
+        area_polynomial[3] += num_rows;
+
+        // Relations subtract from the area as before
+
+        for(const auto& degree : d1.col_degrees){
+            assert( Degree_traits<r2degree>::smaller_equal(degree, bounds.second));
+            assert( Degree_traits<r2degree>::smaller_equal(bounds.first, degree) );
+            r2degree rel_vector = bounds.second - degree;
+            area_polynomial[0] -= rel_vector.first* rel_vector.second;
+        }
+
+        // Syzygies add again
+        for(const auto& degree : d2.col_degrees){
+            assert( Degree_traits<r2degree>::smaller_equal(degree, bounds.second));
+            assert( Degree_traits<r2degree>::smaller_equal(bounds.first, degree) );
+            r2degree rel_vector = bounds.second - degree;
+            area_polynomial[0] += rel_vector.first* rel_vector.second;
+        }
+    }
+
+    double evaluate_area_polynomial( r2degree d){
+        double& x = d.first;
+        double& y = d.second;
+        return area_polynomial[0] + area_polynomial[1]*x + area_polynomial[2]*y + area_polynomial[3]*x*y;
+    }
+
     double slope () const {
         double area = this->area();
         if(area == 0){
@@ -176,17 +229,7 @@ struct Uni_B1{
         return slope_value;
     }
 
-    /**
-     * @brief Returns a polynomial a[0] + a[1]*x + a[2]*y + a[3]*x*y
-     * which gives the area of the module after shifting the (assumed to be) single generator by (x,y)
-     * 
-     * @param bounds 
-     * @return std::array<double, 4> 
-     */
-    std::array<double, 4> area_polynomial (const pair<r2degree>& bounds) const {
-        assert(d1.get_num_rows() == 1);
-        // TO-DO: Finish this.
-    }
+    
 
     /**
      * @brief Computes the dimension at every point in the grid. Unoptimised. Not finished.
@@ -194,7 +237,7 @@ struct Uni_B1{
      * @return array<index> 
      */
     array<index> dimension_vector(bool sort = true) const {
-        if(sort){
+        if(sort){   
             d1.sort_rows_colexicographically();
             d1.sort_columns_colexicographically();
             d2.sort_rows_colexicographically();
@@ -565,60 +608,57 @@ void process_summands_fixed_grid(aida::AIDA_functor& decomposer,
 
 }
 
-double evaluate_area_polynomial( std::array<double, 4>& coeffs, r2degree d){
-    double& x = d.first;
-    double& y = d.second;
-    return coeffs[0] + coeffs[1]*x + coeffs[2]*y + coeffs[3]*x*y;
-}
-
 
 struct Dynamic_HNF {
     // Stores the decomposition at every local grid point in the current row
     vec< vec<Uni_B1<int>> > indecomposable_summands;
     
-    // For each sub-space the area polynomial
-    vec< vec<std::array<double, 4>> > area_polynomials;
+    // We should store all possible HN_filtrations in that quadrant. But for now, I will recompute it everytime and see how slow that actually is.
 
-    // The composition factors at the grid point? Def want more than that.
-    vec< vec<Uni_B1<int>> > resolutions;
+    void compute_HNF_row(aida::AIDA_functor& decomposer,
+        R2Mat& M, 
+        int& y_index,
+        pair<r2degree> slope_bounds) {
+
+        assert(y_index > -1);
+        double y_coordinate = M.y_grid[y_index];
+        int x_length = M.x_grid.size();
+        indecomposable_summands = vec< vec<Uni_B1<int>> >(x_length, vec<Uni_B1<int>>());
+        int max_dim = 0;
+
+        for(int x_index = 0; x_index < x_length; x_index++){
+            r2degree grid_point = {M.x_grid[x_index], y_coordinate};
+            auto M_induced = M.submodule_generated_at(grid_point);
+            if(M_induced.get_num_rows() == 0){
+                // Nothing to do
+            } else if (M_induced.get_num_rows() == 1){
+                Uni_B1<int> res(std::move(M_induced));
+                indecomposable_summands[x_index].push_back(res);
+                // resolutions[x_index].push_back(res);
+                indecomposable_summands[x_index].back().compute_area_polynomial(slope_bounds);
+            } else {
+                aida::Block_list sub_M_list;
+                M_induced.compute_col_batches();
+                decomposer(M_induced, sub_M_list);
+                
+                for(Block sub_M : sub_M_list){
+                    if(sub_M.get_num_rows() > max_dim){
+                        max_dim = sub_M.get_num_rows();
+                    }
+                    indecomposable_summands[x_index].emplace_back(Uni_B1<int>(std::move(sub_M)));
+                    indecomposable_summands[x_index].back().compute_area_polynomial(slope_bounds);
+                }
+            }
+        }
+        if (max_dim >= 4){
+            std::cout << " Careful, there are high-dimensional summands which might slow down HNF computation excessively." << std::endl;
+        }  
+    }
+
+
 };
 
-void compute_HNF_row(aida::AIDA_functor& decomposer,
-    R2Mat& M, 
-    Dynamic_HNF& local_grid_row_data, 
-    int& y_index,
-    pair<r2degree> slope_bounds) {
 
-    assert(y_index > -1);
-    double y_coordinate = M.y_grid[y_index];
-    int x_length = M.x_grid.size();
-    local_grid_row_data.indecomposable_summands = vec< vec<Uni_B1<int>> >(x_length, vec<Uni_B1<int>>());
-    local_grid_row_data.area_polynomials = vec< vec<std::array<double, 4>> >(x_length);
-
-    for(int x_index = 0; x_index < x_length; x_index++){
-        r2degree grid_point = {M.x_grid[x_index], y_coordinate};
-        auto M_induced = M.submodule_generated_at(grid_point);
-        if(M_induced.get_num_rows() == 1){
-            Uni_B1<int> res(std::move(M_induced));
-            local_grid_row_data.indecomposable_summands[x_index].push_back(res);
-            local_grid_row_data.resolutions[x_index].push_back(res);
-            local_grid_row_data.area_polynomials[x_index].emplace_back(res.area_polynomial(slope_bounds));
-        } else {
-            aida::Block_list sub_M_list;
-            M_induced.compute_col_batches();
-            decomposer(M_induced, sub_M_list);
-            int max_dim = 0;
-            for(Block sub_M : sub_M_list){
-                if(sub_M.get_num_rows() > max_dim){
-                    max_dim = sub_M.get_num_rows();
-                }
-                local_grid_row_data.indecomposable_summands[x_index].emplace_back(Uni_B1<int>(std::move(sub_M)));
-            }
-            //TO-DO: Finish this.   
-        }
-    }
-        
-}
 
 template<typename Container, typename Outputstream>
 void process_summands_smart_grid(aida::AIDA_functor& decomposer, 
@@ -699,6 +739,7 @@ void process_summands_smart_grid(aida::AIDA_functor& decomposer,
     // Will store where we are in the local grids:
     vec<pair<int>> grid_locations = vec<pair<int>>(indecomps.size(), {-1,-1});
 
+    // First in y direction, we recompute all local decompositions whenever necessary.
     r2degree current_grid_degree = bounds.first;
     for(int i = 0; i < grid_length_y; i++){ 
         current_grid_degree.second += grid_step.second;
@@ -707,7 +748,7 @@ void process_summands_smart_grid(aida::AIDA_functor& decomposer,
             bool recompute = false;
             int& local_y = grid_locations[k].second;
             if(local_y == M.y_grid.size() - 1){
-                
+                // Do nothing for now
             } else {
                 while(local_y < M.y_grid.size() - 1){
                     if(current_grid_degree.second > M.y_grid[local_y + 1]){
@@ -720,12 +761,14 @@ void process_summands_smart_grid(aida::AIDA_functor& decomposer,
             }
 
             if(recompute){
-                compute_HNF_row(decomposer, M, local_grid_row_data[k], local_y, slope_bounds);
+                local_grid_row_data[k].compute_HNF_row(decomposer, M, local_y, slope_bounds);
             }
             k++;
         }
         for(int j = 0; j < grid_length_x; j++){
             current_grid_degree.first += grid_step.first;
+            int k = 0;
+            // Then we need to check if we have crossed into a new grid-square in any local grid.
             for(R2Mat& M : indecomps){
                 int& local_x = grid_locations[k].first;
                 if(local_x == M.x_grid.size() - 1){
@@ -749,15 +792,29 @@ void process_summands_smart_grid(aida::AIDA_functor& decomposer,
                 std::string name = "Grid point";
                 show_progress_bar(points_processed, grid_size, name);
             }
-            int k = -1;
-            for(R2Mat& M : indecomps){
-                k++;
+
+            // Now actually compute the HNF, but use the data previously computed 
+            for(int k = 0; k< indecomps.size(); k++){
+
+                Dynamic_HNF& local_dhnf =  local_grid_row_data[k];
+                auto& local_grid_point = grid_locations[k];
+                auto& local_x = grid_locations[k].first;
+                auto local_summands = local_dhnf.indecomposable_summands[local_x];
                 
-                auto B_induced = B.submodule_generated_at(current_grid_degree);
-                if(B_induced.get_num_rows() == 1){
+                for( Uni_B1<int> summand : local_summands){
+                    if(summand.d1.get_num_rows() == 1){
+                        grid_ind_dimensions.push_back(1);
+                        all_scss_dimensions.push_back(1);
+                    }
+                    double slope = 1 / summand.evaluate_area_polynomial(current_grid_degree);
+                    Module_w_slope single_stable = std::make_pair(res, slope);
+                    to_stream(ostream, single_stable);
+                }
+
+                if(M_induced.get_num_rows() == 1){
                     grid_ind_dimensions.push_back(1);
                     all_scss_dimensions.push_back(1);
-                    Uni_B1<int> res(B_induced);
+                    Uni_B1<int> res(M_induced);
                     double slope = res.slope(slope_bounds);
                     if(slope == INFINITY){
                         assert(false);
@@ -768,12 +825,12 @@ void process_summands_smart_grid(aida::AIDA_functor& decomposer,
                     Module_w_slope single_stable = std::make_pair(res, slope);
                     to_stream(ostream, single_stable);
 
-                } else if ( B_induced.get_num_rows() == 0){
+                } else if ( M_induced.get_num_rows() == 0){
                     // Do nothing.
                 } else {
                     aida::Block_list sub_B_list;
-                    B_induced.compute_col_batches();
-                    decomposer(B_induced, sub_B_list);
+                    M_induced.compute_col_batches();
+                    decomposer(M_induced, sub_B_list);
                     int max_dim = 0;
                     for(Block sub_B : sub_B_list){
                         if(sub_B.get_num_rows() > max_dim){
@@ -818,10 +875,10 @@ template <typename Outputstream>
 void full_grid_induced_decomposition(aida::AIDA_functor& decomposer, 
     std::ifstream& istream, Outputstream& ostream, 
     bool show_indecomp_statistics, bool show_runtime_statistics, bool is_decomposed = false,
+
     const int& grid_length_x = 100, const int& grid_length_y = 100) {
     
-    grid_length_x = 50;
-    grid_length_y = 50;
+
 
     if(is_decomposed){
         vec<R2Mat> matrices;
