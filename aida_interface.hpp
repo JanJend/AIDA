@@ -49,6 +49,7 @@
 
 #pragma once
 
+#include "grlina/r2graded_matrix.hpp"
 #ifndef AIDA_INTERFACE_HPP
 #define AIDA_INTERFACE_HPP
 
@@ -340,7 +341,7 @@ struct AIDA_functor {
         }
 
         if(config.sort_output){
-            B_list_cumulative.sort(Compare_by_degrees<r2degree, index>());
+            B_list_cumulative.sort(Compare_by_degrees<r2degree, index, R2GradedSparseMatrix<index>>());
         }
     }
 
@@ -397,7 +398,7 @@ struct AIDA_functor {
         }
 
         if(config.sort_output){
-            B_list.sort(Compare_by_degrees<r2degree, index>());
+            B_list.sort(Compare_by_degrees<r2degree, index, R2GradedSparseMatrix<index>>());
         }
 
     }

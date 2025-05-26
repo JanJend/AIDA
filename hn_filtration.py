@@ -11,28 +11,27 @@ def parse_grid_file(filename):
         raise ValueError("First line must be 'HNF'.")
 
     # Parse second line: grid size
-    size_line = lines[1].strip()
-    size_parts = size_line.split()
-
+    size_parts = lines[1].split(',')
     if len(size_parts) != 2:
-        raise ValueError("Second line must contain exactly two numbers (grid size).")
+        raise ValueError("Second line must contain two comma-separated values.")
 
-    n_i = int(size_parts[0])
-    n_j = int(size_parts[1])
+    n_i, n_j = map(int, size_parts)
 
-    # Parse third line: lattice coordinates
-    lattice_line = lines[2].strip()
-    lattice_coords = []
+     # Parse lattice info: (a,b), (c,d), (e,f)
+    lattice_line = lines[2]
+    coord_matches = re.findall(r'\((-?[0-9.eE+-]+),\s*(-?[0-9.eE+-]+)\)', lattice_line)
 
-    # Find all (x,y) pairs for lattice coordinates using regex
-    coord_matches = re.findall(r'\s?\(([^,]+),([^)]+)\)\s?', lattice_line)
-    if not coord_matches:
-        raise ValueError("No valid (x,y) coordinate pairs found in lattice coordinates.")
+    if len(coord_matches) != 3:
+        raise ValueError("Expected 3 (x, y) coordinate pairs in third line.")
 
-    for x_str, y_str in coord_matches:
-        x = float(x_str)
-        y = float(y_str)
-        lattice_coords.append((x, y))
+    (a, b), (_, _), (e, f) = [(float(x), float(y)) for x, y in coord_matches]
+
+    # Generate lattice_coords from (a + i*e, b + j*f)
+    lattice_coords = [
+        (a + i * e, b + j * f)
+        for i in range(n_i)
+        for j in range(n_j)
+    ]
 
     # Now initialize the grid array
     grid_data = np.empty((n_i, n_j), dtype=object)
@@ -188,5 +187,5 @@ def main(filename):
     generate_grayscale_images(n_i, n_j, grid_data, lattice_coords, m=10)
 
 # Example usage
-filename = "/home/wsljan/AIDA/Persistence-Algebra/test_presentations/full_rips_size_1_instance_5_min_pres_hn_filtration.scc"
+filename = "/home/wsljan/AIDA/Persistence-Algebra/test_presentations/points_wo_density_20_dim2_k_fold_10_min_pres_hn_filtration.firep"
 main(filename)
