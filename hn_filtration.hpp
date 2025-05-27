@@ -363,7 +363,7 @@ HN_factors skyscraper_invariant(Uni_B1<int>& input,
     vec<vec<SparseMatrix<int>>> &subspaces, const pair<r2degree> &bounds){
 
     auto X = input.d1;
-    assert(X.get_num_rows() > 4);
+    assert(X.get_num_rows() <= 4);
     while(X.get_num_rows() > 1){
         R2Mat subspace;
         result.emplace_back(find_scss_bruteforce(X, subspaces, subspace, bounds));
@@ -747,28 +747,35 @@ void update_HNF_rows_at_y_level(
     aida::AIDA_functor& decomposer,
     const pair<r2degree>& slope_bounds){
 
-    int k = 0;
+    int k = -1;
     for(R2Mat& M : indecomps){
+        k++;
         bool recompute = false;
+        grid_locations[k].first = -1; // Reset x-coordinate
         int& local_y = grid_locations[k].second;
         if(local_y == M.y_grid.size() - 1){
             // Do nothing for now
         } else {
+            std::cout << "test" << std::endl;
             while(local_y + 1 < M.y_grid.size()){
-                if(current_grid_degree.second <= M.y_grid[local_y + 1]){
+                if(current_grid_degree.second >= M.y_grid[local_y + 1]){
                     local_y++;
                     recompute = true;
                 } else {
                     break;
                 }
             }
-
         }
 
         if(recompute){
             local_grid_row_data[k].compute_HNF_row(decomposer, M, local_y, slope_bounds);
         }
-        k++;
+        if(local_y != -1){
+            assert(current_grid_degree.second >= M.y_grid[local_y] );
+            if( local_y < M.y_grid.size() - 1){
+                assert(current_grid_degree.second < M.y_grid[local_y + 1]);
+            } 
+        }
     }
 }
 
@@ -778,8 +785,9 @@ void update_grid_locations_x(
     Container& indecomps,
     vec<pair<int>>& grid_locations){
 
-    int k = 0;
+    int k = -1;
     for(R2Mat& M : indecomps){
+        k++;
         int& local_x = grid_locations[k].first;
         if(local_x == M.x_grid.size() - 1){
             
@@ -792,7 +800,12 @@ void update_grid_locations_x(
                 }
             }
         }
-        k++;
+        if(local_x != -1){
+            assert(current_grid_degree.first >= M.x_grid[local_x]);
+            if( local_x < M.x_grid.size() - 1){
+                assert(current_grid_degree.second < M.x_grid[local_x + 1]);
+            } 
+        }
     }
 };
 
@@ -836,7 +849,8 @@ void process_grid_cell(
     vec<int>& all_scss_dimensions,
     Outputstream& ostream,
     vec<vec<SparseMatrix<int>>>& subspaces,
-    const pair<r2degree>& slope_bounds){
+    const pair<r2degree>& slope_bounds,
+    aida::AIDA_functor& decomposer) {
     
     bool test = true;
 
@@ -852,11 +866,27 @@ void process_grid_cell(
         }
         Dynamic_HNF& local_dhnf =  local_grid_row_data[k];
         auto& local_summands = local_dhnf.indecomposable_summands[local_x];
-        
+
+        HN_factors test_factors;
         if(test){
             auto B_induced = M.submodule_generated_at(current_grid_degree);
+            if(B_induced.get_num_rows() != 0){
+                Block_list sub_B_list;
+                B_induced.compute_col_batches();
+                decomposer(B_induced, sub_B_list);
+                assert(local_summands.size() == sub_B_list.size());
+                for(auto& sub_B : sub_B_list){
+                    if (sub_B.get_num_rows() > subspaces.size()) {
+                        fill_up_subspaces(subspaces, sub_B.get_num_rows());
+                    }
+                }
+                test_factors = skyscraper_invariant(sub_B_list, subspaces, slope_bounds);
+            } else {
+                assert(local_summands.size() == 0);
+            }
         }
 
+        
         for( Uni_B1<int>& summand : local_summands){
             if( summand.d1.get_num_rows() == 0){
                 std::cout << " Empty summands should have been filtered out." << std::endl;
@@ -897,6 +927,14 @@ void process_grid_cell(
                     assert(false);
                 }
                 to_stream(ostream, hn_factor);
+            }
+
+            if(test){
+                auto it = test_factors.begin();
+                for(auto& hn_factor : composition_factors[i][j]){
+                    assert(it->second == hn_factor.second);
+                    it++;
+                }
             }
         }
     }
@@ -959,7 +997,7 @@ void process_summands_smart_grid(aida::AIDA_functor& decomposer,
             }
             // Now actually compute the HNF, but use the data previously computed 
             process_grid_cell(i, j, current_grid_degree, indecomps, grid_locations, local_grid_row_data, 
-                composition_factors, grid_ind_dimensions, all_scss_dimensions, ostream, subspaces, slope_bounds);
+                composition_factors, grid_ind_dimensions, all_scss_dimensions, ostream, subspaces, slope_bounds, decomposer);
         }
     }
 
