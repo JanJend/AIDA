@@ -912,10 +912,13 @@ typedef Block_list::iterator Block_iterator;
  */
 void initialise_block_list(const GradedMatrix& A, Block_list& B_list, vec<Block_list::iterator>& block_map) {
     B_list.clear();
+    B_list = Block_list();
     for(int i=0; i < A.get_num_rows(); i++) {
-        Block B({},{i}, BlockType::FREE);
-        B.set_num_rows(1);
-        auto it = B_list.insert(B_list.end(), B);
+        // Block B({},{i}, BlockType::FREE);
+        // B.set_num_rows(1);
+        auto it = B_list.emplace(B_list.end(), std::vector<index>{}, std::vector<index>{i}, BlockType::FREE);
+        // B_list.back().set_num_cols(0);
+        B_list.back().set_num_rows(1);
         block_map.push_back(it);
         (*it).row_degrees[0] = A.row_degrees[i];
         (*it)._rows = vec<vec<index>>(1);
@@ -1903,6 +1906,7 @@ Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, r2degree& alpha
             } else {
                 return hom_space(C, B, C.rows, B.rows);
             }
+            break;
             /*
             Non-optimised version
             Sparse_Matrix S(0,0);
@@ -1982,7 +1986,12 @@ Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, r2degree& alpha
             //  delete possible linear dependencies.
             K.column_reduction_triangular(true);
             */
-            break;
+        }
+
+        default: {
+            std::cerr << "Error: Each Block needs a type." << std::endl;
+            exit(1);
+            return {Sparse_Matrix(0,0), {}};
         }
     }
     return {Sparse_Matrix(0,0), {}};
