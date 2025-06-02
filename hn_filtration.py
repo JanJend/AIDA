@@ -187,5 +187,5 @@ def main(filename):
     generate_grayscale_images(n_i, n_j, grid_data, lattice_coords, m=10)
 
 # Example usage
-filename = "/home/wsljan/AIDA/Persistence-Algebra/test_presentations/points_wo_density_20_dim2_k_fold_10_min_pres_hn_filtration.firep"
+filename = "/home/wsljan/AIDA/Persistence-Algebra/test_presentations/multi_cover_218_10_1_min_pres_hn_filtration.scc"
 main(filename)

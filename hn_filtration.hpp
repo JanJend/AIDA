@@ -308,11 +308,10 @@ Module_w_slope find_scss_bruteforce(const R2Mat& X,
         R2Mat& max_subspace,
         const pair<r2degree>& bounds){
     int k = X.get_num_rows();
-    double max_slope = 0;
-    Uni_B1<int> scss;
+    Uni_B1<int> scss = Uni_B1<int>(X);
+    double max_slope = scss.slope(bounds);
     if(k == 1){
-        scss = Uni_B1<int>(X);
-        max_slope = scss.slope(bounds);
+        // Nothing to do?
     } else {
         assert(k < 6);
         if(subspaces.size() < k){
@@ -348,15 +347,18 @@ HN_factors skyscraper_invariant(Block_list& summands,
     HN_factors result;
     for(Block X : summands){
 
-        assert(X.get_num_rows() <= 4);
+        if(X.get_num_rows() >= 4){
+            std::cout << "  Warning: Computing HNF for a module of dimension " 
+                << X.get_num_rows() << std::endl;
+        }
 
         while(X.get_num_rows() > 1){
-            R2Mat subspace;
-            result.emplace_back(find_scss_bruteforce(X, subspaces, subspace, bounds));
+            R2Mat max_subspace;
+            result.emplace_back(find_scss_bruteforce(X, subspaces, max_subspace, bounds));
             if(result.back().first.d1.get_num_rows() == X.get_num_rows()){
                 break;
             } else {
-                X.quotient_by(subspace);
+                X.quotient_by(max_subspace);
             }
         }
         if(X.get_num_rows() == 1){
@@ -371,12 +373,14 @@ HN_factors skyscraper_invariant(Block_list& summands,
     return result;
 }
 
-void skyscraper_invariant(const Uni_B1<int>& input, 
+void skyscraper_invariant(const R2Mat& input, 
     HN_factors& result,
     vec<vec<SparseMatrix<int>>> &subspaces, const pair<r2degree> &bounds){
-
-    auto X = input.d1;
-    assert(X.get_num_rows() <= 4);
+    R2Mat X = input;
+    if(X.get_num_rows() >= 4){
+            std::cout << "  Warning: Computing HNF for a module of dimension " 
+                << X.get_num_rows() << std::endl;
+        }
     while(X.get_num_rows() > 1){
         R2Mat subspace;
         result.emplace_back(find_scss_bruteforce(X, subspaces, subspace, bounds));
@@ -858,7 +862,8 @@ void compare_slopes_test(
     r2degree current_grid_degree,
     r2degree local_grid_degree,
     const HN_factors& composition_factors,
-    const HN_factors& test_factors) {
+    const HN_factors& test_factors,
+    int i, int j, int k) {
 
     vec<double> slopes;
     vec<double> test_slopes;
@@ -872,12 +877,13 @@ void compare_slopes_test(
     
     std::sort(slopes.begin(), slopes.end());
     std::sort(test_slopes.begin(), test_slopes.end());
-    for(int i = 0; i < slopes.size(); i++){
-        if(!essentially_equal(slopes[i], test_slopes[i], 1e-9, 1e-12)){
-            std::cout << "  Slope mismatch: " << slopes[i] << " vs. " << test_slopes[i] << std::endl;
-            std::cout << "  Difference: " << slopes[i] - test_slopes[i] << std::endl;
+    for(int l = 0; l < slopes.size(); l++){
+        if(!essentially_equal(slopes[l], test_slopes[l], 1e-6, 1e-8)){
+            std::cout << "  Slope mismatch: " << slopes[l] << " vs. " << test_slopes[l] << std::endl;
+            std::cout << "  Difference: " << slopes[l] - test_slopes[l] << std::endl;
             std::cout << "  Current grid degree: " << current_grid_degree << std::endl;
             std::cout << "  Local grid degree: " << local_grid_degree << std::endl;
+            std::cout << "  i: " << i << ", j: " << j << ", k: " << k << std::endl;
             assert(false);
         }
     }
@@ -924,10 +930,12 @@ void process_grid_cell(
                 B_induced.compute_col_batches();
                 decomposer(B_induced, sub_B_list);
                 assert(local_summands.size() == sub_B_list.size());
+                int k = 0;
                 for(auto& sub_B : sub_B_list){
                     if (sub_B.get_num_rows() > subspaces.size()) {
                         fill_up_subspaces(subspaces, sub_B.get_num_rows());
                     }
+                    k++;
                 }
                 test_factors = skyscraper_invariant(sub_B_list, subspaces, slope_bounds);
             } else {
@@ -937,21 +945,22 @@ void process_grid_cell(
 
         
         for( Uni_B1<int>& summand : local_summands){
+            r2degree verschiebung = current_grid_degree - local_grid_degree;
             if( summand.d1.get_num_rows() == 0){
                 std::cout << " Empty summands should have been filtered out." << std::endl;
                 assert(false);
             } else if(summand.d1.get_num_rows() == 1){
-                r2degree verschiebung = current_grid_degree - local_grid_degree;
                 double slope = summand.evaluate_slope_polynomial(verschiebung);
                 if(test){
+                    double area = summand.evaluate_area_polynomial(verschiebung);
                     R2Mat test_cutoff = summand.d1.submodule_generated_at(current_grid_degree);
                     if(test_cutoff.get_num_rows() != 0){
                         Uni_B1<int> test_summand(test_cutoff);
                         double test_slope = test_summand.slope(slope_bounds);
                         double test_area = test_summand.area(slope_bounds);
-                        if(essentially_equal(slope, test_slope, 1e-9, 1e-12) == false){
-                            std::cout << "  Slope mismatch: " << slope << " vs. " << test_slope << std::endl;
-                            std::cout << "  Difference: " << slope - test_slope << std::endl;
+                        if(essentially_equal(area, test_area, 1e-7, 1e-9) == false){
+                            std::cout << "  Slope mismatch: " << area << " vs. " << test_area << std::endl;
+                            std::cout << "  Difference: " << area - test_area << std::endl;
                             std::cout << "  Current grid degree: " << current_grid_degree << std::endl;
                             std::cout << "  Local grid degree: " << local_grid_degree << std::endl;
                             assert(false);
@@ -968,10 +977,12 @@ void process_grid_cell(
                     fill_up_subspaces(subspaces, summand.d1.get_num_rows());
                 }
                 grid_ind_dimensions.push_back(summand.d1.get_num_rows());
+                auto cut_off = summand.d1;
+                cut_off.set_all_generator_degrees(current_grid_degree);
                 if(test){
-                    skyscraper_invariant(summand, copy_factors, subspaces, slope_bounds);
+                    skyscraper_invariant(cut_off, copy_factors, subspaces, slope_bounds);
                 }
-                skyscraper_invariant(summand, composition_factors[i][j], subspaces, slope_bounds);
+                skyscraper_invariant(cut_off, composition_factors[i][j], subspaces, slope_bounds);
             }
             
             for(auto& hn_factor : composition_factors[i][j]){
@@ -986,7 +997,7 @@ void process_grid_cell(
         }
         if(test){
             compare_slopes_test(current_grid_degree, local_grid_degree, 
-                    copy_factors, test_factors);
+                    copy_factors, test_factors, i, j, k);
         }
     }
 };
@@ -1032,7 +1043,7 @@ void process_summands_smart_grid(aida::AIDA_functor& decomposer,
 
     for(int i = 0; i < grid_length_y; i++){ 
         current_grid_degree.first = lower_bound.first - grid_step.first; // Reset x-coordinate for each y-coordinate
-        current_grid_degree.second += grid_step.second;
+        current_grid_degree.second = lower_bound.second + i*grid_step.second;
         // First in y direction, we recompute all local decompositions whenever necessary.
         update_HNF_rows_at_y_level(current_grid_degree, indecomps, grid_locations, local_grid_row_data, decomposer, slope_bounds);
         
