@@ -3,6 +3,7 @@
 #include "grlina/graded_linalg.hpp"
 #include "grlina/orders_and_graphs.hpp"
 #include "grlina/r2graded_matrix.hpp"
+#include <iostream>
 #include <unistd.h> 
 #include <getopt.h>
 
@@ -39,7 +40,7 @@ struct Uni_B1{
                 r2degree join = Degree_traits<r2degree>::join(last_degree, d1.col_degrees[i]);
                 d2.data[i] = {i -1, i};
                 d2.col_degrees[i] = join;
-                r2degree last_degree = d1.col_degrees[i];
+                last_degree = d1.col_degrees[i];
             }
         } else {
             auto d1_copy = d1;
@@ -63,7 +64,7 @@ struct Uni_B1{
                 r2degree join = Degree_traits<r2degree>::join(last_degree, d1.col_degrees[i]);
                 d2.data[i] = {i -1, i};
                 d2.col_degrees[i] = join;
-                r2degree last_degree = d1.col_degrees[i];
+                last_degree = d1.col_degrees[i];
             }
         } else {
             auto d1_copy = d1;
@@ -164,7 +165,8 @@ struct Uni_B1{
         int num_rows = d1.get_num_rows();
    
         assert(std::is_sorted(d1.col_degrees.begin(), d1.col_degrees.end(), Degree_traits<r2degree>::lex_lambda));
-
+    
+        bool test = true;
 
         // For normalisation, so that area is always <=1
         r2degree range = bounds.second-bounds.first;
@@ -172,7 +174,8 @@ struct Uni_B1{
 
         const r2degree& gen_degree = this->d1.row_degrees[0]; 
         
-        
+        // Make sure this is properly initialised
+        area_polynomial.fill(0.0);
 
         // vector from generators to the max bound
         r2degree gen_vector = bounds.second - gen_degree; 
@@ -193,11 +196,31 @@ struct Uni_B1{
         }
 
         // The first and last relation could be affected by the shift, too
-        if(d1.col_degrees[0].first == gen_degree.first){
-            area_polynomial[1] += (bounds.second.second - d1.col_degrees[0].second);
-        }
-        if(d1.col_degrees.back().second == gen_degree.second){
-            area_polynomial[2] += (bounds.second.first - d1.col_degrees.back().first);
+        for(const auto& degree :  d1.col_degrees){
+            if(degree.first == gen_degree.first){
+                assert(bounds.second.second - degree.second >= 0);
+                area_polynomial[1] += (bounds.second.second - degree.second);
+                if( area_polynomial[1] > 0){
+                    std::cout << "Area polynomial[1] is positive: " << area_polynomial[1] << std::endl;
+                    this->d1.print_graded();
+                    std::cout << "Bounds: " << bounds.first.first << " " << bounds.first.second << " to " 
+                        << bounds.second.first << " " << bounds.second.second << std::endl;
+                    std::cout << "Range area: " << range_area << std::endl;
+                    assert(false);
+                }
+            }
+            if(degree.second == gen_degree.second){
+                assert(bounds.second.first - degree.first >= 0);
+                area_polynomial[2] += (bounds.second.first - degree.first);
+                if( test && area_polynomial[2] > 0){
+                    std::cout << "Area polynomial[2] is positive: " << area_polynomial[1] << std::endl;
+                    this->d1.print_graded();
+                    std::cout << "Bounds: " << bounds.first.first << " " << bounds.first.second << " to " 
+                        << bounds.second.first << " " << bounds.second.second << std::endl;
+                    std::cout << "Range area: " << range_area << std::endl;
+                    assert(false);
+                }
+            }
         }
 
         // Syzygies add again
@@ -477,11 +500,11 @@ void write_slopes_to_csv(const vec<vec<double>>& slopes,
         throw std::runtime_error("Unable to open file");
     }
 
-    for (int i = 0; i < slopes.size(); ++i) {
+    for (size_t i = 0; i < slopes.size(); ++i) {
         file << grid_points[i] << ";";
 
         const auto& slopes_at_degree = slopes[i];
-        for (int j = 0; j < slopes_at_degree.size(); ++j) {
+        for (size_t j = 0; j < slopes_at_degree.size(); ++j) {
             file << slopes_at_degree[j];
             if (j < slopes_at_degree.size() - 1) {
                 file << ",";
@@ -495,11 +518,11 @@ void write_slopes_to_csv(const vec<vec<double>>& slopes,
 void show_progress_bar(int& i, int& total, std::string& name) {
 
     static int last_percent = -1;
-    int percent = static_cast<int>(static_cast<double>(i) / total * 100);
+    int percent = static_cast<int>(static_cast<double>(i+1) / total * 100);
     if (percent != last_percent) {
         // Calculate the number of symbols to display in the progress bar
         int num_symbols = percent / 2;
-        std::cout << "\r" << i << " " << name << " : [";
+        std::cout << "\r" << i + 1 << " " << name << " : [";
         // Print the progress bar
         for (int j = 0; j < 50; ++j) {
             if (j < num_symbols) {
@@ -519,7 +542,7 @@ void show_progress_bar(int& i, int& total, std::string& name) {
 
 template<typename Container, typename Outputstream>
 void process_summands_fixed_grid(aida::AIDA_functor& decomposer, 
-    std::ifstream& istream, Outputstream& ostream, 
+    Outputstream& ostream, 
     const int& grid_length_x, const int& grid_length_y, 
     Container& indecomps) {
     
@@ -543,7 +566,6 @@ void process_summands_fixed_grid(aida::AIDA_functor& decomposer,
     vec<int> all_scss_dimensions;
     vec<int> first_ind_dimensions;
     vec<int> grid_ind_dimensions;
-    int processed_generators = 0;
 
     pair<r2degree> bounds = indecomps.front().bounding_box();
     
@@ -770,10 +792,10 @@ void update_HNF_rows_at_y_level(
         bool recompute = false;
         grid_locations[k].first = -1; // Reset x-coordinate
         int& local_y = grid_locations[k].second;
-        if(local_y == M.y_grid.size() - 1){
+        if(local_y + 1 == static_cast<int>(M.y_grid.size()) ){
             // Do nothing for now
         } else {
-            while(local_y + 1 < M.y_grid.size()){
+            while(local_y + 1 < static_cast<int>(M.y_grid.size())){
                 if(current_grid_degree.second >= M.y_grid[local_y + 1]){
                     local_y++;
                     recompute = true;
@@ -788,7 +810,7 @@ void update_HNF_rows_at_y_level(
         }
         if(local_y != -1){
             assert(current_grid_degree.second >= M.y_grid[local_y] );
-            if( local_y < M.y_grid.size() - 1){
+            if( local_y +1 < static_cast<int>(M.y_grid.size())){
                 assert(current_grid_degree.second < M.y_grid[local_y + 1]);
             } 
         }
@@ -805,10 +827,10 @@ void update_grid_locations_x(
     for(R2Mat& M : indecomps){
         k++;
         int& local_x = grid_locations[k].first;
-        if(local_x == M.x_grid.size() - 1){
+        if(local_x + 1 == static_cast<int>(M.x_grid.size()) ){
             
         } else {
-            while(local_x + 1 < M.x_grid.size()){
+            while(local_x + 1 < static_cast<int>(M.x_grid.size()) ){
                 if(current_grid_degree.first >= M.x_grid[local_x + 1]){
                     local_x++;
                 } else {
@@ -818,7 +840,7 @@ void update_grid_locations_x(
         }
         if(local_x != -1){
             assert(current_grid_degree.first >= M.x_grid[local_x]);
-            if( local_x < M.x_grid.size() - 1){
+            if( local_x + 1 < static_cast<int>(M.x_grid.size()) ){
                 assert(current_grid_degree.first < M.x_grid[local_x + 1]);
             } 
         }
@@ -875,15 +897,20 @@ void compare_slopes_test(
         it++;
     }
     
-    std::sort(slopes.begin(), slopes.end());
-    std::sort(test_slopes.begin(), test_slopes.end());
-    for(int l = 0; l < slopes.size(); l++){
+    // std::sort(slopes.begin(), slopes.end());
+    // std::sort(test_slopes.begin(), test_slopes.end());
+    for(size_t l = 0; l < slopes.size(); l++){
         if(!essentially_equal(slopes[l], test_slopes[l], 1e-6, 1e-8)){
-            std::cout << "  Slope mismatch: " << slopes[l] << " vs. " << test_slopes[l] << std::endl;
+            std::cout << std::fixed << std::setprecision(12);
+            std::cout << "  Slope mismatch in compare_slopes: " << slopes[l] << " vs. " << test_slopes[l] << std::endl;
             std::cout << "  Difference: " << slopes[l] - test_slopes[l] << std::endl;
             std::cout << "  Current grid degree: " << current_grid_degree << std::endl;
             std::cout << "  Local grid degree: " << local_grid_degree << std::endl;
             std::cout << "  i: " << i << ", j: " << j << ", k: " << k << std::endl;
+            std::cout << "  Summand: " << std::endl;
+            composition_factors[l].first.d1.print_graded();
+            std::cout << "  Test_summand: " << std::endl;
+            test_factors[l].first.d1.print_graded();
             assert(false);
         }
     }
@@ -913,12 +940,17 @@ void process_grid_cell(
         HN_factors copy_factors = HN_factors();
         k++;
         auto& local_grid_index = grid_locations[k];
-        r2degree local_grid_degree = std::make_pair(M.x_grid[local_grid_index.first], M.y_grid[local_grid_index.second]);
-        auto& local_x = grid_locations[k].first;
+        auto& local_x = local_grid_index.first;
+        r2degree local_grid_degree;
         if(local_x == -1 || local_grid_index.second == -1){
             // We're not in the local grid yet, so can skip this summand.
             continue;
+        } else {
+            local_grid_degree = std::make_pair(M.x_grid[local_grid_index.first], M.y_grid[local_grid_index.second]);
         }
+
+        
+        
         Dynamic_HNF& local_dhnf =  local_grid_row_data[k];
         auto& local_summands = local_dhnf.indecomposable_summands[local_x];
 
@@ -956,13 +988,26 @@ void process_grid_cell(
                     R2Mat test_cutoff = summand.d1.submodule_generated_at(current_grid_degree);
                     if(test_cutoff.get_num_rows() != 0){
                         Uni_B1<int> test_summand(test_cutoff);
-                        double test_slope = test_summand.slope(slope_bounds);
+                        // double test_slope = test_summand.slope(slope_bounds);
                         double test_area = test_summand.area(slope_bounds);
                         if(essentially_equal(area, test_area, 1e-7, 1e-9) == false){
-                            std::cout << "  Slope mismatch: " << area << " vs. " << test_area << std::endl;
+                            std::cout << std::fixed << std::setprecision(12);
+                            std::cout << "  Area mismatch at direct cutting off: " << area << " vs. " << test_area << std::endl;
                             std::cout << "  Difference: " << area - test_area << std::endl;
                             std::cout << "  Current grid degree: " << current_grid_degree << std::endl;
                             std::cout << "  Local grid degree: " << local_grid_degree << std::endl;
+                            std::cout << "  i: " << i << ", j: " << j << ", k: " << k << std::endl;
+                            std::cout << "  Summand: " << std::endl;
+                            summand.d1.print_graded();
+                            std::cout << "  area polynomial: " << 
+                                summand.area_polynomial[0] << "  " << summand.area_polynomial[1] << "  " << 
+                                summand.area_polynomial[2] << "  " << summand.area_polynomial[3] << std::endl;
+                            std::cout << "  Verschiebung: " << verschiebung << std::endl;
+                            std::cout << "  Slope bounds: " << slope_bounds.first << " " << slope_bounds.second << std::endl;
+                            auto normalisation = slope_bounds.second - slope_bounds.first;
+                            std::cout << "  Normalisation area: " << normalisation.first * normalisation.second << std::endl;
+                            std::cout << "  Cut off summand: " << std::endl;
+                            test_summand.d1.print_graded();
                             assert(false);
                         }
                     }
@@ -1004,7 +1049,7 @@ void process_grid_cell(
 
 template<typename Container, typename Outputstream>
 void process_summands_smart_grid(aida::AIDA_functor& decomposer, 
-    std::ifstream& istream, Outputstream& ostream, 
+    Outputstream& ostream, 
     const int& grid_length_x, const int& grid_length_y, 
     Container& indecomps) {
     
@@ -1081,16 +1126,16 @@ void full_grid_induced_decomposition(aida::AIDA_functor& decomposer,
 
     const int& grid_length_x = 30, const int& grid_length_y = 30) {
     
-
+    
 
     if(is_decomposed){
         vec<R2Mat> matrices;
         graded_linalg::construct_matrices_from_stream(matrices, istream);
         vec<r2degree> grid_points;
         if(dynamic_grid){
-            process_summands_smart_grid(decomposer, istream, ostream, grid_length_x, grid_length_y, matrices);
+            process_summands_smart_grid(decomposer, ostream, grid_length_x, grid_length_y, matrices);
         } else {
-            process_summands_fixed_grid(decomposer, istream, ostream, grid_length_x, grid_length_y, matrices);
+            process_summands_fixed_grid(decomposer, ostream, grid_length_x, grid_length_y, matrices);
         }
     } else {
         aida::Block_list B_list;
@@ -1106,9 +1151,9 @@ void full_grid_induced_decomposition(aida::AIDA_functor& decomposer,
         }
         vec<r2degree> grid_points;
         if(dynamic_grid){
-            process_summands_smart_grid(decomposer, istream, ostream, grid_length_x, grid_length_y, B_list);
+            process_summands_smart_grid(decomposer, ostream, grid_length_x, grid_length_y, B_list);
         } else {
-            process_summands_fixed_grid(decomposer, istream, ostream, grid_length_x, grid_length_y, B_list);
+            process_summands_fixed_grid(decomposer, ostream, grid_length_x, grid_length_y, B_list);
         }
     }
     

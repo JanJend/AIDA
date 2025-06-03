@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    std::string hn_filtration = "/home/wsljan/AIDA/build/hn_filtration";
+    std::string hn_filtration = "/home/wsljan/AIDA/build/hn_filtration_opt";
 
     std::vector<std::string> files;
     for (const auto& entry : fs::directory_iterator(folder)) {

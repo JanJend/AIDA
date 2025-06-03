@@ -21,15 +21,11 @@
 
 #include <iostream>
 #include <grlina/graded_linalg.hpp>
-#include <unordered_set>
 #include <list>
 #include <boost/timer/timer.hpp>
-#include <memory_resource>
 #include <cstdlib>
-#include <filesystem>
 #include <queue>
 #include <functional>
-#include <stack>
 #include <cmath>
 #include <utility>
 
@@ -39,7 +35,6 @@ using index = int; // Change to large enough int type.
 
 using namespace graded_linalg;
 
-namespace fs = std::filesystem;
 using namespace boost::timer;
 
 #ifndef TIMERS

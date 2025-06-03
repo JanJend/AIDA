@@ -70,6 +70,7 @@
 
 #include "aida.hpp"
 #include <regex>
+#include <filesystem>
 
 namespace aida{
 

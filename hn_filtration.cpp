@@ -34,7 +34,7 @@ void display_help() {
 }
 
 void display_version() {
-    std::cout << "AIDA version 02 -- 21st Mar 2025\n";
+    std::cout << "AIDA version 0.2 -- 21st Mar 2025\n";
 }
 
 void run_on_test_files(aida::AIDA_functor& decomposer, std::ostringstream& ostream){
@@ -106,10 +106,10 @@ int main(int argc, char** argv){
     decomposer.config.show_info = true;
 
     decomposer.config.compare_both = false; // Compares normal functioning and brute force at runtime, then also compares output.
-    bool compare_time = false;
+    // bool compare_time = false;
     decomposer.config.exhaustive_test = false;
 
-    bool compare_hom_internal = false; // Cannot be used with the functor right now.
+    // bool compare_hom_internal = false; // Cannot be used with the functor right now.
     bool test_files = false;
     bool is_decomposed = false;
 
@@ -295,7 +295,7 @@ int main(int argc, char** argv){
          }
      }
      
-     aida::index num_indecomp = decomposer.cumulative_statistics.num_of_summands;
+     // aida::index num_indecomp = decomposer.cumulative_statistics.num_of_summands;
      
      if(write_output){
          write_to_file(ostream, output_file_path, input_directory, file_without_extension, extension, output_string);
