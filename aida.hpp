@@ -1826,7 +1826,7 @@ Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, r2degree& alpha
             index counter = 0;
             for( index i = 0; i < C.get_num_rows(); i++){
                 // indices in rows_alpha are internal to C. For external change to .., true) 
-                auto [B_alpha, rows_alpha] = B.map_at_degree_pair(C.row_degrees[i]);
+                auto [B_alpha, rows_alpha] = B.map_at_degree_pair(C.row_degrees[i], false);
                 vec<index> basislift = B_alpha.coKernel_basis(rows_alpha, B.rows);
                 for( index j : basislift){
                     row_ops.push_back( {i, j} );

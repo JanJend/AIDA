@@ -351,7 +351,9 @@ struct AIDA_functor {
         Block_list B_list;
         operator()(ifstr, B_list);
         for (Block& B : B_list) {
+            ofstr << B.get_type() << "\n";
             B.to_stream_r2(ofstr);
+            ofstr << "\n";
         }
     }
 
