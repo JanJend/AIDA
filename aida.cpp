@@ -108,16 +108,18 @@ void run_on_test_files(aida::AIDA_functor& decomposer, std::ostringstream& ostre
 
 void write_to_file(std::ostringstream& ostream, std::string& output_file_path, std::string& input_directory, std::string& file_without_extension, std::string& extension, std::string& output_string){
 
+    std::string decomp_extension = ".sccsum" ;
+
     if(output_string.empty()){
-        output_file_path = input_directory + "/" + file_without_extension + "_decomposition" + extension;
+        output_file_path = input_directory + "/" + file_without_extension + decomp_extension;
     } else {
         std::filesystem::path output_path(output_string);
         if (output_path == ".") {
-            output_file_path = std::filesystem::current_path().string() + "/" + file_without_extension + "_decomposition" + extension;
+            output_file_path = std::filesystem::current_path().string() + "/" + file_without_extension + decomp_extension;
         } else if (output_path.is_relative()) {
             output_file_path = std::filesystem::current_path().string() + "/" + output_string;
         } else if (std::filesystem::is_directory(output_path)) {
-            output_file_path = output_path.string() + "/" + file_without_extension + "_decomposition" + extension;
+            output_file_path = output_path.string() + "/" + file_without_extension + decomp_extension;
         } else if (output_path.is_absolute()) {
             output_file_path = output_string;
         } else {

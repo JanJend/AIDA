@@ -350,6 +350,8 @@ struct AIDA_functor {
     void to_stream(InputStream& ifstr, OutputStream& ofstr) {
         Block_list B_list;
         operator()(ifstr, B_list);
+        ofstr << "scc2020sum" << "\n";
+        ofstr << B_list.size() << "\n \n";
         for (Block& B : B_list) {
             ofstr << B.get_type() << "\n";
             B.to_stream_r2(ofstr);
