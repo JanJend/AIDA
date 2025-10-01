@@ -9,7 +9,8 @@ void display_help() {
     std::cout << "Usage: ./aida <input_file> [options]\n"
               << "Options:\n"
               << "  -h, --help           Display this help message\n"
-              << "  -d, --is_decomposed   Specify if the input is already decomposed\n"
+              << "  -g, --diagonal       Save a copy where each subquotient is restricted to the diagonal to compute landscapes\n"
+              << "  -d, --is_decomposed  Specify if the input is already decomposed\n"
               << "  -v, --version        Display version information\n"
               << "  -b, --bruteforce     Stops hom-space calculation and thus most optimisation. \n"
               << "  -s, --sort           Lexicographically sorts the relations of the input\n"
@@ -37,40 +38,20 @@ void display_version() {
     std::cout << "AIDA version 0.2 -- 21st Mar 2025\n";
 }
 
-void run_on_test_files(aida::AIDA_functor& decomposer, std::ostringstream& ostream){
-    // Get the path of the this -cpp file
-    fs::path cpp_path = fs::path(__FILE__).parent_path();
-    fs::path test_file_folder = cpp_path / "Persistence-Algebra/test_presentations";
-    fs::path test_file1 = test_file_folder / "toy_example_2.scc";
-    fs::path test_file2 = test_file_folder / "full_rips_size_1_instance_5_min_pres.scc";
-    fs::path test_file3 = test_file_folder / "k_fold_46_10_2_min_pres.firep";
-    fs::path test_file4 = test_file_folder / "multi_cover_077_10_1_min_pres.scc";
-    // fs::path test_file5 = test_file_folder / "multi_cover_218_10_1_min_pres.scc";
-    std::ifstream istream(test_file1);
-    decomposer.to_stream(istream, ostream);
-    istream = std::ifstream(test_file2);
-    decomposer.to_stream(istream, ostream);   
-    istream = std::ifstream(test_file3);
-    decomposer.to_stream(istream, ostream);
-    istream = std::ifstream(test_file4);
-    decomposer.to_stream(istream, ostream);
-    // istream = std::ifstream(test_file5);
-    // decomposer(istream, ostream);
 
-}
 
 void write_to_file(std::ostringstream& ostream, std::string& output_file_path, std::string& input_directory, std::string& file_without_extension, std::string& extension, std::string& output_string){
 
     if(output_string.empty()){
-        output_file_path = input_directory + "/" + file_without_extension + "_hn_filtration" + extension;
+        output_file_path = input_directory + "/" + file_without_extension + extension;
     } else {
         std::filesystem::path output_path(output_string);
         if (output_path == ".") {
-            output_file_path = std::filesystem::current_path().string() + "/" + file_without_extension + "_decomposition" + extension;
+            output_file_path = std::filesystem::current_path().string() + "/" + file_without_extension +  extension;
         } else if (output_path.is_relative()) {
             output_file_path = std::filesystem::current_path().string() + "/" + output_string;
         } else if (std::filesystem::is_directory(output_path)) {
-            output_file_path = output_path.string() + "/" + file_without_extension + "_hn_filtration" + extension;
+            output_file_path = output_path.string() + "/" + file_without_extension + extension;
         } else if (output_path.is_absolute()) {
             output_file_path = output_string;
         } else {
@@ -100,6 +81,7 @@ int main(int argc, char** argv){
     decomposer.config.alpha_hom = false;
     decomposer.config.progress = true;
     bool write_output = false;
+    bool diagonal_output = false;
 
     bool show_indecomp_statistics = false;
     bool show_runtime_statistics = false;
@@ -162,13 +144,14 @@ int main(int argc, char** argv){
         {"alpha", no_argument, 0, 'f'},
         {"test_files", no_argument, 0, 'x'},
         {"is_decomposed", no_argument, 0, 'd'},
+        {"diagonal", no_argument, 0, 'g'},
         {0, 0, 0, 0}
     };
 
     int opt;
     int option_index = 0;
 
-    while ((opt = getopt_long(argc, argv, "ho::bsetrpclmvaijwfxd", long_options, &option_index)) != -1) {
+    while ((opt = getopt_long(argc, argv, "ho::gbsetrpclmvaijwfxd", long_options, &option_index)) != -1) {
         switch (opt) {
             case 'h':
                 display_help();
@@ -236,13 +219,16 @@ int main(int argc, char** argv){
             case 'd':
                 is_decomposed = true;
                 break;
+            case 'g':
+                diagonal_output = true;
+                break;
             default:
                 return 1;
         }
     }
 
     std::string file_without_extension;
-    std::string extension;
+    std::string extension = ".sky";
 
 
     if (optind < argc) {
@@ -257,16 +243,21 @@ int main(int argc, char** argv){
         size_t dot_position = filename.find_last_of('.');
         if (dot_position == std::string::npos) {
             file_without_extension = filename;
-            extension = "";
         } else {
             file_without_extension = filename.substr(0, dot_position);
-            extension = filename.substr(dot_position);
         }
     } else if (test_files) {
         // Do nothing
     } else {
-        std::cerr << "No input file specified. Please provide an input file." << std::endl;
-        return 1;
+        fs::path cpp_path = fs::path(__FILE__).parent_path();
+        fs::path test_file_folder = cpp_path / "Persistence-Algebra/test_presentations";
+        fs::path ex1 = "two_circles_2_dim1_minpres.scc";
+        matrix_path = test_file_folder / ex1;
+        input_directory = test_file_folder.string();
+        filename = ex1.string();
+        size_t dot_position = filename.find_last_of('.');
+        file_without_extension = filename.substr(0, dot_position);
+        std::cout << "No input file specified. Running on test file: " << matrix_path << std::endl;
     }
     
     std::ostringstream ostream;
@@ -281,7 +272,7 @@ int main(int argc, char** argv){
         hnf::full_grid_induced_decomposition(decomposer, istream, ostream, show_indecomp_statistics, show_runtime_statistics, true, is_decomposed);
          
      } else {
-         run_on_test_files(decomposer, ostream);
+        // Run on some test files.
      }
  
 

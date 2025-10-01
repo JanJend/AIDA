@@ -1012,6 +1012,10 @@ void process_grid_cell(
                         }
                     }
                 }
+                // TO-DO: summand is the original local summand, we need to cut it off at the current grid degree,
+                // Even if the slope is already correctly computed by the polynomial.
+                summand.d1.set_all_generator_degrees(current_grid_degree);
+                summand.d1.column_reduction_graded();
                 composition_factors[i][j].emplace_back(std::make_pair(summand, slope));
                 if(test){
                     copy_factors.emplace_back(std::make_pair(summand, slope));
@@ -1123,7 +1127,6 @@ void full_grid_induced_decomposition(aida::AIDA_functor& decomposer,
     bool show_indecomp_statistics, bool show_runtime_statistics, 
     bool dynamic_grid = true,
     bool is_decomposed = false,
-
     const int& grid_length_x = 30, const int& grid_length_y = 30) {
     
     

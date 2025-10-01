@@ -1,13 +1,18 @@
+from turtle import pos
 import matplotlib.pyplot as plt
 import numpy as np
+import sys
 from matplotlib.colors import Normalize
 import os
 from pathlib import Path
 from decimal import Decimal, getcontext
+from matplotlib.colors import LogNorm, LinearSegmentedColormap
+from matplotlib.ticker import LogFormatter
+from matplotlib.ticker import LogLocator, FixedFormatter
 
 getcontext().prec = 20 
 
-def Hilbert_function(generators, relations, syzygies=None, resolution=(300, 300), path=None, xlim=None, ylim=None):
+def Hilbert_function(generators, relations, syzygies=None, resolution=(500, 500), path=None, xlim=None, ylim=None):
     if syzygies is None:
         syzygies = []
 
@@ -41,6 +46,8 @@ def Hilbert_function(generators, relations, syzygies=None, resolution=(300, 300)
         y_min -= padding
         y_max += padding * 2
 
+    
+
     # Create grid
     x = np.linspace(x_min, x_max, width)
     y = np.linspace(y_min, y_max, height)
@@ -62,16 +69,45 @@ def Hilbert_function(generators, relations, syzygies=None, resolution=(300, 300)
 
     hilbert_vals = np.maximum(hilbert_vals, 0)
     max_val = np.max(hilbert_vals)
-    norm = Normalize(vmin=0, vmax=max_val)
 
-    # Plot
-    im = plt.imshow(hilbert_vals, cmap='Blues', origin='lower',
+    masked = np.ma.masked_equal(hilbert_vals, 0)
+    pos = hilbert_vals[hilbert_vals > 0]
+
+    # pos = array of strictly positive Hilbert function values
+    if pos.size > 0:
+        vmin = pos.min()   # smallest strictly positive value
+        vmax = pos.max()
+    else:
+        vmin = 1    
+        vmax = 2 
+    if vmin == vmax:
+        vmax = vmin + 1
+        
+
+    # logarithmic normalization on positive values
+    norm = LogNorm(vmin=vmin, vmax=vmax)
+    
+    # white -> light blue -> mid blue -> dark blue -> black
+    cmap = LinearSegmentedColormap.from_list(
+        "white_blue_black",
+        ["#d4eaff", "#006aff", "black"]
+    )
+    cmap.set_bad("white")   # masked (zeros) -> white
+    
+    # plot
+    im = plt.imshow(masked, cmap=cmap, origin='lower',
                     extent=(x_min, x_max, y_min, y_max), aspect='auto',
                     interpolation='nearest', norm=norm)
-    
 
     cbar = plt.colorbar(im)
     cbar.set_label('Dimension')
+    locator = LogLocator(base=10, subs=[1, 2, 3, 5], numticks=100)
+    cbar.locator = locator
+    cbar.update_ticks()
+    
+    # force formatter to label *all* ticks, not only 1,10,100
+    formatter = LogFormatter(base=10, labelOnlyBase=False, minor_thresholds=(np.inf, np.inf))
+    cbar.ax.yaxis.set_major_formatter(formatter)
 
     plt.text(x_min + 0.05 * (x_max - x_min), y_max - 0.05 * (y_max - y_min),
              f"Max value: {max_val}", color='black', fontsize=10,
@@ -93,6 +129,7 @@ def Hilbert_function(generators, relations, syzygies=None, resolution=(300, 300)
 def read_resolution(filepath):
     try:
         with open(filepath, 'r') as file:
+            print(f"Reading resolution from {filepath}")
             line = file.readline().strip()
             if "scc2020" not in line:
                 print("Error: Expected 'scc2020' in first line.")
@@ -163,24 +200,171 @@ def parse_line(line, is_relation):
         print(f"Error parsing line: {line}")
         return None
 
-"""
-input = "/home/wsljan/AIDA/Persistence-Algebra/test_presentations/presentation/non_cyclic_summands/noisy_annulus_socg_largecomp_resolution.scc"
-resolution_data = read_resolution(input)
-if resolution_data:
-    syzygies, relations, generators = resolution_data
-    print(f"Syzygies: {len(syzygies)}, Relations: {len(relations)}, Generators: {len(generators)}")
-    Hilbert_function(
-        generators,
-        relations,
-        syzygies,
-        resolution=(300, 300),
-        path=input,
-        xlim=(0.0, 0.7),
-        ylim=(-1.0, 0.0)
-    )
-"""
 
-Folder = "/home/wsljan/AIDA/Persistence-Algebra/test_presentations/presentation/non_cyclic_summands"
+def read_scc_block(file, block_index):
+    """Read one scc2020 block from file at current position."""
+    header_type = file.readline().strip()
+    if header_type != '3':
+        print(f"Error in block {block_index}: Expected '3' on second line.")
+        return None
+
+    line = file.readline().strip()
+    no_syz, no_rel, no_gen = map(int, line.split())
+
+    syzygies, relations, generators = [], [], []
+
+    for i in range(no_syz):
+        entry = parse_line(file.readline().strip(), is_relation=True)
+        if entry: syzygies.append(entry)
+
+    for i in range(no_rel):
+        entry = parse_line(file.readline().strip(), is_relation=True)
+        if entry: relations.append(entry)
+
+    for i in range(no_gen):
+        entry = parse_line(file.readline().strip(), is_relation=False)
+        if entry: generators.append(entry)
+
+    return syzygies, relations, generators
+
+def read_sccsum(filepath, param=5):
+    """Parse .sccsum file and read only the `param` largest blocks."""
+    print(f"Reading .sccsum file from {filepath}, selecting {param} largest blocks")
+    try:
+        with open(filepath, 'r') as f:
+            first = f.readline().strip()
+            if first != "scc2020sum":
+                print("Error: File must start with 'scc2020sum'")
+                return []
+
+            num_blocks = int(f.readline().strip())
+            block_infos = []  # store (size, start_pos) for each block
+
+            for block_idx in range(1, num_blocks + 1):
+                block_start = f.tell()
+                f.readline()  # skip empty line
+                f.readline()  # skip [type] line
+
+                header = f.readline().strip()
+                if header != "scc2020":
+                    print(f"Error: expected 'scc2020' at start of block {block_idx}")
+                    sys.exit(1)
+                length = int(f.readline().strip())
+                if length != 3:
+                    print(f"Error: expected '3' for length in block {block_idx}")
+                    sys.exit(1)
+
+                counts_line = f.readline().strip()
+                try:
+                    counts = [int(x) for x in counts_line.split()]
+                    if len(counts) != 3:
+                        sys.exit(1)
+                except ValueError:
+                    print(f"Error parsing counts at block {block_idx} with start {block_start}." 
+                          "Expected three numbers, got '{counts_line}'")
+
+                total_size = sum(counts)
+                block_infos.append((total_size, block_start))
+
+                # skip the rest of the block
+                for _ in range(total_size):  # adjust if each item has more lines
+                    f.readline()
+
+            # select the param largest blocks
+            block_infos.sort(reverse=True, key=lambda x: x[0])
+            largest_blocks = block_infos[:param]
+
+            results = []
+            for _, start_pos in largest_blocks:
+                f.seek(start_pos)
+                f.readline()  # skip empty line
+                f.readline()  # skip [type] line
+                header = f.readline().strip()
+                if header != "scc2020":
+                    continue
+
+                block_data = read_scc_block(f, None)  # optional: pass block index if needed
+                if block_data:
+                    results.append(block_data)
+
+            return results
+
+    except FileNotFoundError:
+        print(f"Error: Unable to open file {filepath}")
+        return []
+
+if __name__ == "__main__":
+
+    default_path = "/home/wsljan/AIDA/Persistence-Algebra/test_presentations/two_circles_2_dim1_minpres_resolution.scc"
+
+    if len(sys.argv) < 2:
+        print(f"Usage: {sys.argv[0]} <input_file.scc | input_file.sccsum> [optional_integer_for_sccsum]")        
+        input_file = default_path
+    else:   
+        input_file = sys.argv[1]
+
+    if input_file.endswith(".scc"):
+        resolution_data = read_resolution(input_file)
+        if resolution_data:
+            syzygies, relations, generators = resolution_data
+            print(f"File {input_file}: {len(syzygies)} syzygies, {len(relations)} relations, {len(generators)} generators")
+            Hilbert_function(
+                generators,
+                relations,
+                syzygies,
+                resolution=(300, 300),
+                path=Path(input_file).stem + "_HF",
+            )
+
+    elif input_file.endswith(".sccsum"):
+        # Optional integer parameter
+        param = int(sys.argv[2]) if len(sys.argv) > 2 else 5
+
+        all_blocks = read_sccsum(input_file, param)
+
+        # compute global x/y bounds across all selected blocks
+        x_min, x_max = float('inf'), float('-inf')
+        y_min, y_max = float('inf'), float('-inf')
+        
+        for syzygies, relations, generators in all_blocks:
+            for pt in syzygies + relations + generators:
+                x, y = pt[0], pt[1]  # adjust if your structure is different
+                x_min = min(x_min, x)
+                x_max = max(x_max, x)
+                y_min = min(y_min, y)
+                y_max = max(y_max, y)
+
+        # fallback if no points exist
+        if x_min == float('inf'):
+            x_min, x_max, y_min, y_max = 0, 1, 0, 1
+        x_min, x_max = float(x_min), float(x_max)
+        y_min, y_max = float(y_min), float(y_max)
+        padding = 0.1
+        x_min -= padding
+        x_max += padding
+        y_min -= padding
+        y_max += padding * 2
+        print(f"Data range is in x: [{x_min}, {x_max}], y: [{y_min}, {y_max}]")
+
+        for idx, (syzygies, relations, generators) in enumerate(all_blocks, start=1):
+            print(f"Block {idx}: {len(syzygies)} syzygies, {len(relations)} relations, {len(generators)} generators")
+            Hilbert_function(
+                generators,
+                relations,
+                syzygies,
+                resolution=(300, 300),
+                path=Path(input_file).stem + "_HF" + str(idx),
+                xlim=(x_min, x_max),
+                ylim=(y_min, y_max)
+            )
+
+    else:
+        print("Error: input must be either a .scc or .sccsum file")
+        sys.exit(1)
+
+
+"""
+Folder = "/home/wsljan/AIDA/Persistence-Algebra/test_presentations/torus_100_0.10_dim1_decomposition"
 
 
 for file in Path(Folder).glob("*resolution.scc"):
@@ -193,8 +377,7 @@ for file in Path(Folder).glob("*resolution.scc"):
             generators,
             relations,
             syzygies,
-            resolution=(300, 300),
+            resolution=(500, 500),
             path=input_path,
-            xlim=(0.0, 0.7),
-            ylim=(-1.0, 0.0)
         )
+"""

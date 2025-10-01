@@ -34,7 +34,6 @@ void compute_decomp_resolutions_streaming(std::filesystem::path input_path, std:
         std::cerr << "Error: Could not read number of sections" << std::endl;
         return;
     }
-    input_file.ignore(); // consume newline after number
     
     // Read empty line
     std::getline(input_file, line);
@@ -45,6 +44,8 @@ void compute_decomp_resolutions_streaming(std::filesystem::path input_path, std:
     int processed_sections = 0;
     int section_index = 0;
     
+    output_file << "scc2020sum\n" << declared_sections << "\n\n";
+
     // Process sections until EOF or declared count reached
     while (section_index < declared_sections && !input_file.eof()) {
         // Try to read type
@@ -107,14 +108,14 @@ void compute_decomp_resolutions_streaming(std::filesystem::path input_path, std:
             }
         }
     }
-    
+    std::cout << std::flush;
     // Final report
     if (processed_sections != declared_sections) {
         std::cerr << "Warning: Declared " << declared_sections << " sections, but successfully processed " 
                  << processed_sections << " sections." << std::endl;
     }
     
-    std::cout << "Processed " << processed_sections << "/" << declared_sections 
+    std::cout << "Processed " << processed_sections
               << " sections, saved to: " << output_path << std::endl;
 }
 
@@ -142,20 +143,26 @@ std::string insert_suffix_before_extension(const std::string& filepath, const st
 }
 
 int main(int argc, char** argv) {
+    
+    std::string filepath;
 
-    std::string example = "/home/wsljan/AIDA/Persistence-Algebra/test_presentations/presentation/non_cyclic_summands/comp3.scc";
+    if (argc != 2) {
+        std::cerr << "Usage: " << argv[0] << " <file_path>" << std::endl;
+        filepath = "/home/wsljan/AIDA/Persistence-Algebra/test_presentations/minpres_dim_1_torus_1000_3_0.10.sccsum";
+    } else {
+        filepath = argv[1];
+    }
 
-    std::string filepath = example ;
     std::filesystem::path input_path(filepath);
-
+    
     std::string modified_path = insert_suffix_before_extension(filepath, "_resolution");
     std::filesystem::path output_path(modified_path);
-
+    
     if (is_decomp_file(input_path)) {
         compute_decomp_resolutions_streaming(input_path, output_path);
     } else {
         compute_resolution(input_path, output_path);
     }
-
+    
     return 0;
 } // main
