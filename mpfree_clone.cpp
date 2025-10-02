@@ -28,7 +28,7 @@ std::string insert_suffix_before_extension(const std::string& filepath, const st
 
 int main(int argc, char** argv) {
 
-    std::string example = "/home/wsljan/AIDA/Persistence-Algebra/test_presentations/two_circles_2_delaunay_chain.scc";
+    std::string example = "/home/wsljan/MP-Workspace/data/CompPer25/chain_cpx/circles_20_60_dim1.scc";
 
     std::string filepath = example ;
     std::filesystem::path input_path(filepath);
