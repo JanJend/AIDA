@@ -718,6 +718,7 @@ struct Dynamic_HNF {
         for(int x_index = 0; x_index < x_length; x_index++){
             r2degree grid_point = {M.x_grid[x_index], y_coordinate};
             auto M_induced = M.submodule_generated_at(grid_point);
+            M_induced.sort_columns_lexicographically();
             if(M_induced.get_num_rows() == 0){
                 // Nothing to do?
             } else if (M_induced.get_num_rows() == 1){
@@ -1066,6 +1067,8 @@ void process_summands_smart_grid(aida::AIDA_functor& decomposer,
 
     bool show_info = decomposer.config.show_info;
     decomposer.config.show_info = false;
+
+    decomposer.config.save_base_change = true; // Only for debugging, TO-DO: remove later.
 
     if (show_info) {
         std::cout << "The first decomposition has " << indecomps.size() 

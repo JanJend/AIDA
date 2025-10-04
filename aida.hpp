@@ -1073,16 +1073,15 @@ void merge_blocks_into_block(vec<index>& block_indices, vec<Block_list::iterator
 
     // Add columns of the blocks according to the column_heap.
 
-    if( !column_heap.empty() ){
-    for(auto current_col = column_heap.top(); !column_heap.empty(); current_col = column_heap.top()){
+    while (!column_heap.empty()) {
+        auto current_col = column_heap.top();
+        column_heap.pop();
         new_block.columns.push_back(current_col.second->columns[current_col.first]);
         new_block.col_degrees.push_back(current_col.second->col_degrees[current_col.first]);
         new_block.data.push_back(current_col.second->data[current_col.first]);
-        column_heap.pop();
         if (current_col.first + 1 < current_col.second->columns.size()) {
             column_heap.push({current_col.first + 1, current_col.second});
         }
-    }
     }
 
     // Add columns of N and initialise all iterators to the columns of N.

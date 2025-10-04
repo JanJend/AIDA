@@ -34,12 +34,7 @@ void compute_decomp_resolutions_streaming(std::filesystem::path input_path, std:
         std::cerr << "Error: Could not read number of sections" << std::endl;
         return;
     }
-    
-    // Read empty line
-    std::getline(input_file, line);
-    if (!line.empty()) {
-        std::cerr << "Warning: Expected empty line after section count" << std::endl;
-    }
+    input_file.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // <-- consume the rest of the line
     
     int processed_sections = 0;
     int section_index = 0;
@@ -48,24 +43,31 @@ void compute_decomp_resolutions_streaming(std::filesystem::path input_path, std:
 
     // Process sections until EOF or declared count reached
     while (section_index < declared_sections && !input_file.eof()) {
-        // Try to read type
+            // Step 1: read the guaranteed empty line
         if (!std::getline(input_file, line)) {
-            if (section_index < declared_sections) {
-                std::cerr << "Warning: Reached EOF but expected " << declared_sections 
-                         << " sections, only found " << section_index << std::endl;
-            }
+            std::cerr << "Unexpected EOF while expecting blank line before section "
+                    << section_index << std::endl;
             break;
         }
-        
-        // Skip empty lines between sections
-        if (line.empty()) {
-            continue;
+        if (!line.empty()) {
+            std::cerr << "Warning: expected blank line before section "
+                    << section_index << ", got '" << line << "'\n";
         }
-        
+
+        // Step 2: now read the type line
+        if (!std::getline(input_file, line)) {
+            std::cerr << "Unexpected EOF while reading type for section "
+                    << section_index << std::endl;
+            break;
+        }
+        if (line.empty()) {
+            std::cerr << "Warning: type line is empty in section "
+                    << section_index << std::endl;
+        }
         std::string type = line;
-        section_index++;
         
         // Update progress
+        section_index++;
         std::cout << "\rProcessing section " << section_index << "/" << declared_sections 
                   << " (" << type << ")..." << std::flush;
                   
@@ -148,7 +150,7 @@ int main(int argc, char** argv) {
 
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " <file_path>" << std::endl;
-        filepath = "/home/wsljan/AIDA/Persistence-Algebra/test_presentations/minpres_dim_1_torus_1000_3_0.10.sccsum";
+        filepath = "/home/wsljan/MP-Workspace/data/CompPer25/pointsets/circles3.sccsum";
     } else {
         filepath = argv[1];
     }
