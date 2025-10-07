@@ -49,7 +49,7 @@
 
 #pragma once
 
-#include "grlina/r2graded_matrix.hpp"
+#include <grlina/r2graded_matrix.hpp>
 #ifndef AIDA_INTERFACE_HPP
 #define AIDA_INTERFACE_HPP
 
