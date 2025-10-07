@@ -48,7 +48,7 @@
 #include "aida_interface.hpp"
 #include <unistd.h> 
 #include <getopt.h>
-
+#include <filesystem>
 namespace fs = std::filesystem;
 
 void display_help() {

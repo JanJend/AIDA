@@ -12,7 +12,6 @@ using namespace graded_linalg;
 namespace hnf{
 
 
-
 template<typename index>
 struct Uni_B1{
 

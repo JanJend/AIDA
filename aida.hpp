@@ -19,13 +19,10 @@
 #ifndef AIDA_HPP
 #define AIDA_HPP
 
-#include <iostream>
 #include <grlina/graded_linalg.hpp>
-#include <list>
+#include <iostream>
 #include <boost/timer/timer.hpp>
 #include <cstdlib>
-#include <queue>
-#include <functional>
 #include <cmath>
 #include <utility>
 
