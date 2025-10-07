@@ -92,6 +92,7 @@ void run_on_test_files(aida::AIDA_functor& decomposer, std::ostringstream& ostre
     fs::path test_file2 = test_file_folder / "full_rips_size_1_instance_5_min_pres.scc";
     fs::path test_file3 = test_file_folder / "k_fold_46_10_2_min_pres.firep";
     fs::path test_file4 = test_file_folder / "multi_cover_077_10_1_min_pres.scc";
+    
     // fs::path test_file5 = test_file_folder / "multi_cover_218_10_1_min_pres.scc";
     std::ifstream istream(test_file1);
     decomposer.to_stream(istream, ostream);
