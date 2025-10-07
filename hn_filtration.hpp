@@ -53,7 +53,7 @@ struct Uni_B1{
         // Kernel computation is easy if the presentation is minimal, sorted, and has one generator.
         //TO-DO: Test this:
         if(is_minimal && d1.get_num_rows() == 1){
-            assert(std::is_sorted(d1.col_degrees.begin(), d1.col_degrees.end(), Degree_traits<r2degree>::lex_lambda));
+            assert(std::is_sorted(d1.col_degrees.begin(), d1.col_degrees.end(), Degree_traits<r2degree>::lex_lambda()));
             d2 = R2GradedSparseMatrix<index>(d1.get_num_cols()-1, d1.get_num_cols());
             d2.data = vec< vec<index> >(d1.get_num_cols()-1);
             d2.row_degrees = d1.col_degrees;
