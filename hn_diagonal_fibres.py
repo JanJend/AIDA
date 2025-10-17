@@ -68,7 +68,7 @@ def process_relations_with_slope(filename, output_filename, S=1.0):
                 relative_relations = [(x - current_position[0], y - current_position[1]) for x, y in relations]
                 
                 # Find intersections.
-                intersection_x, intersection_y = None
+                intersection_x, intersection_y = None, None
                 candidates = []
                 for i, (rel_x, rel_y) in enumerate(relative_relations):
                     if rel_y <= S * rel_x:
@@ -99,7 +99,7 @@ def create_output_filename(input_filename, slope):
 def main():
     parser = argparse.ArgumentParser(description='Process grid file with diagonal slope filtering')
     parser.add_argument('input_file', nargs='?', 
-                       default='/home/wsljan/AIDA/Persistence-Algebra/test_presentations/two_circles_2_dim1_minpres.sky',
+                       default='tests/test_presentations/two_circles.sky',
                        help='Input file path')
     parser.add_argument('-s', '--slope', type=float, default=1.0,
                       help='Slope parameter s ("Steigung") (default: 1.0)')
