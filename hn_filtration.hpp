@@ -487,9 +487,11 @@ void to_stream(Outputstream& ostream, Module_w_slope& scss){
         }
         ostream << std::endl;
     } else {
-        std::cerr << "  Passing a submodule of dimension " << scss.first.d1.get_num_rows() << std::endl;
+        std::cerr << "  Passing a submodule of dimension!!!" <<
+        "If this happens, and its not a mistake, then our observation is not true. Printing the module: " << scss.first.d1.get_num_rows() << std::endl;
         ostream << scss.second << std::endl;
         scss.first.d1.to_stream_r2(ostream);
+        scss.first.d1.to_stream_r2(std::cout);
     }
     
     
@@ -740,7 +742,7 @@ struct Dynamic_HNF {
                         max_dim = sub_M.get_num_rows();
                         if(max_dim >= 4){
                             std::cout << "new highest dimension indecomposable" << std::endl;
-                            sub_M.print_graded();
+                            sub_M.to_stream_r2(std::cout);                      
                         }
                     }
                     indecomposable_summands[x_index].emplace_back(Uni_B1<int>(std::move(sub_M)));
