@@ -738,6 +738,10 @@ struct Dynamic_HNF {
                 for(Block sub_M : sub_M_list){
                     if(sub_M.get_num_rows() > max_dim){
                         max_dim = sub_M.get_num_rows();
+                        if(max_dim >= 4){
+                            std::cout << "new highest dimension indecomposable" << std::endl;
+                            sub_M.print_graded();
+                        }
                     }
                     indecomposable_summands[x_index].emplace_back(Uni_B1<int>(std::move(sub_M)));
                     indecomposable_summands[x_index].back().compute_area_polynomial(slope_bounds);

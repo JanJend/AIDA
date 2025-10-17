@@ -27,54 +27,8 @@ using edgeList = vec<std::pair<index,index>>;
 
 
 
-//All functions and classes for partially ordered sets over a set of degrees
+// All functions and classes for partially ordered sets over a set of degrees
 
-// Concepts for ordered sets and degrees
-template <typename T>
-concept Degree = requires(T a, T b) {
-    { a < b } -> std::same_as<bool>;
-    { a <= b } -> std::same_as<bool>;
-    { a == b } -> std::same_as<bool>;
-};
-
-template <Degree D>
-vec<std::string> position(const D& a);
-
-template <Degree D>
-bool lex_order(D a, D b);
-
-
-using degree = std::pair<double, double>;
-
-bool operator==(const degree& lhs, const degree& rhs) {
-    return lhs.first == rhs.first && lhs.second == rhs.second;
-}
-
-bool operator<(const degree& lhs, const degree& rhs) {
-    return ( (lhs.first < rhs.first) && (lhs.second <= rhs.second) ) 
-    || ((lhs.first == rhs.first) && (lhs.second < rhs.second));
-}
-
-bool operator<= (const degree& lhs, const degree& rhs) {
-    return (lhs < rhs) || (lhs == rhs);
-}
-
-
-bool lex_order(const degree& a, const degree& b) {
-    if (a.first != b.first) {
-        return a.first < b.first;
-    }
-    return a.second < b.second;
-}
-
-vec<double> position(const degree& a) {
-    return {a.first, a.second};
-}
-
-std::ostream& operator<< (std::ostream& ostr, const degree& deg) {
-    ostr << "(" << deg.first << ", " << deg.second << ")";
-    return ostr;
-}
 
 using degree_list = vec<degree>;
 
