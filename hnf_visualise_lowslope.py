@@ -1,7 +1,11 @@
-import numpy as np
+from fileinput import filename
 import re
+import numpy as np
+import os
+import sys
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import argparse
 
 def parse_grid_file(filename):
     with open(filename, 'r') as f:
@@ -85,13 +89,7 @@ def parse_grid_file(filename):
     return n_i, n_j, lattice_coords, grid_data
 
 
-
-def shifted_landscape(n_i, n_j, grid_data, lattice_coords, m=3):
-    # Determine the grid size (in pixels)
-    image_width = n_j * m
-    image_height = n_i * m
-
-def generate_grayscale_images(n_i, n_j, grid_data, lattice_coords, m=3):
+def generate_grayscale_images(n_i, n_j, grid_data, lattice_coords, output_file, m=3):
     # Determine the grid size (in pixels)
     image_width = n_j * m
     image_height = n_i * m
@@ -110,14 +108,16 @@ def generate_grayscale_images(n_i, n_j, grid_data, lattice_coords, m=3):
                 # Image 1: Grayscale based on module count
                 num_modules = len(grid_data[i, j]['modules'])
                 img1[i, j] = num_modules / max_modules  # Normalize based on max number of modules
-
                 # Image 2: Grayscale based on sum of squared and inverted slopes
-                slope_sum = 0
+                from math import log
+
+                slope_sum = 0.0
                 for slope, relations in grid_data[i, j]['modules']:
-                    slope_sum += 1 / (slope ** 2)  # Inverse of squared slope
+                    slope_sum += 1/slope # slope
                 img2[i, j] = slope_sum
+                slope_sum = 0.0
                 for slope, relations in grid_data[i, j]['modules']:
-                    slope_sum += 1 / (slope)  # Inverse of squared slope
+                    slope_sum += 1/(slope**2)  # squared slopes
                 img3[i, j] = slope_sum
 
     # Scale img2 so that the highest value becomes 1 (white)
@@ -132,47 +132,54 @@ def generate_grayscale_images(n_i, n_j, grid_data, lattice_coords, m=3):
     # Plot the images
     fig, axes = plt.subplots(1, 3, figsize=(12, 6))
     
+    num_x_ticks = min(7, n_j)
+    num_y_ticks = min(7, n_i)
+    x_tick_indices = np.linspace(0, n_j - 1, num_x_ticks, dtype=int)
+    y_tick_indices = np.linspace(0, n_i - 1, num_y_ticks, dtype=int)
+    # Calculate tick positions in image coordinates
+    x_tick_positions = x_tick_indices * m
+    y_tick_positions = y_tick_indices * m
+
     # Image 1: Grayscale based on module count
     axes[0].imshow(img1_resized, cmap='gray', origin='upper', vmin=0, vmax=1)
-    axes[0].set_title('Modules Count Grayscale')
+    axes[0].set_title('Dimension')
     axes[0].invert_yaxis()  # Flip the Y-axis for image 1
     axes[0].set_xlabel('Scale')  # Set X-axis label
-    axes[0].set_ylabel('Density')  # Set Y-axis label
-    
-    # Set the ticks to reflect the lattice coordinates on the x and y axes
-    x_ticks = np.linspace(0, image_width, n_j )  # Map grid width to image width
-    y_ticks = np.linspace(0, image_height, n_i )  # Map grid height to image height
-    
-    axes[0].set_xticks(x_ticks)
-    axes[0].set_yticks(y_ticks)
-    axes[0].set_xticklabels([f'{lattice_coords[j][0]:.2f}' for j in range(n_j)])
-    axes[0].set_yticklabels([f'{lattice_coords[i][1]:.2f}' for i in range(n_i)])
+    axes[0].set_ylabel('CoDensity')  # Set Y-axis label
+
+    # Set ticks and labels
+    axes[0].set_xticks(x_tick_positions)
+    axes[0].set_yticks(y_tick_positions)
+    axes[0].set_xticklabels([f'{lattice_coords[i * n_j + 0][0]:.2f}' for i in x_tick_indices])
+    axes[0].set_yticklabels([f'{lattice_coords[0 * n_j + j][1]:.2f}' for j in y_tick_indices])
+
 
     # Image 2: Grayscale based on slope sum (inverted and squared)
     axes[1].imshow(img2_resized, cmap='gray', origin='upper', vmin=0, vmax=1)
-    axes[1].set_title('Slope Sum Grayscale')
+    axes[1].set_title('Inverse Slope Sum')
     axes[1].invert_yaxis()  # Flip the Y-axis for image 2
     axes[1].set_xlabel('Scale')  # Set X-axis label
-    axes[1].set_ylabel('Density')  # Set Y-axis label
+    axes[1].set_ylabel('CoDensity')  # Set Y-axis label
     
-    # Set the ticks to reflect the lattice coordinates on the x and y axes
-    axes[1].set_xticks(x_ticks)
-    axes[1].set_yticks(y_ticks)
-    axes[1].set_xticklabels([f'{lattice_coords[j][0]:.2f}' for j in range(n_j)])
-    axes[1].set_yticklabels([f'{lattice_coords[i][1]:.2f}' for i in range(n_i)])
+    # Set ticks and labels
+    axes[1].set_xticks(x_tick_positions)
+    axes[1].set_yticks(y_tick_positions)
+    axes[1].set_xticklabels([f'{lattice_coords[i * n_j + 0][0]:.2f}' for i in x_tick_indices])
+    axes[1].set_yticklabels([f'{lattice_coords[0 * n_j + j][1]:.2f}' for j in y_tick_indices])
 
-    # Image 3: Grayscale based on slope sum 
+    # Image 3: Grayscale based on squared slope sum 
     axes[2].imshow(img3_resized, cmap='gray', origin='upper', vmin=0, vmax=1)
-    axes[2].set_title('Slope Sum Grayscale')
+    axes[2].set_title('Inverse Slope^2 Sum')
     axes[2].invert_yaxis()  # Flip the Y-axis for image 2
     axes[2].set_xlabel('Scale')  # Set X-axis label
-    axes[2].set_ylabel('Density')  # Set Y-axis label
+    axes[2].set_ylabel('CoDensity')  # Set Y-axis label
+
+    # Set ticks and labels
+    axes[2].set_xticks(x_tick_positions)
+    axes[2].set_yticks(y_tick_positions)
+    axes[2].set_xticklabels([f'{lattice_coords[i * n_j + 0][0]:.2f}' for i in x_tick_indices])
+    axes[2].set_yticklabels([f'{lattice_coords[0 * n_j + j][1]:.2f}' for j in y_tick_indices])
     
-    # Set the ticks to reflect the lattice coordinates on the x and y axes
-    axes[2].set_xticks(x_ticks)
-    axes[2].set_yticks(y_ticks)
-    axes[2].set_xticklabels([f'{lattice_coords[j][0]:.2f}' for j in range(n_j)])
-    axes[2].set_yticklabels([f'{lattice_coords[i][1]:.2f}' for i in range(n_i)])
 
     # Ensure equal aspect ratio for both images
     axes[0].set_aspect('equal', 'box')
@@ -180,16 +187,53 @@ def generate_grayscale_images(n_i, n_j, grid_data, lattice_coords, m=3):
     axes[2].set_aspect('equal', 'box')
 
     # Save images
-    plt.savefig("grid_images.png", bbox_inches='tight')
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    plt.savefig(output_file, bbox_inches='tight')
     plt.show()
 
-def main(filename):
-    n_i, n_j, lattice_coords, grid_data = parse_grid_file(filename)
-    print(f"Grid size: {n_i} x {n_j}")
 
-    # Call image generation function
-    generate_grayscale_images(n_i, n_j, grid_data, lattice_coords, m=10)
+def create_output_filename(input_filename, intensity, magnitude):
+    # Get the directory and filename from input
+    input_dir = os.path.dirname(input_filename)
+    base_name = os.path.basename(input_filename)
+    base, ext = os.path.splitext(base_name)
+    
+    # Create new filename
+    new_filename = f"{base}_low_theta_{intensity}_mag_{magnitude}.png"
+    
+    # Join with the input directory to keep it in the same folder
+    return os.path.join(input_dir, new_filename)
 
-# Example usage
-filename = "/home/wsljan/AIDA/Persistence-Algebra/test_presentations/two_circles_2_dim1_minpres_hn_filtration.scc"
-main(filename)
+def main():
+    parser = argparse.ArgumentParser(description='Process grid file with diagonal slope filtering')
+    parser.add_argument('input_file', nargs='?', 
+                       default='/presentations/two_circles.sky',
+                       help='Input file path')
+    parser.add_argument('-i', '--intensity', type=float, default=1.0,
+                      help='Intensity parameter (default: 1.0)')
+    parser.add_argument('-m', '--magnitude', type=int, default=3,
+                      help='Magnitude factor for image scaling (default: 3)')
+    parser.add_argument('-o', '--output_file', type=str, default=None,
+                      help='Output file path (optional)')
+    args = parser.parse_args()
+    
+    if args.output_file is None:
+        args.output_file = create_output_filename(args.input_file, args.intensity, args.magnitude)
+
+    # Check if input file exists
+    if not os.path.exists(args.input_file):
+        print(f"Error: Input file '{args.input_file}' does not exist.")
+        sys.exit(1)
+
+    try:
+        print(f"Processing file: {args.input_file}")
+        print(f"Using intensity = {args.intensity}")
+        n_i, n_j, lattice_coords, grid_data = parse_grid_file(args.input_file)
+        print(f"Grid size: {n_i} x {n_j}")
+        generate_grayscale_images(n_i, n_j, grid_data, lattice_coords, args.output_file, m=3)
+    except Exception as e:
+        print(f"Error processing file: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

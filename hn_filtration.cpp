@@ -6,7 +6,7 @@
 namespace fs = std::filesystem;
 
 void display_help() {
-    std::cout << "Usage: ./aida <input_file> [options]\n"
+    std::cout << "Usage: ./hn_filtration <input_file> [options]\n"
               << "Options:\n"
               << "  -h, --help           Display this help message\n"
               << "  -g, --diagonal       Save a copy where each subquotient is restricted to the diagonal to compute landscapes\n"
@@ -35,7 +35,7 @@ void display_help() {
 }
 
 void display_version() {
-    std::cout << "AIDA version 0.2 -- 21st Mar 2025\n";
+    std::cout << "HNF version 0.2 -- 11th Oct 2025\n";
 }
 
 
@@ -267,9 +267,11 @@ int main(int argc, char** argv){
                 std::cerr << "Error: Could not open input file: " << matrix_path << std::endl;
                 return 0;
         }
+        int x_grid = 100;
+        int y_grid = 100;
          std::cout << "Decomposing, then generating submodules at grid points and decomposing them again of " + filename << std::endl;
          ostream << std::fixed << std::setprecision(17);
-        hnf::full_grid_induced_decomposition(decomposer, istream, ostream, show_indecomp_statistics, show_runtime_statistics, true, is_decomposed);
+        hnf::full_grid_induced_decomposition(decomposer, istream, ostream, show_indecomp_statistics, show_runtime_statistics, true, is_decomposed, x_grid, y_grid);
          
      } else {
         // Run on some test files.

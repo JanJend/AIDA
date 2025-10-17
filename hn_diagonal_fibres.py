@@ -63,64 +63,38 @@ def process_relations_with_slope(filename, output_filename, S=1.0):
                     f.write(line + '\n')
                     continue
                 
-                # relations should be sorted by x-coordinate
-                # relations.sort(key=lambda rel: rel[0])
-                
                 # Convert to relative coordinates
-                pos_x, pos_y = current_position
-                relative_relations = [(x - pos_x, y - pos_y) for x, y in relations]
+
+                relative_relations = [(x - current_position[0], y - current_position[1]) for x, y in relations]
                 
-                # Find transition point where slope changes from >= S to < S
-                left_idx = None
-                right_idx = None
-                vertical_slope = False
-                for i, (rel_x, rel_y) in enumerate(relative_relations):
-                    if rel_x != 0:  # Avoid division by zero
-                        current_slope = rel_y / rel_x
-                        if current_slope < S:
-                            right_idx = i
-                            break
-                        else: 
-                            left_idx = i
-                            vertical_slope = False
-                    else:
-                        vertical_slope = True
-                        transition_idx = i
-                
-                # Calculate new point with slope exactly S
+                # Find intersections.
+                intersection_x, intersection_y = None
                 candidates = []
-
-                if left_idx is not None:
-                    # Left candidate: keep y, adjust x to have slope S
-                    left_rel = relative_relations[left_idx]
-                    left_x, left_y = left_rel
-                    left_candidate = (left_y / S, left_y)
-                    candidates.append(left_candidate)
-
-                if right_idx is not None:
-                    # Right candidate: keep x, adjust y to have slope S
-                    right_rel = relative_relations[right_idx]
-                    right_x, right_y = right_rel
-                    right_candidate = (right_x, S * right_x)
-                    candidates.append(right_candidate)
+                for i, (rel_x, rel_y) in enumerate(relative_relations):
+                    if rel_y <= S * rel_x:
+                        intersection_x = rel_x
+                        intersection_y = S * rel_x
+                        candidates.append((intersection_x, intersection_y))
+                    else:
+                        intersection_y = rel_y
+                        intersection_x = rel_y / S
+                        candidates.append((intersection_x, intersection_y))
+                
 
                 # Check if we have any candidates
                 if not candidates:
-                    raise ValueError("No valid left or right relation found for transition calculation")
+                    raise ValueError("No valid intersections found")
 
                 # Choose the smallest candidate
                 chosen_relative = min(candidates)
 
-                # Convert back to absolute coordinates
-                new_relation = (chosen_relative[0] + pos_x, chosen_relative[1] + pos_y)
-
                 # Write the modified line with calculated relation
-                f.write(f"{slope},({new_relation[0]:.14f};{new_relation[1]:.14f})\n")
+                f.write(f"{slope},({chosen_relative[0]:.14f};{chosen_relative[1]:.14f})\n")
 
-def create_output_filename(input_filename):
+def create_output_filename(input_filename, slope):
     """Create output filename by adding '_diagonal' before the extension"""
     base, ext = os.path.splitext(input_filename)
-    return f"{base}_diagonal{ext}"
+    return f"{base}_diagonal_{slope}{ext}"
 
 def main():
     parser = argparse.ArgumentParser(description='Process grid file with diagonal slope filtering')
@@ -128,7 +102,7 @@ def main():
                        default='/home/wsljan/AIDA/Persistence-Algebra/test_presentations/two_circles_2_dim1_minpres.sky',
                        help='Input file path')
     parser.add_argument('-s', '--slope', type=float, default=1.0,
-                      help='Slope parameter S (Steigung) (default: 1.0)')
+                      help='Slope parameter s ("Steigung") (default: 1.0)')
     args = parser.parse_args()
     
     # Check if input file exists
@@ -137,7 +111,7 @@ def main():
         sys.exit(1)
     
     # Create output filename
-    output_file = create_output_filename(args.input_file)
+    output_file = create_output_filename(args.input_file, args.slope)
     
     try:
         print(f"Processing file: {args.input_file}")

@@ -29,7 +29,7 @@ struct Uni_B1{
         // Kernel computation is easy if the presentation is minimal, sorted, and has one generator.
         //TO-DO: Test this:
         if(is_minimal && d1.get_num_rows() == 1){
-            assert(std::is_sorted(d1.col_degrees.begin(), d1.col_degrees.end(), Degree_traits<r2degree>::lex_lambda));
+            assert(std::is_sorted(d1.col_degrees.begin(), d1.col_degrees.end(), Degree_traits<r2degree>::lex_lambda()));
             d2 = R2GradedSparseMatrix<index>(d1.get_num_cols()-1, d1.get_num_cols());
             d2.data = vec< vec<index> >(d1.get_num_cols()-1);
             d2.row_degrees = d1.col_degrees;
@@ -53,7 +53,10 @@ struct Uni_B1{
         // Kernel computation is easy if the presentation is minimal, sorted, and has one generator.
         //TO-DO: Test this:
         if(is_minimal && d1.get_num_rows() == 1){
-            assert(std::is_sorted(d1.col_degrees.begin(), d1.col_degrees.end(), Degree_traits<r2degree>::lex_lambda()));
+            assert(std::is_sorted(d1.col_degrees.begin(), d1.col_degrees.end(), 
+                [](const r2degree& a, const r2degree& b) {
+                    return Degree_traits<r2degree>::lex_order(a, b);
+                }));
             d2 = R2GradedSparseMatrix<index>(d1.get_num_cols()-1, d1.get_num_cols());
             d2.data = vec< vec<index> >(d1.get_num_cols()-1);
             d2.row_degrees = d1.col_degrees;
@@ -163,9 +166,9 @@ struct Uni_B1{
     void compute_area_polynomial (const pair<r2degree>& bounds) {
         int num_rows = d1.get_num_rows();
    
-        assert(std::is_sorted(d1.col_degrees.begin(), d1.col_degrees.end(), Degree_traits<r2degree>::lex_lambda));
+        assert(std::is_sorted(d1.col_degrees.begin(), d1.col_degrees.end(), Degree_traits<r2degree>::lex_lambda()));
     
-        bool test = true;
+        bool test = false;
 
         // For normalisation, so that area is always <=1
         r2degree range = bounds.second-bounds.first;
@@ -288,18 +291,19 @@ struct Uni_B1{
             d2.sort_columns_colexicographically();
         }
 
-        vec<index> x_grid = d1.x_grid;
-        vec<index> y_grid = d1.y_grid;
-        index num_x = x_grid.size();
-        index num_y = y_grid.size();
+        // vec<index> x_grid = d1.x_grid;
+        // vec<index> y_grid = d1.y_grid;
+        // index num_x = x_grid.size();
+        // index num_y = y_grid.size();
 
         auto itc1 = d1.row_degrees.begin();
         auto itc2 = d2.row_degrees.begin();
         auto itc3 = d2.col_degrees.begin();
 
-        for(index i = 0; i < num_y; i++){
+        for(index i = 0; i < 1; i++){
              //TO-DO finish.
         }
+        return array<index>(); // Placeholder return
     }
 
 };
@@ -931,7 +935,7 @@ void process_grid_cell(
     const pair<r2degree>& slope_bounds,
     aida::AIDA_functor& decomposer) {
     
-    bool test = true;
+    bool test = false;
     
 
     int k = -1;
@@ -1127,9 +1131,9 @@ template <typename Outputstream>
 void full_grid_induced_decomposition(aida::AIDA_functor& decomposer, 
     std::ifstream& istream, Outputstream& ostream, 
     bool show_indecomp_statistics, bool show_runtime_statistics, 
-    bool dynamic_grid = true,
+    bool dynamic_grid = false,
     bool is_decomposed = false,
-    const int& grid_length_x = 30, const int& grid_length_y = 30) {
+    const int& grid_length_x = 50, const int& grid_length_y = 50) {
     
     
 

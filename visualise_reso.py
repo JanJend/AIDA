@@ -45,6 +45,7 @@ def Hilbert_function(generators, relations, syzygies=None, resolution=(500, 500)
         x_max += padding
         y_min -= padding
         y_max += padding * 2
+        x_max = 0.75 * x_max
 
     
 
