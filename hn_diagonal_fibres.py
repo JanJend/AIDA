@@ -21,10 +21,11 @@ def process_relations_with_slope(filename, output_filename, S=1.0):
     
     # Process and write the modified file
     with open(output_filename, 'w') as f:
-        # Write header unchanged
-        f.write(lines[0])
+        # Write header with modification
+        f.write(lines[0].rstrip('\n') + '_D\n')
         f.write(lines[1])
         f.write(lines[2])
+        f.write(f"{S}\n")
         
         current_position = None
         for line in lines[3:]:
