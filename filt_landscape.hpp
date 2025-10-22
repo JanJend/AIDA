@@ -9,19 +9,23 @@ struct GridPoint {
     double x, y;
 };
 
+
 struct Bar {
     double theta;
-    double r1, r2;
+    double length;
 };
 
 struct GridData {
     int n_x, n_y;
-    double start_x, start_y, step_x, step_y;
-    std::vector<std::vector<Bar>> bars;
+    double start_x, start_y, end_x, end_y, step_x, step_y;
+    double slope;
+    std::vector<std::vector<std::vector<Bar>>> bars;
 };
 
 // Function declarations
-GridData read_sky_file(const std::string& filename, double theta_threshold);
+GridData bars_from_sky(const std::string& filename);
+
+int get_diagonal_index(int i, int j, const GridData& data);
 
 void compute_landscape(const GridData& data, const std::string& output_filename, 
                       double theta, int k);
