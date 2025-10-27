@@ -28,7 +28,7 @@
 #define AIDA_INTERFACE_HPP
 
 #include "config.hpp"
-#include "aida_functions.hpp"
+#include "aida_decompose.hpp"
 
 namespace aida {
 
@@ -103,6 +103,7 @@ struct AIDA_functor {
             #endif
 
             AIDA(A, B_list, vector_space_decompositions, base_changes.back(), runtime_statistics.back(), config, merge_info);
+            
             #if TIMERS
                 runtime_statistics.back().evaluate_timers();
             #endif

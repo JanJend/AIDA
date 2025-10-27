@@ -13,7 +13,7 @@
 #endif
 #endif
 
-#include "include/aida_interface.hpp"
+#include "aida_interface.hpp"
 #include <regex>
 #include <filesystem>
 

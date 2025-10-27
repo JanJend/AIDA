@@ -9,6 +9,12 @@
 #ifndef AIDA_HELPERS_HPP
 #define AIDA_HELPERS_HPP    
 
+#include <types.hpp>
+#include <string>
+#include <regex>
+#include <filesystem>
+
+namespace aida {
 
 std::string getExecutablePath();
 
@@ -19,16 +25,6 @@ std::string findDecompositionsDir();
 int findLargestNumberInFilenames(const std::string& directory);
 
 
-struct vec_index_hash {
-    std::size_t operator()(const std::vector<index>& v);
-};
-
-/**
- * @brief Careful, this only considers the indices of the blocks not the columns!
- * 
- */
-struct virtual_block_pair_hash {
-    std::size_t operator()(const std::pair<Merge_data, Merge_data>& p);
-};
+}
 
 #endif // AIDA_HELPERS_HPP

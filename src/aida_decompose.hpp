@@ -11,8 +11,13 @@
    (at your option) any later version.
 */
 #pragma once
+
+#ifndef AIDA_DECOMPOSE_HPP
+#define AIDA_DECOMPOSE_HPP
+
 #include "aida_functions.hpp"
 
+namespace aida {
 
 /**
  * @brief Decomposes the matrix A into a direct sum of indecomposable submatrices.
@@ -26,3 +31,7 @@
  */
 void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_space_decompositions, std::shared_ptr<Base_change_virtual>& base_change, AIDA_runtime_statistics& statistics,
     AIDA_config& config, Full_merge_info& merge_info);
+
+} // namespace aida
+
+#endif // AIDA_DECOMPOSE_HPP

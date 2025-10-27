@@ -6,7 +6,7 @@
  * @brief Configuration options for AIDA library
  */
 
-#include "include/config.hpp"
+#include "config.hpp"
 #include <unistd.h>
 #include <linux/limits.h>
 #include <regex>

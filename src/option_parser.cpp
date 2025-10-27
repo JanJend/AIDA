@@ -6,8 +6,16 @@
 
 namespace aida {
 
-OptionParser::OptionParser(const OptionSet& options) 
-    : options_(options) {}
+
+
+OptionParser::OptionParser(const OptionSet& options)
+    : options_(options) {
+}
+
+// Also add this overload if you want default construction:
+OptionParser::OptionParser() 
+    : OptionParser(OptionSet{}) {
+}
 
 void OptionParser::build_option_strings(std::string& short_opts, 
                                        std::vector<struct option>& long_opts) {

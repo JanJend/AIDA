@@ -13,6 +13,8 @@
 #include "aida_decompose.hpp"
 
 
+namespace aida {
+
 /**
  * @brief Decomposes the matrix A into a direct sum of indecomposable submatrices.
  * 
@@ -495,3 +497,5 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
     #endif
     */
 } //AIDA
+
+} //namespace aida

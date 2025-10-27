@@ -1,5 +1,8 @@
 #pragma once
 
+#ifndef AIDA_OPTION_PARSER_HPP
+#define AIDA_OPTION_PARSER_HPP
+
 #include <string>
 #include <vector>
 #include "config.hpp"
@@ -22,12 +25,20 @@ namespace aida {
             bool include_hom_options = true;
             bool include_debug_options = true;
             bool include_test_files = false;
+            
+            OptionSet() = default;    
+
         };
-        
-        OptionParser(const OptionSet& options = OptionSet());
+
+    private:
+        OptionSet options_;
+
+    public:
+        OptionParser();  // Default constructor
+        OptionParser(const OptionSet& options); 
         
         // Parse command line arguments and populate config
-        bool parse(int argc, char** argv, Config& config);
+        bool parse(int argc, char** argv, AIDA_config& config);
         
         // Getters for parsed values
         bool has_input_file() const { return !input_file_.empty(); }
@@ -44,7 +55,6 @@ namespace aida {
         void display_version() const;
         
     private:
-        OptionSet options_;
         
         // Parsed state
         std::string input_file_;
@@ -60,3 +70,5 @@ namespace aida {
     };
     
 } // namespace aida
+
+#endif // AIDA_OPTION_PARSER_HPP

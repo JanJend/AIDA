@@ -7,13 +7,12 @@
  *
  */
 
-#pragma once
-#ifndef AIDA_HELPERS_HPP
-#define AIDA_HELPERS_HPP
 
 #include "aida_helpers.hpp"
 
+namespace aida {
 
+namespace fs = std::filesystem;
 
 std::string getExecutablePath() {
     char result[PATH_MAX];
@@ -66,26 +65,5 @@ int findLargestNumberInFilenames(const std::string& directory) {
 }
 
 
-std::size_t vec_index_hash::operator()(const std::vector<index>& v) const {
-    std::size_t seed = 0;
-    for (const auto& elem : v) {
-        seed ^= std::hash<index>{}(elem) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-    return seed;
 }
 
-/**
- * @brief Careful, this only considers the indices of the blocks not the columns!
- * 
- */
-
-std::size_t virtual_block_pair_hash::operator()(const std::pair<Merge_data, Merge_data>& p) const {
-    vec_index_hash vector_hasher;
-    auto hash1 = vector_hasher(p.first.first);
-    auto hash2 = vector_hasher(p.second.first);
-    return hash1 ^ (hash2 << 1); 
-}
-
-
-
-#endif // AIDA_HELPERS_HPP
