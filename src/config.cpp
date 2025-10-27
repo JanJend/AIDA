@@ -19,6 +19,29 @@ namespace aida {
 // Helper functions for statistics
 // ============================================================================
 
+
+    #if TIMERS
+        cpu_timer hom_space_timer;
+        cpu_timer hom_space_test_timer;
+        cpu_timer full_timer;
+        cpu_timer constructing_linear_system_timer;
+        cpu_timer solve_linear_system_timer;
+        cpu_timer dispose_S_timer;
+        cpu_timer update_matrix_timer;
+        cpu_timer update_hom_timer;
+        cpu_timer load_matrices_timer;
+        cpu_timer compute_N_timer;
+        cpu_timer delete_with_col_timer;
+        cpu_timer misc_timer;
+        cpu_timer update_block_timer;
+        cpu_timer compute_rows_timer;
+        cpu_timer pre_alpha_decomp_optimisation_timer;
+        cpu_timer alpha_decomp_timer;
+        cpu_timer full_aida_timer;
+        cpu_timer full_exhaustive_timer;
+        cpu_timer full_block_reduce_timer;
+    #endif
+    
 double calculateAverage(const vec<index>& values) {
     if (values.empty()) return 0.0;
     return static_cast<double>(std::accumulate(values.begin(), values.end(), 0)) / values.size();
@@ -222,66 +245,67 @@ void AIDA_runtime_statistics::print() {
 #if TIMERS
 
 void AIDA_runtime_statistics::initialise_timers() {
-    aida::full_timer.start();
-    aida::full_timer.stop();
-    aida::hom_space_timer.start();
-    aida::hom_space_timer.stop();
-    aida::hom_space_test_timer.start();
-    aida::hom_space_test_timer.stop();
-    aida::constructing_linear_system_timer.start();
-    aida::constructing_linear_system_timer.stop();
-    aida::solve_linear_system_timer.start();
-    aida::solve_linear_system_timer.stop();
-    aida::dispose_S_timer.start();
-    aida::dispose_S_timer.stop();
-    aida::update_matrix_timer.start();
-    aida::update_matrix_timer.stop();
-    aida::update_hom_timer.start();
-    aida::update_hom_timer.stop();
-    aida::compute_N_timer.start();
-    aida::compute_N_timer.stop();
-    aida::delete_with_col_timer.start();
-    aida::delete_with_col_timer.stop();
-    aida::misc_timer.start();
-    aida::misc_timer.stop();
-    aida::update_block_timer.start();
-    aida::update_block_timer.stop();
-    aida::compute_rows_timer.start();
-    aida::compute_rows_timer.stop();
-    aida::pre_alpha_decomp_optimisation_timer.start();
-    aida::pre_alpha_decomp_optimisation_timer.stop();
-    aida::alpha_decomp_timer.start();
-    aida::alpha_decomp_timer.stop();
-    aida::full_aida_timer.start();
-    aida::full_aida_timer.stop();
-    aida::full_exhaustive_timer.start();
-    aida::full_exhaustive_timer.stop();
-    aida::full_block_reduce_timer.start();
-    aida::full_block_reduce_timer.stop();
+
+    full_timer.start();
+    full_timer.stop();
+    hom_space_timer.start();
+    hom_space_timer.stop();
+    hom_space_test_timer.start();
+    hom_space_test_timer.stop();
+    constructing_linear_system_timer.start();
+    constructing_linear_system_timer.stop();
+    solve_linear_system_timer.start();
+    solve_linear_system_timer.stop();
+    dispose_S_timer.start();
+    dispose_S_timer.stop();
+    update_matrix_timer.start();
+    update_matrix_timer.stop();
+    update_hom_timer.start();
+    update_hom_timer.stop();
+    compute_N_timer.start();
+    compute_N_timer.stop();
+    delete_with_col_timer.start();
+    delete_with_col_timer.stop();
+    misc_timer.start();
+    misc_timer.stop();
+    update_block_timer.start();
+    update_block_timer.stop();
+    compute_rows_timer.start();
+    compute_rows_timer.stop();
+    pre_alpha_decomp_optimisation_timer.start();
+    pre_alpha_decomp_optimisation_timer.stop();
+    alpha_decomp_timer.start();
+    alpha_decomp_timer.stop();
+    full_aida_timer.start();
+    full_aida_timer.stop();
+    full_exhaustive_timer.start();
+    full_exhaustive_timer.stop();
+    full_block_reduce_timer.start();
+    full_block_reduce_timer.stop();
 }
 
 void AIDA_runtime_statistics::evaluate_timers() {
-    hom_space = aida::hom_space_timer.elapsed().wall/1e9;
-    hom_space_test = aida::hom_space_test_timer.elapsed().wall/1e9;
-    constructing_linear_system = aida::constructing_linear_system_timer.elapsed().wall/1e9;
-    solve_linear_system = aida::solve_linear_system_timer.elapsed().wall/1e9;
-    dispose_S = aida::dispose_S_timer.elapsed().wall/1e9;
-    update_matrix = aida::update_matrix_timer.elapsed().wall/1e9;
-    update_hom = aida::update_hom_timer.elapsed().wall/1e9;
-    compute_N = aida::compute_N_timer.elapsed().wall/1e9;
-    delete_with_col = aida::delete_with_col_timer.elapsed().wall/1e9;
-    misc = aida::misc_timer.elapsed().wall/1e9;
-    update_block = aida::update_block_timer.elapsed().wall/1e9;
-    compute_rows = aida::compute_rows_timer.elapsed().wall/1e9;
-    pre_alpha_decomp_optimisation = aida::pre_alpha_decomp_optimisation_timer.elapsed().wall/1e9;
-    alpha_decomp = aida::alpha_decomp_timer.elapsed().wall/1e9;
-    full = aida::full_timer.elapsed().wall/1e9;
+    hom_space = hom_space_timer.elapsed().wall/1e9;
+    hom_space_test = hom_space_test_timer.elapsed().wall/1e9;
+    constructing_linear_system = constructing_linear_system_timer.elapsed().wall/1e9;
+    solve_linear_system = solve_linear_system_timer.elapsed().wall/1e9;
+    dispose_S = dispose_S_timer.elapsed().wall/1e9;
+    update_matrix = update_matrix_timer.elapsed().wall/1e9;
+    update_hom = update_hom_timer.elapsed().wall/1e9;
+    compute_N = compute_N_timer.elapsed().wall/1e9;
+    delete_with_col = delete_with_col_timer.elapsed().wall/1e9;
+    misc = misc_timer.elapsed().wall/1e9;
+    update_block = update_block_timer.elapsed().wall/1e9;
+    compute_rows = compute_rows_timer.elapsed().wall/1e9;
+    pre_alpha_decomp_optimisation = pre_alpha_decomp_optimisation_timer.elapsed().wall/1e9;
+    alpha_decomp = alpha_decomp_timer.elapsed().wall/1e9;
+    full = full_timer.elapsed().wall/1e9;
     accumulated = hom_space + constructing_linear_system + solve_linear_system
         + dispose_S + update_matrix + update_hom + compute_N + delete_with_col 
         + misc + update_block + compute_rows + pre_alpha_decomp_optimisation + alpha_decomp;
-    full_aida = aida::full_aida_timer.elapsed().wall/1e9;
-    full_exhaustive = aida::full_exhaustive_timer.elapsed().wall/1e9;
-    full_block_reduce = aida::full_block_reduce_timer.elapsed().wall/1e9;
+    full_aida = full_aida_timer.elapsed().wall/1e9;
+    full_exhaustive = full_exhaustive_timer.elapsed().wall/1e9;
+    full_block_reduce = full_block_reduce_timer.elapsed().wall/1e9;
 }
 
 void AIDA_runtime_statistics::print_timers() {

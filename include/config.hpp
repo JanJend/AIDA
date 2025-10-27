@@ -40,28 +40,29 @@ namespace aida{
 #endif
 
 
-#if TIMERS
-    cpu_timer hom_space_timer;
-    cpu_timer hom_space_test_timer;
-    cpu_timer full_timer;
-    cpu_timer constructing_linear_system_timer;
-    cpu_timer solve_linear_system_timer;
-    cpu_timer dispose_S_timer;
-    cpu_timer update_matrix_timer;
-    cpu_timer update_hom_timer;
-    cpu_timer load_matrices_timer;
-    cpu_timer compute_N_timer;
-    cpu_timer delete_with_col_timer;
-    cpu_timer misc_timer;
-    cpu_timer update_block_timer;
-    cpu_timer compute_rows_timer;
-    cpu_timer pre_alpha_decomp_optimisation_timer;
-    cpu_timer alpha_decomp_timer;
-    cpu_timer full_aida_timer;
-    cpu_timer full_exhaustive_timer;
-    cpu_timer full_block_reduce_timer;
-#endif
 // Helper functions for statistics
+
+#if TIMERS
+    extern cpu_timer hom_space_timer;
+    extern cpu_timer hom_space_test_timer;
+    extern cpu_timer full_timer;
+    extern cpu_timer constructing_linear_system_timer;
+    extern cpu_timer solve_linear_system_timer;
+    extern cpu_timer dispose_S_timer;
+    extern cpu_timer update_matrix_timer;
+    extern cpu_timer update_hom_timer;
+    extern cpu_timer load_matrices_timer;
+    extern cpu_timer compute_N_timer;
+    extern cpu_timer delete_with_col_timer;
+    extern cpu_timer misc_timer;
+    extern cpu_timer update_block_timer;
+    extern cpu_timer compute_rows_timer;
+    extern cpu_timer pre_alpha_decomp_optimisation_timer;
+    extern cpu_timer alpha_decomp_timer;
+    extern cpu_timer full_aida_timer;
+    extern cpu_timer full_exhaustive_timer;
+    extern cpu_timer full_block_reduce_timer;
+#endif
 
 double calculateAverage(const vec<index>& values);
 double calculateMedian(vec<index> values);
@@ -84,7 +85,13 @@ struct AIDA_config {
     bool alpha_hom; // Turns the computation of alpha-homs on.
     vec<vec<index>> decomp_failure;
     
-    AIDA_config(bool supress_col_sweep = false, bool sort_output = false, bool sort = false, bool save_base_change = false, bool exhaustive = false, bool brute_force = false, bool progress = false, bool compare_both = false, bool turn_off_hom_optimisation = false, bool show_info = true, bool exhaustive_test = false, bool compare_hom = false, bool alpha_hom = true)
+    AIDA_config(bool supress_col_sweep = false, bool sort_output = false, 
+        bool sort = false, bool save_base_change = false, 
+        bool exhaustive = false, bool brute_force = false, 
+        bool progress = false, bool compare_both = false, 
+        bool turn_off_hom_optimisation = false, 
+        bool show_info = false, bool exhaustive_test = false, 
+        bool compare_hom = false, bool alpha_hom = false)
         : supress_col_sweep(supress_col_sweep), save_base_change(save_base_change), sort_output(sort_output), sort(sort), exhaustive(exhaustive), brute_force(brute_force), compare_both(compare_both), progress(progress), turn_off_hom_optimisation(turn_off_hom_optimisation), show_info(show_info), exhaustive_test(exhaustive_test), compare_hom(compare_hom) { 
             decomp_failure = vec<vec<int>>();
         }
@@ -165,6 +172,7 @@ struct AIDA_runtime_statistics {
     index dim_hom_max;
     vec<index> dim_hom_vec;
 
+    
     #if TIMERS
         double hom_space;
         double hom_space_test;

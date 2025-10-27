@@ -6,8 +6,6 @@
 
 namespace aida {
 
-
-
 OptionParser::OptionParser(const OptionSet& options)
     : options_(options) {
 }

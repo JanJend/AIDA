@@ -32,9 +32,6 @@ using CT = Column_traits<vec<index>, index>;
 // Can be treated like an indecomposable/block itself.
 using Merge_data = std::pair<vec<index>, bitset>; 
 
-auto comparator = [](const Merge_data& a, const Merge_data& b) {
-    return a.first[0] < b.first[0];
-};
 
 struct vec_index_hash {
     std::size_t operator()(const std::vector<index>& v) const {

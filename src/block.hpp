@@ -256,6 +256,22 @@ typedef Block_list::iterator Block_iterator;
 using block_position = std::pair<index, Block_list::iterator>; 
 
 /**
+ * @brief Returns *lhs < *rhs
+ * 
+ */
+struct compare_block_position_row {
+    bool operator()(const block_position& lhs, const block_position& rhs) const {
+        return lhs.second->rows[lhs.first] > rhs.second->rows[rhs.first];
+    }
+};
+
+struct compare_block_position_column {
+    bool operator()(const block_position& lhs, const block_position& rhs) const {
+        return lhs.second->columns[lhs.first] > rhs.second->columns[rhs.first];
+    }
+};
+
+/**
  * @brief Constructs the Blocks of an empty Matrix whose rows are given by A.
  * 
  * @param A 

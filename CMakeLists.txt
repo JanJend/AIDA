@@ -43,6 +43,7 @@ set(AIDA_SOURCES
     ${CMAKE_SOURCE_DIR}/src/aida_interface.cpp
     ${CMAKE_SOURCE_DIR}/src/config.cpp
     ${CMAKE_SOURCE_DIR}/src/option_parser.cpp
+    ${CMAKE_SOURCE_DIR}/src/block.cpp
 )
 
 # Create executables with all sources

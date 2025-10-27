@@ -33,11 +33,12 @@ int main(int argc, char** argv) {
     aida::AIDA_functor decomposer;
     decomposer.config.progress = true;
     decomposer.config.show_info = true;
-    decomposer.config.sort = false;
     decomposer.config.sort_output = true;
     
     // Parse options
     aida::OptionParser parser;
+    parser.enable_stats_and_output();
+
     if (!parser.parse(argc, argv, decomposer.config)) {
         return 0; // Help/version shown or error
     }

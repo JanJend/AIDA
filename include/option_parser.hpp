@@ -14,20 +14,23 @@ namespace aida {
     class OptionParser {
     public:
         struct OptionSet {
-            bool include_output = true;
+            // Part of the functionality and should be changable when decomposer is used as a library
             bool include_bruteforce = true;
             bool include_sort = true;
             bool include_exhaustive = true;
-            bool include_statistics = true;
-            bool include_runtime = true;
             bool include_progress = true;
             bool include_basechange = true;
-            bool include_console_control = true;
             bool include_alpha = true;
             bool include_hom_options = true;
-            bool include_debug_options = true;
+    
+            // Functionality of the main program 
+            bool include_output = false;
+            bool include_statistics = false;
+            bool include_console_control = false;
+            bool include_debug_options = false;
             bool include_test_files = false;
-            
+            bool include_runtime = false;
+
             OptionSet() = default;    
 
         };
@@ -39,6 +42,15 @@ namespace aida {
         OptionParser();  // Default constructor
         OptionParser(const OptionSet& options); 
         
+        void enable_stats_and_output() {
+                options_.include_output = true;
+                options_.include_statistics = true;
+                options_.include_runtime = true;
+                options_.include_console_control = true;
+                options_.include_debug_options = true;
+                options_.include_test_files = false;
+            }
+
         // Parse command line arguments and populate config
         bool parse(int argc, char** argv, AIDA_config& config);
         

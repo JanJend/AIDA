@@ -139,23 +139,6 @@ Graph construct_hom_digraph( Hom_map& hom_spaces, vec<index>& vertex_labels);
 Graph construct_batch_transform_graph(Transform_Map& batch_transforms, vec<Merge_data>& virtual_blocks);
 
 
-/**
- * @brief Returns *lhs < *rhs
- * 
- */
-struct compare_block_position_row {
-    bool operator()(const block_position& lhs, const block_position& rhs) const {
-        return lhs.second->rows[lhs.first] > rhs.second->rows[rhs.first];
-    }
-};
-
-struct compare_block_position_column {
-    bool operator()(const block_position& lhs, const block_position& rhs) const {
-        return lhs.second->columns[lhs.first] > rhs.second->columns[rhs.first];
-    }
-};
-
-
 
 /**
  * @brief Adds the content of source to target, thereby merging virtual blocks.
