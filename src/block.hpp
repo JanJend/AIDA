@@ -253,6 +253,71 @@ struct Block : GradedMatrix {
 
 typedef std::list<Block> Block_list;
 typedef Block_list::iterator Block_iterator;
+using block_position = std::pair<index, Block_list::iterator>; 
+
+/**
+ * @brief Constructs the Blocks of an empty Matrix whose rows are given by A.
+ * 
+ * @param A 
+ * @param B_list 
+ * @param block_map 
+ */
+void initialise_block_list(const GradedMatrix& A, Block_list& B_list, 
+    vec<Block_list::iterator>& block_map);
+
+
+/**
+ * @brief Displays the degrees of each block in the block list.
+ * 
+ * @param B_list 
+ */
+void print_block_list_status(Block_list& B_list);
+
+
+
+/**
+ * @brief Extends the block B by the columns of N given by the batch_indices and the batch_positions.
+ * 
+ * @param B 
+ * @param N 
+ * @param batch_positions 
+ * @param batch_indices 
+ */
+void extend_block(Block& B, Sparse_Matrix& N, 
+    vec<index> batch_indices, bitset& batch_positions, 
+    r2degree& alpha);
+
+
+
+
+/**
+ * @brief Merges the content of all blocks and a restriction of N into a new block.
+ * While the rows stay sorted, the columns are not.
+ *          
+ * @param block_indices 
+ * @param block_map 
+ * @param new_block 
+ * @param N_map 
+ * @param batch_positions 
+ * @param batch_indices 
+ */
+void merge_blocks_into_block(vec<index>& block_indices, vec<Block_list::iterator>& block_map, Block& new_block, 
+                            Sub_batch& N_map, bitset& batch_positions, vec<index>& batch_indices, 
+                            vec<index>& row_map, r2degree& alpha);
+
+                            
+/**
+ * @brief Merges the blocks and updates the B_list.
+ * 
+ * @param A 
+ * @param B_list 
+ * @param N_map 
+ * @param block_map 
+ * @param block_partition 
+ */
+void merge_blocks(Block_list& B_list, Sub_batch& N_map, 
+                    vec<Block_list::iterator>& block_map, vec<Merge_data>& block_partition, vec<index>& batch_indices, 
+                    vec<index>& row_map, r2degree& alpha);
 
 } //namespace aida
 

@@ -30,8 +30,13 @@
 
 namespace aida{
 
-
-
+/**
+ * @brief Comparator for merge_data
+ * 
+ */
+inline auto merge_comparator = [](const Merge_data& a, const Merge_data& b) {
+    return a.first[0] < b.first[0];
+};
 
 /**
  * @brief Given a homomorphism from a block C to another, presented by a matrix Q, which is given as a list hom of row-operations,
@@ -45,20 +50,10 @@ namespace aida{
  * @param sub_batch_indices
  * @return vec<index> 
  */
-vec<index> hom_action(index& row_glueing, index& total_num_rows, vec<index>& hom, vec<pair>& row_ops, Sparse_Matrix& N, bitset& sub_batch_indices){    
-    vec<index> result = vec<index>(0);
-    for( index q : hom){
-        auto [i,j] = row_ops[q];
-        for(auto it = N._rows[i].rbegin(); it != N._rows[i].rend(); it++){
-            if( sub_batch_indices.test(*it)){
-                result.push_back( linearise_position_reverse_ext<index>(*it, (j + row_glueing), N.get_num_cols(), total_num_rows));
-            } 
-        }
-    }
-    std::sort(result.begin(), result.end());
-    convert_mod_2(result);
-    return result;
-}
+vec<index> hom_action(index& row_glueing, index& total_num_rows, 
+    vec<index>& hom, vec<pair>& row_ops, 
+    Sparse_Matrix& N, bitset& sub_batch_indices);
+
 
 /**
  * @brief Given a homomorphism from a block C to another, presented by a matrix Q, which is given as a list hom of row-operations,
@@ -71,18 +66,9 @@ vec<index> hom_action(index& row_glueing, index& total_num_rows, vec<index>& hom
  * @param N
  * @return vec<index> 
  */
-vec<index> hom_action_full_support(index& row_glueing, index& total_num_rows, vec<index>& hom, vec<pair>& row_ops, Sparse_Matrix& N){    
-    vec<index> result = vec<index>(0);
-    for( index q : hom){
-        auto [i,j] = row_ops[q];
-        for(auto it = N._rows[i].rbegin(); it != N._rows[i].rend(); it++){
-            result.push_back( linearise_position_reverse_ext<index>(*it, (j + row_glueing), N.get_num_cols(), total_num_rows));
-        }
-    }
-    std::sort(result.begin(), result.end());
-    convert_mod_2(result);
-    return result;
-}
+vec<index> hom_action_full_support(index& row_glueing, index& total_num_rows, 
+    vec<index>& hom, vec<pair>& row_ops, 
+    Sparse_Matrix& N);
 
 /**
  * @brief Given a homomorphism from a block C to another, presented by a matrix Q, which is given as a list hom of row-operations,
@@ -95,18 +81,9 @@ vec<index> hom_action_full_support(index& row_glueing, index& total_num_rows, ve
  * @param N
  * @return vec<index> 
  */
-vec<index> hom_action_extension(index& row_glueing, index& total_num_rows, vec<index>& hom, vec<pair>& row_ops, Sparse_Matrix& N){    
-    vec<index> result = vec<index>(0);
-    for( index q : hom){
-        auto [i,j] = row_ops[q];
-        for(auto it = N._rows[i].begin(); it != N._rows[i].end(); it++){
-            result.push_back( linearise_position_ext<index>(*it, (j + row_glueing), N.get_num_cols(), total_num_rows));
-        }
-    }
-    std::sort(result.begin(), result.end());
-    convert_mod_2(result);
-    return result;
-}
+vec<index> hom_action_extension(index& row_glueing, index& total_num_rows, 
+    vec<index>& hom, vec<pair>& row_ops, 
+    Sparse_Matrix& N);
 
 /**
  * @brief Apply a homomorphism from c to b to all of A
@@ -117,35 +94,20 @@ vec<index> hom_action_extension(index& row_glueing, index& total_num_rows, vec<i
  * @param hom 
  * @param row_ops 
  */
-void hom_action_A(GradedMatrix& A, vec<index>& source_rows, vec<index>& target_rows, vec<index>& hom, vec<pair>& row_ops, std::shared_ptr<Base_change_virtual>& base_change){
-    for( index q : hom){
-        auto [i,j] = row_ops[q];
-        i = source_rows[i];
-        j = target_rows[j];
-        #if OBSERVE
-            if( std::find(observe_row_indices.begin(), observe_row_indices.end(), i) != observe_row_indices.end() ){
-                std::cout << "Row operation: " << i << " -> " << j << std::endl;
-            }
-        #endif
-        base_change->add_row_op(i, j);
-        assert(A.is_admissible_row_operation(i, j));
-        A.fast_rev_row_op(i, j);
-    }
-}
+void hom_action_A(GradedMatrix& A, vec<index>& source_rows, 
+    vec<index>& target_rows, vec<index>& hom, 
+    vec<pair>& row_ops, std::shared_ptr<Base_change_virtual>& base_change);
+
 
 /**
  * @brief Apply a homomorphism from c to b to N
  *  TO-DO: At the moment we change N everywhere, is that a problem?
  * 
  */
-void hom_action_N(Block& B_target, Sparse_Matrix& N_source, Sparse_Matrix& N_target, vec<index>& hom, vec<pair>& row_ops){
-    for( index q : hom){
-        auto [i, j] = row_ops[q];
-        CT::add_to(N_source._rows[i], N_target._rows[j]);
-    }
-    N_target.compute_columns_from_rows(B_target.rows);
-    bool reduction = B_target.reduce_N_fully(N_target, true);
-}
+void hom_action_N(Block& B_target, Sparse_Matrix& N_source, 
+    Sparse_Matrix& N_target, vec<index>& hom, 
+    vec<pair>& row_ops);
+
 
 /**
  * @brief Deletes all hom-spaces whose (co)domain is merged or extended.
@@ -159,21 +121,9 @@ void hom_action_N(Block& B_target, Sparse_Matrix& N_source, Sparse_Matrix& N_tar
  * @param codomain_keys
  */
 void update_hom_spaces( vec<Merge_data>& block_partition, Hom_map& hom_spaces, 
-    std::unordered_map<index, vec<index>>& domain_keys, std::unordered_map<index, vec<index>>& codomain_keys){
-    for(auto& partition : block_partition){
-        vec<index>& block_indices = partition.first;
-        for(index c : block_indices){
-            for(index b : domain_keys[c]){
-                hom_spaces.erase({c, b});
-            }
-            domain_keys.erase(c);
-            for(index b : codomain_keys[c]){
-                hom_spaces.erase({b, c});
-            }
-            codomain_keys.erase(c);
-        }
-    }
-}
+    std::unordered_map<index, vec<index>>& domain_keys, 
+    std::unordered_map<index, vec<index>>& codomain_keys);
+
 
 /**
  * @brief Constructs the digraph of non-zero homomorphisms between the blocks in vertex_labels.
@@ -184,99 +134,11 @@ void update_hom_spaces( vec<Merge_data>& block_partition, Hom_map& hom_spaces,
  * @param vertex_labels 
  * @return edge_list 
  */
-Graph construct_hom_digraph( Hom_map& hom_spaces, vec<index>& vertex_labels){
-    auto edge_checker = [&hom_spaces](const index& c, const index& b) -> bool {
-        return hom_spaces[{c,b}].first.data.size(); 
-    };
-    return construct_boost_graph(vertex_labels, edge_checker);
-}
+Graph construct_hom_digraph( Hom_map& hom_spaces, vec<index>& vertex_labels);
 
-Graph construct_batch_transform_graph(Transform_Map& batch_transforms, vec<Merge_data>& virtual_blocks){
-    auto edge_checker = [&batch_transforms, virtual_blocks](const index& c, const index& b) -> bool {
-        return ! batch_transforms[std::make_pair(virtual_blocks[c], virtual_blocks[b])].empty();
-    };
-    return construct_boost_graph(virtual_blocks.size(), edge_checker);
-}
+Graph construct_batch_transform_graph(Transform_Map& batch_transforms, vec<Merge_data>& virtual_blocks);
 
 
-
-/**
- * @brief Constructs the Blocks of an empty Matrix whose rows are given by A.
- * 
- * @param A 
- * @param B_list 
- * @param block_map 
- */
-void initialise_block_list(const GradedMatrix& A, Block_list& B_list, vec<Block_list::iterator>& block_map) {
-    B_list.clear();
-    B_list = Block_list();
-    for(int i=0; i < A.get_num_rows(); i++) {
-        // Block B({},{i}, BlockType::FREE);
-        // B.set_num_rows(1);
-        auto it = B_list.emplace(B_list.end(), std::vector<index>{}, std::vector<index>{i}, BlockType::FREE);
-        // B_list.back().set_num_cols(0);
-        B_list.back().set_num_rows(1);
-        block_map.push_back(it);
-        (*it).row_degrees[0] = A.row_degrees[i];
-        (*it)._rows = vec<vec<index>>(1);
-        (*it).rows_computed = true;
-    }
-}
-
-/**
- * @brief Displays the degrees of each block in the block list.
- * 
- * @param B_list 
- */
-void print_block_list_status(Block_list& B_list) {
-    std::cout << "Status: " << B_list.size() << " blocks:\n";
-    index count=0;
-    for(Block& b : B_list) {
-      std::cout << "Block " << count++ << ":" << std::endl;
-      b.print_degrees();
-      std::cout << std::endl;
-    }
-}
-
-/**
- * @brief Extends the block B by the columns of N given by the batch_indices and the batch_positions.
- * 
- * @param B 
- * @param N 
- * @param batch_positions 
- * @param batch_indices 
- */
-void extend_block(Block& B, Sparse_Matrix& N, vec<index> batch_indices, bitset& batch_positions, r2degree& alpha) {
-    if(batch_positions.empty()){
-        batch_positions = bitset(N.get_num_cols(), true);
-    }
-    
-    for(auto i = batch_positions.find_first(); i != bitset::npos; i = batch_positions.find_next(i)){
-        B.columns.push_back(batch_indices[i]);
-        B.data.push_back(N.data[i]);
-        B.col_degrees.push_back(alpha);
-        // Directly compute the rows for efficiency:
-        auto it = N.data[i].begin();
-        for(index j = 0; j < B.rows.size() && it != N.data[i].end() ; j++){
-            if(*it == B.rows[j]){
-                B._rows[j].push_back(i);
-                it++;
-            }
-        }   
-    }
-    B.increase_num_cols(batch_positions.count());
-    assert(B.get_num_cols() == B.columns.size());
-    assert(B.get_num_cols() == B.data.size());
-
-    if(B.type == BlockType::FREE){
-        B.type = BlockType::CYC;
-    } 
-    
-
-}
-
-
-using block_position = std::pair<index, Block_list::iterator>; 
 /**
  * @brief Returns *lhs < *rhs
  * 
@@ -293,202 +155,7 @@ struct compare_block_position_column {
     }
 };
 
-/**
- * @brief Merges the content of all blocks and a restriction of N into a new block.
- * While the rows stay sorted, the columns are not.
- *          
- * @param block_indices 
- * @param block_map 
- * @param new_block 
- * @param N_map 
- * @param batch_positions 
- * @param batch_indices 
- */
-void merge_blocks_into_block(vec<index>& block_indices, vec<Block_list::iterator>& block_map, Block& new_block, 
-                            Sub_batch& N_map, bitset& batch_positions, vec<index>& batch_indices, 
-                            vec<index>& row_map, r2degree& alpha){
-    
-    std::priority_queue<block_position, vec<block_position>, compare_block_position_row> row_heap;
-    std::priority_queue<block_position, vec<block_position>, compare_block_position_column> column_heap;
 
-    // maps the initial index of the block to a vector containing the pairs: 
-    // (batch index, iterator to the associated column of N)
-    /*
-    std::map<index, vec<std::pair<index, vec<index>::iterator>> > N_iterators;
-    */
-
-
-    bool input_is_interval = true;
-
-    for(index i : block_indices){
-        auto B = block_map[i];
-        if(B->type == BlockType::NON_INT){
-            input_is_interval = false;
-        }
-        row_heap.push({0, B});
-        if(!(B->columns.empty())){
-            column_heap.push({0, B});
-        }
-        /*
-        new_block.columns.insert(new_block.columns.end(), B->columns.begin(), B->columns.end());
-        new_block.data.insert(new_block.data.end(), B->data.begin(), B->data.end());
-        new_block.col_degrees.insert(new_block.col_degrees.end(), B->col_degrees.begin(), B->col_degrees.end());
-        */
-        new_block.increase_num_rows( B->get_num_rows());
-        new_block.increase_num_cols( B->get_num_cols());
-    }
-    
-    new_block.type = BlockType::NON_INT;
-
-
-    // Check if we stay being an interval
-    Degree_traits<r2degree> traits;
-    if(batch_positions.count() == 1 && block_indices.size() == 2 && input_is_interval){
-        auto i = batch_positions.find_first();
-        bool N_is_length_two = true;
-        vec<r2degree> generators;
-        for(index b : block_indices){
-            if( N_map[b].data[i].size() != 1 ){
-                N_is_length_two = false;
-                break;
-            } else {
-                generators.push_back(block_map[b]->row_degrees[row_map[N_map[b].data[i].front()]]);
-            }
-        }
-        if(N_is_length_two){
-            if( traits.equals(alpha,  traits.join(generators[0], generators[1])) ){
-                new_block.type = BlockType::INT;
-            }
-        }
-    }
-
-
-
-    index batch_threshold = new_block.get_num_cols();
-
-    new_block.rows.reserve(new_block.get_num_rows());
-    new_block._rows.reserve(new_block.get_num_rows());
-    new_block.row_degrees.reserve(new_block.get_num_rows());
-    new_block.columns.reserve(new_block.get_num_cols());
-    new_block.data.reserve(new_block.get_num_cols());
-    new_block.col_degrees.reserve(new_block.get_num_cols());
-
-    // Add columns of the blocks according to the column_heap.
-
-    while (!column_heap.empty()) {
-        auto current_col = column_heap.top();
-        column_heap.pop();
-        new_block.columns.push_back(current_col.second->columns[current_col.first]);
-        new_block.col_degrees.push_back(current_col.second->col_degrees[current_col.first]);
-        new_block.data.push_back(current_col.second->data[current_col.first]);
-        if (current_col.first + 1 < current_col.second->columns.size()) {
-            column_heap.push({current_col.first + 1, current_col.second});
-        }
-    }
-
-    // Add columns of N and initialise all iterators to the columns of N.
-    for(auto i = batch_positions.find_first(); i != bitset::npos; i = batch_positions.find_next(i)){
-        new_block.columns.push_back(batch_indices[i]);
-        new_block.col_degrees.push_back(alpha);
-        new_block.data.push_back(vec<index>());
-        for(index j : block_indices){
-            new_block.data.back().insert(new_block.data.back().end(), N_map[j].data[i].begin(), N_map[j].data[i].end());
-            /*
-            if( N_map[j].data[i].empty() ){
-                N_iterators[j].push_back({batch_indices[i], N_map[j].data[i].begin()});
-            } else {
-                N_iterators[j].push_back({batch_indices[i], N_map[j].data[i].begin()});
-            }
-            */
-        }
-        std::sort(new_block.data.back().begin(), new_block.data.back().end());
-    }
-    new_block.increase_num_cols( batch_positions.count());
-    // The minheap sorts the row-indices of the blocks in ascending order. 
-    // Iteratively, we add this row index, the associated row from the block, and append entries, if the columns of N permit us.
-    // TO-DO: Maybe this is much slower than simply sorting everything, I do not know.
-
-    new_block._rows = vec<vec<index>>(new_block.get_num_rows());
-    index row_counter = 0;
-    while (!row_heap.empty()) {
-        block_position current = row_heap.top();
-        Block& B = *current.second;
-        row_heap.pop();
-        new_block.rows.push_back(B.rows[current.first]);
-        new_block.row_degrees.push_back(B.row_degrees[current.first]);
-        // Reevaluating the map from A.rows to new_block.rows
-        row_map[B.rows[current.first]] = row_counter;
-        /* Since we are now using internally indexed rows it doe not make sense to merge them like this without a map from col_indices to internal indexes.
-        Instead we should recompute them, although this might be costly. Maybe optimise in a later version.
-        new_block._rows.push_back(B._rows[current.first]);
-        
-        auto& itvec = N_iterators[B.rows.front()];
-        index internal_col_index = batch_positions.find_first();
-        for(index i = 0; i < itvec.size(); i++){
-            if( itvec[i].second == N_map[B.rows.front()].data[internal_col_index].end() ){
-                internal_col_index = batch_positions.find_next(internal_col_index);
-                continue;    
-            }
-            internal_col_index = batch_positions.find_next(internal_col_index);
-            if( *itvec[i].second == B.rows[current.first]){
-                new_block.data[batch_threshold + i].push_back(*itvec[i].second);
-                new_block._rows[row_counter].push_back(itvec[i].first);
-                itvec[i].second++;
-            }
-        }
-        */
-        if (current.first + 1 < B.rows.size()) {
-            row_heap.push({current.first + 1, current.second});
-        }
-        row_counter++;
-    }   
-
-    assert(new_block._rows.size() == new_block.row_degrees.size());
-    assert(new_block.rows.size() == new_block.row_degrees.size());
-    assert(new_block.columns.size() == new_block.data.size());
-    assert(new_block.data.size() == new_block.get_num_cols());
-
-}
-
-/**
- * @brief Merges the blocks and updates the B_list.
- * 
- * @param A 
- * @param B_list 
- * @param N_map 
- * @param block_map 
- * @param block_partition 
- */
-void merge_blocks(Block_list& B_list, Sub_batch& N_map, 
-                    vec<Block_list::iterator>& block_map, vec<Merge_data>& block_partition, vec<index>& batch_indices, 
-                    vec<index>& row_map, r2degree& alpha){ 
-    for(auto& partition : block_partition){
-        vec<index>& block_indices = partition.first;
-        bitset& batch_positions = partition.second; 
-        index first = *block_indices.begin();
-        if(block_indices.size() == 1){
-            extend_block(*block_map[first], N_map[first], batch_indices, batch_positions, alpha);
-        } else {
-            if(block_indices.size() < 1){
-                std::cout << "  Warning: No Merge info at batch indices " <<  batch_indices << std::endl;
-                assert(false);
-            }
-            Block new_block({}, {});
-            // TO-DO: In many cases it might be better to find the largest block and merge the others into it.
-            auto new_it = B_list.insert(B_list.end(), new_block);
-            merge_blocks_into_block(block_indices, block_map, *new_it, N_map, batch_positions, batch_indices, row_map, alpha); 
-
-            for(index i : block_indices){
-                auto del_it = block_map[i];
-                for(index j : block_map[i]->rows){
-                    block_map[j] = new_it;
-                }
-                B_list.erase(del_it);
-
-            }
-        }          
-    }
-}
 
 /**
  * @brief Adds the content of source to target, thereby merging virtual blocks.
@@ -496,7 +163,7 @@ void merge_blocks(Block_list& B_list, Sub_batch& N_map,
  * @param target 
  * @param source 
  */
-void merge_virtual_blocks(Merge_data& target, Merge_data& source ){
+inline void merge_virtual_blocks(Merge_data& target, Merge_data& source ){
     assert( (target.second & source.second).none() );
     target.first.insert(target.first.end(), source.first.begin(), source.first.end());
     target.second |= source.second;
@@ -506,42 +173,19 @@ void merge_virtual_blocks(Merge_data& target, Merge_data& source ){
  * @brief Fills c with the linearised entries of N_B restricted by a bitset.
  * 
  */
-void linearise_prior( GradedMatrix& A, std::vector<std::reference_wrapper<Sparse_Matrix>>& Ns, vec<index>& batch_indices, vec<long>& result, bitset& sub_batch_indices) {
-    
-    assert(batch_indices.size() == sub_batch_indices.size());
-    for(auto& ref : Ns){
-        Sparse_Matrix& N = ref.get();
-        for(index i = sub_batch_indices.size()-1; i >= 0; i--){
-            if(sub_batch_indices.test(i)){
-                for(index j : N.data[i]){
-                    result.push_back(A.linearise_position_reverse(batch_indices[i], j));
-                }
-            }
-        }
-    }
-    std::sort(result.begin(), result.end());
-}
+void linearise_prior( GradedMatrix& A, std::vector<std::reference_wrapper<Sparse_Matrix>>& Ns, vec<index>& batch_indices, vec<long>& result, bitset& sub_batch_indices);
+
 
 /**
  * @brief Fills c with the linearised entries of N_B restricted by a bitset.
  * 
  */
-void linearise_prior_full_support( GradedMatrix& A, std::vector<std::reference_wrapper<Sparse_Matrix>>& Ns, vec<index>& batch_indices, vec<long>& result) {
-    
-    for(auto& ref : Ns){
-        Sparse_Matrix& N = ref.get();
-        for(index i = batch_indices.size()-1; i >= 0; i--){
-                for(index j : N.data[i]){
-                    result.push_back(A.linearise_position_reverse(batch_indices[i], j));
-                }
-        }
-    }
-    // Why was this here? -> std::sort(result.begin(), result.end());
-}
+void linearise_prior_full_support( GradedMatrix& A, std::vector<std::reference_wrapper<Sparse_Matrix>>& Ns,
+     vec<index>& batch_indices, vec<long>& result);
 
 
 
-void test_rows_of_A(GradedMatrix& A, index batch){
+inline void test_rows_of_A(GradedMatrix& A, index batch){
     for(index i = 0; i < A.get_num_rows(); i++){
         if(!A._rows[i].empty()){
             for(index j : A._rows[i]){
@@ -573,127 +217,13 @@ void test_rows_of_A(GradedMatrix& A, index batch){
  * @param b_vec
  * @param N_map
  */
-void construct_linear_system(GradedMatrix& A, vec<index>& batch_indices, bitset& sub_batch_indices, bool restricted_batch,
-                            vec<index>& relevant_blocks, vec<Block_list::iterator>& block_map, 
-                            SparseMatrix<long>& S, vec<op_info>& ops, 
-                            vec<index>& b_vec, Sub_batch& N_map,
-                            const bitset& extra_columns = bitset(0)){
-    //TO-DO: Parallelise this whole subroutine.
+void construct_linear_system(GradedMatrix& A, vec<index>& batch_indices, 
+    bitset& sub_batch_indices, bool restricted_batch,
+    vec<index>& relevant_blocks, vec<Block_list::iterator>& block_map, 
+    SparseMatrix<long>& S, vec<op_info>& ops, 
+    vec<index>& b_vec, Sub_batch& N_map,
+    const bitset& extra_columns = bitset(0));
 
-    Block& B_first = *block_map[*b_vec.begin()];  
-    Block& B_probe = *block_map[*relevant_blocks.begin()];
-    size_t buffer = 0;
-    size_t max_buffer_size = 200000;
-    if(B_first.local_data != nullptr){
-        buffer = B_first.local_data->data.size();
-    }
-    buffer += b_vec.size()*relevant_blocks.size()*(B_first.rows.size()*B_probe.rows.size() 
-    + B_probe.columns.size()*B_first.columns.size());
-    buffer = std::min(buffer, max_buffer_size);
-    S.data.reserve(buffer);
-    
-    // First find all blocks which can actually contribute by having a non-zero admissible row operation to any row of B:
-    // While doing that, construct the associated columns of S belonging to these row operations.
-    index S_index = 0; indtree admissible_relevant_blocks;
-
-    bool no_new_inserts = false;
-    for(index b: b_vec){
-        Block& B = *block_map[b];
-        auto b_it = b_vec.begin();
-        for(auto c_it = relevant_blocks.begin(); c_it != relevant_blocks.end(); c_it++){
-            index c = *c_it;
-            // Only consider operations from outside of b_vec!
-            if(b_it != b_vec.end()){
-                if(c == *b_it){
-                    b_it++; continue;}
-            }
-            Block& C = *block_map[c];
-            Sparse_Matrix& N_C = N_map[c];
-            for(index i = 0; i < C.rows.size(); i++){
-                auto source_index = C.rows[i];
-                for(index j = 0; j < B.rows.size(); j++){
-                    auto target_index = B.rows[j];
-                    if(A.is_admissible_row_operation(source_index, target_index)){
-                        S.data.push_back(vec<long>());
-                        ops.emplace_back( std::make_pair(std::make_pair(i , j), std::make_pair(c, b)) );
-                        // Fill the column of S belonging to the operation first with the row in N_C, 
-                        // then with the row in C, so that no sorting is needed.
-                        for(auto row_it = N_C._rows[i].rbegin(); row_it != N_C._rows[i].rend(); row_it++){
-                            if(!restricted_batch || sub_batch_indices.test(*row_it)){
-                                S.data[S_index].emplace_back(A.linearise_position_reverse(batch_indices[*row_it], target_index));
-                            }
-                        }    
-
-                        if(!C._rows[i].empty()){
-                        for(auto row_it2 = C._rows[i].rbegin(); row_it2 != C._rows[i].rend(); row_it2++){
-                            // only insert if the row operation has an effect on B.rows*C.columns.
-                            if(!no_new_inserts){
-                                auto result = admissible_relevant_blocks.insert(c);
-                                no_new_inserts = result.second;
-                            }
-                            auto effect_position = A.linearise_position_reverse(C.columns[*row_it2], target_index);
-                            S.data[S_index].emplace_back(effect_position);
-                        }
-                        }
-                        S_index++;
-                    } 
-                }
-            }
-            no_new_inserts = false;
-        }
-    }
-    for(index b: b_vec){
-        Block& B = *block_map[b];
-        // Next add all col ops from all blocks in b_vec to the columns of the blocks which could contribute.
-
-        for(index c : admissible_relevant_blocks){
-            auto it = block_map[c];
-            Block& C = *it;
-            for(index i = 0; i < C.columns.size(); i++){
-                for(index j = 0; j < B.columns.size(); j++){
-                    if(A.is_admissible_column_operation(B.columns[j], C.columns[i])){
-                        S.data.push_back(vec<long>());
-                        for(index row_index : B.data[j]){
-                            S.data[S_index].emplace_back(A.linearise_position_reverse(C.columns[i], row_index));
-                        }
-                        S_index++;
-                    }
-                }
-            }
-        }
-        // At last, add the basic column-operations from B to N which have already been computed
-        // TO-DO: This doesnt work yet, somehow local data is an empty matrix instead of having a nullptr.
-        if(B.local_data != nullptr){
-            for(index i = sub_batch_indices.find_first(); i != bitset::npos ; i = sub_batch_indices.find_next(i)){
-                for(vec<index>& column : (*B.local_data).data){
-                    S.data.push_back(vec<long>());
-                    for(index j : column){
-                        S.data[S_index].emplace_back(A.linearise_position_reverse(batch_indices[i], j)); 
-                    }
-                    S_index++;
-                }
-            }
-        }
-    }
-
-    // If we're in the last step of naive decomposition, 
-    // need to the additional column operation from extra columns to sub_batch_indices
-    if(extra_columns.any()){
-        for(index i = extra_columns.find_first(); i != bitset::npos; i = extra_columns.find_next(i)){
-            for(index j = sub_batch_indices.find_first(); j != bitset::npos; j = sub_batch_indices.find_next(j)){
-                S.data.push_back(vec<long>());
-                for(auto b : b_vec){
-                    for(index row_index : N_map[b].data[i]){
-                        S.data[S_index].emplace_back(A.linearise_position_reverse(batch_indices[j], row_index));
-                    }
-                }
-                std::sort(S.data[S_index].begin(), S.data[S_index].end());
-                S_index++;
-            }          
-        }
-    }
-
-} //construct_linear_system
 
 /**
  * @brief Constructs the linear system to delete the block N=(A_t)_B with row and column operations. Concretly:
@@ -715,107 +245,7 @@ void construct_linear_system(GradedMatrix& A, vec<index>& batch_indices, bitset&
 void construct_linear_system_full_support(GradedMatrix& A, vec<index>& batch_indices, bool restricted_batch,
                             vec<index>& relevant_blocks, vec<Block_list::iterator>& block_map, 
                             SparseMatrix<long>& S, vec<op_info>& ops, 
-                            vec<index>& b_vec, Sub_batch& N_map){
-    //TO-DO: Parallelise this whole subroutine.
-
-    Block& B_first = *block_map[*b_vec.begin()];  
-    Block& B_probe = *block_map[*relevant_blocks.begin()];
-    size_t buffer = 0;
-    size_t max_buffer_size = 200000;
-    if(B_first.local_data != nullptr){
-        buffer = B_first.local_data->data.size();
-    }
-    buffer += b_vec.size()*relevant_blocks.size()*(B_first.rows.size()*B_probe.rows.size() 
-    + B_probe.columns.size()*B_first.columns.size());
-    buffer = std::min(buffer, max_buffer_size);
-    S.data.reserve(buffer);
-    
-    // First find all blocks which can actually contribute by having a non-zero admissible row operation to any row of B:
-    // While doing that, construct the associated columns of S belonging to these row operations.
-    index S_index = 0; indtree admissible_relevant_blocks;
-
-    bool no_new_inserts = false;
-    for(index b: b_vec){
-        Block& B = *block_map[b];
-        auto b_it = b_vec.begin();
-        for(auto c_it = relevant_blocks.begin(); c_it != relevant_blocks.end(); c_it++){
-            index c = *c_it;
-            // Only consider operations from outside of b_vec!
-            if(b_it != b_vec.end()){
-                if(c == *b_it){
-                    b_it++; continue;}
-            }
-            Block& C = *block_map[c];
-            Sparse_Matrix& N_C = N_map[c];
-            for(index i = 0; i < C.rows.size(); i++){
-                auto source_index = C.rows[i];
-                for(index j = 0; j < B.rows.size(); j++){
-                    auto target_index = B.rows[j];
-                    if(A.is_admissible_row_operation(source_index, target_index)){
-                        S.data.push_back(vec<long>());
-                        ops.emplace_back( std::make_pair(std::make_pair(i , j), std::make_pair(c, b)) );
-                        // Fill the column of S belonging to the operation first with the row in N_C, 
-                        // then with the row in C, so that no sorting is needed.
-                        for(auto row_it = N_C._rows[i].rbegin(); row_it != N_C._rows[i].rend(); row_it++){
-                            
-                            S.data[S_index].emplace_back(A.linearise_position_reverse(batch_indices[*row_it], target_index));
-
-                        }    
-
-                        if(!C._rows[i].empty()){
-                        for(auto row_it2 = C._rows[i].rbegin(); row_it2 != C._rows[i].rend(); row_it2++){
-                            // only insert if the row operation has an effect on B.rows*C.columns.
-                            if(!no_new_inserts){
-                                auto result = admissible_relevant_blocks.insert(c);
-                                no_new_inserts = result.second;
-                            }
-                            auto effect_position = A.linearise_position_reverse(C.columns[*row_it2], target_index);
-                            S.data[S_index].emplace_back(effect_position);
-                        }
-                        }
-                        S_index++;
-                    } 
-                }
-            }
-            no_new_inserts = false;
-        }
-    }
-    for(index b: b_vec){
-        Block& B = *block_map[b];
-        // Next add all col ops from all blocks in b_vec to the columns of the blocks which could contribute.
-
-        for(index c : admissible_relevant_blocks){
-            auto it = block_map[c];
-            Block& C = *it;
-            for(index i = 0; i < C.columns.size(); i++){
-                for(index j = 0; j < B.columns.size(); j++){
-                    if(A.is_admissible_column_operation(B.columns[j], C.columns[i])){
-                        S.data.push_back(vec<long>());
-                        for(index row_index : B.data[j]){
-                            S.data[S_index].emplace_back(A.linearise_position_reverse(C.columns[i], row_index));
-                        }
-                        S_index++;
-                    }
-                }
-            }
-        }
-        // At last, add the basic column-operations from B to N which have already been computed
-        // TO-DO: This doesnt work yet, somehow local data is an empty matrix instead of having a nullptr.
-        if(B.local_data != nullptr){
-            for(index i_b : batch_indices){
-                for(vec<index>& column : (*B.local_data).data){
-                    S.data.push_back(vec<long>());
-                    for(index j : column){
-                        S.data[S_index].emplace_back(A.linearise_position_reverse(i_b, j)); 
-                    }
-                    S_index++;
-                }
-            }
-        }
-    }
-
-
-} //construct_linear_system_full_support
+                            vec<index>& b_vec, Sub_batch& N_map);
 
 /**
  * @brief  
@@ -841,85 +271,7 @@ void construct_linear_system_hom(vec<index>& batch_indices, bitset& sub_batch_in
                             Hom_map& hom_spaces,
                             vec<index>& row_map,
                             vec<index>& y,
-                            const bitset& extra_columns = bitset(0)){
-    
-    //TO-DO: Parallelise this
-    index row_glueing = 0;
-    index total_num_rows = 0;
-    index S_index = 0;
-    for(index b : b_vec){
-        total_num_rows += block_map[b]->get_num_rows();
-    }
-    for(index b: b_vec){
-        Block& B = *block_map[b];
-        Sparse_Matrix& N_B = N_map[b];
-        // Populate y
-        for(index row_index = 0; row_index < B.rows.size(); row_index++){
-            for(auto int_col_it = N_B._rows[row_index].rbegin(); int_col_it != N_B._rows[row_index].rend(); int_col_it++){
-                if(sub_batch_indices.test(*int_col_it)){
-                    y.emplace_back(linearise_position_reverse_ext<index>(*int_col_it, row_index + row_glueing, N_B.get_num_cols(), total_num_rows));
-                }
-            }
-        }
-        auto b_it = b_vec.begin();
-        for(auto c_it = relevant_blocks.begin(); c_it != relevant_blocks.end(); c_it++){
-            index c = *c_it;
-            // Only consider operations from outside of b_vec!
-            if(b_it != b_vec.end()){
-                if(c == *b_it){
-                    b_it++; continue;}
-            }
-            Block& C = *block_map[c];
-            Sparse_Matrix& N_C = N_map[c];
-            Hom_space& hom_cb = hom_spaces[{c,b}];
-            for(index i_B = 0; i_B < hom_cb.first.data.size(); i_B++){
-                ops.emplace_back( i_B , std::make_pair(c, b) );
-                S.data.emplace_back(hom_action(row_glueing, total_num_rows, hom_cb.first.data[i_B], hom_cb.second, N_C, sub_batch_indices) );
-            }
-        }
-        row_glueing += B.get_num_rows();
-    }
-    std::sort(y.begin(), y.end());
-    S_index = S.data.size();
-    row_glueing = 0;
-    for(index b: b_vec){
-        Block& B = *block_map[b];
-        // At last, add the basic column-operations from B to N which have already been computed
-        // TO-DO: This isnt fully optimised yet, local data is an empty matrix instead of having a nullptr.
-        if(B.local_data != nullptr){
-            for(index i = sub_batch_indices.find_first(); i != bitset::npos; i = sub_batch_indices.find_next(i)){
-                for(vec<index>& column : (*B.local_data).data){
-                    S.data.push_back(vec<index>());
-                    for(index j : column){
-                        S.data[S_index].emplace_back( linearise_position_reverse_ext<index>( i, row_map[j]+row_glueing, batch_indices.size(), total_num_rows));
-                    }
-                    S_index++;
-                }
-            }
-        }
-        row_glueing += B._rows.size();
-    }
-    // If we're in the last step of naive decomposition, use also column-operations internal to the batch:
-    
-    if(extra_columns.any()){
-        for(index i = extra_columns.find_first(); i != bitset::npos; i = extra_columns.find_next(i)){
-            for(index j = sub_batch_indices.find_first(); j != bitset::npos; j = sub_batch_indices.find_next(j)){
-                S.data.push_back(vec<index>());
-                row_glueing = 0;
-                for(auto b : b_vec){
-                    for(index row_index : N_map[b].data[i]){
-                        S.data[S_index].emplace_back( linearise_position_reverse_ext<index>( j, row_map[row_index]+row_glueing, batch_indices.size(), total_num_rows));
-                    }
-                    row_glueing += N_map[b]._rows.size();
-                }
-                //TO-DO: with smarter book-keeping this could be avoided:
-                std::sort(S.data[S_index].begin(), S.data[S_index].end());
-                S_index++;
-            }
-        }
-    }
-
-} //construct_linear_system_hom
+                            const bitset& extra_columns = bitset(0));
 
 /**
  * @brief  
@@ -944,66 +296,7 @@ void construct_linear_system_hom_full_support(vec<index>& batch_indices, bool& r
                             vec<index>& b_vec, Sub_batch& N_map,
                             Hom_map& hom_spaces,
                             vec<index>& row_map,
-                            vec<index>& y){
-    
-    //TO-DO: Parallelise this
-    index row_glueing = 0;
-    index total_num_rows = 0;
-    index S_index = 0;
-    for(index b : b_vec){
-        total_num_rows += block_map[b]->get_num_rows();
-    }
-    for(index b: b_vec){
-        Block& B = *block_map[b];
-        Sparse_Matrix& N_B = N_map[b];
-        // Populate y
-        for(index row_index = 0; row_index < B.rows.size(); row_index++){
-            for(auto int_col_it = N_B._rows[row_index].rbegin(); int_col_it != N_B._rows[row_index].rend(); int_col_it++){
-
-                y.emplace_back(linearise_position_reverse_ext<index>(*int_col_it, row_index + row_glueing, N_B.get_num_cols(), total_num_rows));
-
-            }
-        }
-        auto b_it = b_vec.begin();
-        for(auto c_it = relevant_blocks.begin(); c_it != relevant_blocks.end(); c_it++){
-            index c = *c_it;
-            // Only consider operations from outside of b_vec!
-            if(b_it != b_vec.end()){
-                if(c == *b_it){
-                    b_it++; continue;}
-            }
-            Block& C = *block_map[c];
-            Sparse_Matrix& N_C = N_map[c];
-            Hom_space& hom_cb = hom_spaces[{c,b}];
-            for(index i_B = 0; i_B < hom_cb.first.data.size(); i_B++){
-                ops.emplace_back( i_B , std::make_pair(c, b) );
-                S.data.emplace_back(hom_action_full_support(row_glueing, total_num_rows, hom_cb.first.data[i_B], hom_cb.second, N_C) );
-            }
-        }
-        row_glueing += B.get_num_rows();
-    }
-    std::sort(y.begin(), y.end());
-    S_index = S.data.size();
-    row_glueing = 0;
-    for(index b: b_vec){
-        Block& B = *block_map[b];
-        // At last, add the basic column-operations from B to N which have already been computed
-        // TO-DO: This isnt fully optimised yet, local data is an empty matrix instead of having a nullptr.
-        if(B.local_data != nullptr){
-            for(index i = 0; i < batch_indices.size(); i++){
-                for(vec<index>& column : (*B.local_data).data){
-                    S.data.push_back(vec<index>());
-                    for(index j : column){
-                        S.data[S_index].emplace_back( linearise_position_reverse_ext<index>( i, row_map[j]+row_glueing, batch_indices.size(), total_num_rows));
-                    }
-                    S_index++;
-                }
-            }
-        }
-        row_glueing += B._rows.size();
-    }
-
-} //construct_linear_system_hom_full_support
+                            vec<index>& y);
 
 /**
  * @brief Stores all entries of N[b] at the column_indices given in a single vector of size N[b].rows*N[b].columns 
@@ -1014,98 +307,14 @@ void construct_linear_system_hom_full_support(vec<index>& batch_indices, bool& r
  * @param row_map 
  * @return vec<index> 
  */
-void linearise_sub_batch_entries(vec<index>& result, Sparse_Matrix& N, bitset& batch_column_indices, vec<index>& row_map){
-    for(index i = batch_column_indices.find_first(); i != bitset::npos; i = batch_column_indices.find_next(i) ){
-        for(index r : N.data[i]){
-            result.emplace_back( linearise_position_ext<index>(i, row_map[r], batch_column_indices.size(), N.get_num_rows()) );
-        }
-    }
-}
+void linearise_sub_batch_entries(vec<index>& result, Sparse_Matrix& N, 
+    bitset& batch_column_indices, vec<index>& row_map);
 
 void construct_linear_system_extension(Sparse_Matrix& S, vec<hom_info>& hom_storage, index& E_threshold,
     index& N_threshold, index& M_threshold, index& b, bitset& b_non_zero_columns, 
     Merge_data& pro_block, vec<index>& incoming_vertices, vec<Merge_data>& pro_blocks, bitset& deleted_cocycles_b,
     Graph& hom_graph, Hom_map& hom_spaces, Transform_Map& batch_transforms, 
-    vec<Block_iterator>& block_map, vec<index>& row_map, Sub_batch& N_map){
-
-    vec<index>& pro_block_blocks = pro_block.first;
-    bitset& target = pro_block.second;
-    index num_rows = block_map[b]->get_num_rows();
-    assert( block_map[b]->get_num_rows() == N_map[b].get_num_rows());
-    assert( N_map[b].get_num_rows() == N_map[b]._rows.size());
-
-
-    // First add row-operations from the virtual processed block.
-
-    for( index c : pro_block_blocks){
-        Sparse_Matrix& N_C = N_map[c];
-        Hom_space& hom_cb = hom_spaces[{c,b}];
-        for(index i_B = 0; i_B < hom_cb.first.data.size(); i_B++){
-            hom_storage.emplace_back( i_B , std::make_pair(c, b) );
-            index row_glue = 0;
-            S.data.emplace_back(hom_action_extension(row_glue, num_rows, hom_cb.first.data[i_B], hom_cb.second, N_C) );
-            assert(is_sorted(S.data.back()));
-        }
-    }
-
-    E_threshold = hom_storage.size();
-    // Then the internal column-operations
-
-    for(index i : incoming_vertices){
-        // Do not need to consider this, if the respective cocycle has been deleted
-        if(deleted_cocycles_b.test(i)){
-            Merge_data& E = pro_blocks[i];
-            vec<Batch_transform>& internal_col_ops = batch_transforms[{E, pro_block}];
-            assert( !internal_col_ops.empty());
-            for( index j = 0; j < internal_col_ops.size(); j++){
-                Batch_transform col_ops = internal_col_ops[j];
-                DenseMatrix& T = col_ops.first;
-                // The following is bloaty, could be fixed by not having T as a Dense_Matrix or directly reading of the result.
-                Sparse_Matrix N_b = N_map[b];
-                N_b.multiply_dense(T);
-                S.data.push_back(vec<index>());
-                linearise_sub_batch_entries(S.data.back(), N_b, target, row_map);
-                assert(is_sorted(S.data.back()));
-                hom_storage.push_back({j, {i, b}});
-            }
-        } else {
-            // Nothing to do. might count how often this happens.
-        }
-    }
-
-    N_threshold = hom_storage.size();
-
-    // Column-operations from the support of B in the batch:
-    
-    for(index i = b_non_zero_columns.find_first(); i != bitset::npos; i = b_non_zero_columns.find_next(i)){
-        for(index j = target.find_first(); j != bitset::npos; j = target.find_next(j)){
-            S.data.push_back(vec<index>());
-            for(index row_index : N_map[b].data[i]){
-                S.data.back().emplace_back( linearise_position_ext<index>( j, row_map[row_index], target.size(), num_rows));
-            }
-            assert(is_sorted(S.data.back()));
-            hom_storage.push_back({i, {j, b}});
-        }
-    }
-
-    M_threshold = hom_storage.size();
-    // Add the basic column-operations from B to N which have already been computed
-    
-    if(block_map[b]->local_data != nullptr){
-    for(index i = target.find_first(); i != bitset::npos; i = target.find_next(i)){
-        for(vec<index>& column : (block_map[b]->local_data)->data){
-            S.data.push_back(vec<index>());
-            for(index j : column){
-                S.data.back().emplace_back( linearise_position_ext<index>( i, row_map[j], target.size(), num_rows));
-                assert(is_sorted(S.data.back()));
-            }
-        }
-    }
-    }
-
-    
-
-} //construct_linear_system_extension
+    vec<Block_iterator>& block_map, vec<index>& row_map, Sub_batch& N_map);
 
 /**
  * @brief Computes a basis for the hom-space Hom(C, B).
@@ -1115,7 +324,9 @@ void construct_linear_system_extension(Sparse_Matrix& S, vec<hom_info>& hom_stor
  * @param B 
  * @return vec<Sparse_Matrix> 
  */
-Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, r2degree& alpha, const bool& optimised = false, const bool& alpha_hom = false){
+inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, 
+    r2degree& alpha, const bool& optimised = false, 
+    const bool& alpha_hom = false){
 
     vec< pair > row_ops; // we store the matrices Q_i which form the basis of hom(C, B) as vectors
     // This translates from entries of the vector to entries of the matrix.
@@ -1294,181 +505,6 @@ Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, r2degree& alpha
 }
 
 
-/**
- * @brief Obsolete; Computes a basis for the hom-space Hom(C, B).
- * 
- * @param A 
- * @param C
- * @param B 
- * @return vec<Sparse_Matrix> 
-Hom_space compute_hom_space_no_optimisation(GradedMatrix& A, Block& C, Block& B, r2degree& alpha, Sparse_Matrix& S_compare, const bool& alpha_hom = false){
-    //TO-DO: This function is not working correctly yet, but it is only for testing anyways.
-
-    vec< pair > row_ops; // we store the matrices Q_i which form the basis of hom(C, B) as vectors
-    // This translates from entries of the vector to entries of the matrix.
-
-    Sparse_Matrix K(0,0);
-
-    switch (C.type){
-        case BlockType::FREE : {
-            index counter = 0;
-            for( index i = 0; i < C.get_num_rows(); i++){
-                // indices in rows_alpha are internal to C. For external change to .., true) 
-                auto [B_alpha, rows_alpha] = B.map_at_degree_pair(C.row_degrees[i]);
-                vec<index> basislift = B_alpha.coKernel_basis(rows_alpha, B.rows);
-                for( index j : basislift){
-                    row_ops.push_back( {i, j} );
-                    K.data.push_back( {counter} );
-                    counter++;
-                }
-            }
-            K.compute_num_cols();
-            return {K, row_ops};
-            break;
-        }
-
-        case BlockType::INT : {
-            #if CHECK_INT
-            if( B.type == BlockType::INT ){
-                degree_list endpoints_C = C.endpoints();
-                degree_list endpoints_B = B.endpoints();
-                // Assuming rows are already lexicographically sorted, while columns are not because of the merging.
-                std::sort(endpoints_C.begin(), endpoints_C.end(),  [ ]( const auto& lhs, const auto& rhs )
-                    {
-                    return lex_order( lhs, rhs);
-                    });
-                std::sort(endpoints_B.begin(), endpoints_B.end(),  [ ]( const auto& lhs, const auto& rhs )
-                    {
-                    return lex_order( lhs, rhs);
-                    });
-                
-                vec<vec<r2degree>> intersection;
-                index segment_counter;
-
-                //TO-DO: finish
-
-                auto B_it = B.row_degrees.begin();
-                for(auto C_it = C.row_degrees.begin(); C_it != C.row_degrees.end();  ){
-                    if( lex_order(*C_it, *B_it) ){
-                        C_it++;
-                    } else if ( (*C_it).second < (*B_it).second ) {
-                        B_it++;
-                    } else {
-                        intersection[segment_counter].push_back(*C_it);
-                    }
-                }
-
-            } else {
-                // Find a fast algorithm to compute Hom_alpha(M, -) for M an interval? Do I need the codomain to be an intervall too if i want it fast?
-            }
-            #endif
-
-        }
-
-        case BlockType::CYC : {
-            //TO-DO: Implement maybe
-        }
-
-        case BlockType::NON_INT : {
-            
-            SparseMatrix<long> S(0,0);
-            S.data.reserve( C.rows.size() + B.rows.size() + 1);
-            index S_index = 0;
-            // First add all row-operations from C to B
-            for(index i = 0; i < C.rows.size(); i++){
-                for(index j = 0; j < B.rows.size(); j++){
-                    auto source_row_index = C.rows[i];
-                    auto target_row_index = B.rows[j];
-                    if(A.is_admissible_row_operation(source_row_index, target_row_index)){
-                        row_ops.push_back({source_row_index, target_row_index});
-                        S.data.push_back(vec<long>());
-                        for(auto rit = C._rows[i].rbegin(); rit != C._rows[i].rend(); rit++){
-                            auto& internal_column_index = *rit;
-                            S.data[S_index].emplace_back(A.linearise_position_reverse(C.columns[internal_column_index], target_row_index));
-                        }
-                        S_index++;
-                    }
-                }
-            }
-
-            // If there are no row-operations, then the hom-space is zero.
-            if(S_index == 0){
-                return {Sparse_Matrix(0, 0), row_ops};
-            }
-
-            index row_op_threshold = S_index;
-            assert( row_ops.size() == S_index );
-
-            if(row_op_threshold == 0){
-                // If there are no row-operations, then the hom-space is zero.
-                return {Sparse_Matrix(0, 0), row_ops};
-            }
-
-            
-
-            // Then all column-operations from B to C
-            for(index i = 0; i < B.columns.size(); i++){
-                for(index j = 0; j < C.columns.size(); j++){
-                    if(A.is_admissible_column_operation(B.columns[i], C.columns[j])){
-                        S.data.push_back(vec<long>());
-                        for(index row_index : B.data[i]){
-                            S.data[S_index].emplace_back(A.linearise_position_reverse(C.columns[j], row_index));
-                        }
-                        S_index++;
-                    }
-                }
-            }
- 
-            S.compute_num_cols();
-            #if SYSTEM_SIZE
-                std::cout << "System size: " << S.get_num_cols() << std::endl;
-            #endif
-
-            if(S_compare.get_num_cols() != 0){
-                S.print();
-                S_compare.print();
-            }
-            // If M, N present the modules, then the following computes Hom(M,N), i.e. pairs of matrices st. QM = NP.
-            
-            K = S.get_kernel_int<index>();
-            // To see how much the following reduces K: index K_size = K.data.size();
-            // Now we need to delete the entries of K which correspond to the row-operations.
-            K.cull_columns(row_op_threshold, false);
-            
-            // Last we need to quotient out those Q where for every i the column Q_i - with its r2degree alpha_i -
-            // lies in the image of N, that is, it lies in the image of N|alpha_i.
-            // That is equivalent to locally reducing every column of Q.
-            
-            // Given a row-op, this gives the position in a vector corresponding to it.
-            std::unordered_map< std::pair<index, index>, index, pair_hash<index> > pair_to_index = pair_to_index_map(row_ops);
-
-            for(index i = 0; i < C.rows.size(); i++){
-                r2degree alpha = C.row_degrees[i];
-                vec<index> local_admissible_columns;
-                auto [B_alpha, rows_alpha] = B.map_at_degree_pair(alpha);
-                if(rows_alpha.empty() || B_alpha.get_num_cols() == 0){
-                    continue;
-                }
-                std::unordered_map<index, index> reIndexMap;
-
-                for(index j : rows_alpha){
-                    reIndexMap[B.rows[j]] = pair_to_index[{C.rows[i], B.rows[j]}];
-                }
-                B_alpha.transform_data(reIndexMap);
-                B_alpha.reduce_fully(K);
-            }
-            
-            //  delete possible linear dependencies.
-            K.column_reduction_triangular(true);
-            return {K, row_ops};
-            break;
-        }
-    }
-
-    return {Sparse_Matrix(0,0), {}};
-}
-*/
-
 
 /**
  * @brief This computes all hom-spaces (possibly only the alpha-homs) between active blocks and stores them in hom_spaces.
@@ -1483,7 +519,7 @@ Hom_space compute_hom_space_no_optimisation(GradedMatrix& A, Block& C, Block& B,
  * @param alpha 
  * @param compare_hom_space_computation 
  */
-void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterator>& block_map, indtree& active_blocks, 
+inline void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterator>& block_map, indtree& active_blocks, 
                                 Hom_map& hom_spaces, std::unordered_map<index, vec<index>>& domain_keys, 
                                 std::unordered_map<index, vec<index>>& codomain_keys, r2degree& alpha, AIDA_runtime_statistics& statistics, 
                                 AIDA_config& config){ //turn_off_hom_optimisation, bool compare_hom_space_computation = false, bool compute_alpha_hom = true
@@ -1561,7 +597,7 @@ void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterator>& blo
  * @brief Changes A and N according to the row_operations computed by block_reduce
  * 
  */
-void update_matrix(GradedMatrix& A, Sub_batch& N_map, vec<Block_iterator>& block_map, vec<index>& batch_indices, 
+inline void update_matrix(GradedMatrix& A, Sub_batch& N_map, vec<Block_iterator>& block_map, vec<index>& batch_indices, 
             vec<index>& solution, index& row_op_limit, vec<op_info>& ops, bool& restricted_batch, bool& delete_N){
 
     for(index operation_index : solution){
@@ -1606,7 +642,7 @@ void update_matrix(GradedMatrix& A, Sub_batch& N_map, vec<Block_iterator>& block
  * @param sub_batch_indices The indices of the columns of N_B which are to be deleted.
  * @param extra_columns 
  */                     
-bool block_reduce(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
+inline bool block_reduce(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
                 bool restricted_batch, vec<index>& relevant_blocks, vec<Block_iterator>& block_map, bitset& sub_batch_indices, std::shared_ptr<Base_change_virtual>& base_change,   
                 vec<index>& row_map, 
                 bool compare_both = false, const bitset& extra_columns = bitset(0), bool delete_N = false) {
@@ -1693,7 +729,7 @@ bool block_reduce(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<inde
  * @param sub_batch_indices The indices of the columns of N_B which are to be deleted.
  * @param extra_columns 
  */                     
-bool block_reduce_full_support(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
+inline  bool block_reduce_full_support(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
                 bool restricted_batch, vec<index>& relevant_blocks, vec<Block_iterator>& block_map, std::shared_ptr<Base_change_virtual>& base_change,   
                 vec<index>& row_map, 
                 bool compare_both = false, bool delete_N = false) {
@@ -1769,7 +805,7 @@ bool block_reduce_full_support(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_
  * @param restricted_batch 
  * @param naive_first 
  */
-void update_matrix_hom(GradedMatrix& A, Sub_batch& N_map, vec<Block_iterator>& block_map, 
+inline void update_matrix_hom(GradedMatrix& A, Sub_batch& N_map, vec<Block_iterator>& block_map, 
             vec<index>& batch_indices, Hom_map& hom_spaces, std::shared_ptr<Base_change_virtual>& base_change, vec<index>& row_map,
             vec<index>& solution, index& row_op_limit, vec<hom_info>& ops,
             bool restricted_batch = false, bool delete_N = false){
@@ -1800,7 +836,7 @@ void update_matrix_hom(GradedMatrix& A, Sub_batch& N_map, vec<Block_iterator>& b
     }
 }
 
-void update_matrix_extension(GradedMatrix& A, Sub_batch& N_map, vec<Block_iterator>& block_map, 
+inline void update_matrix_extension(GradedMatrix& A, Sub_batch& N_map, vec<Block_iterator>& block_map, 
     Hom_map& hom_spaces, std::shared_ptr<Base_change_virtual>& base_change, vec<index>& non_processed_blocks, 
     vec<index>& row_map, vec<index>& solution, index& E_threshold, index& N_threshold, index& M_threshold, vec<hom_info>& hom_storage,
     Transform_Map& batch_transforms, vec<Merge_data>& pro_blocks, Merge_data& pro_block){
@@ -1856,7 +892,7 @@ void update_matrix_extension(GradedMatrix& A, Sub_batch& N_map, vec<Block_iterat
  *                      If naive_first is false, this is the set of columns-indices of the batch which belong to the first subspace tested in naive decomposition.
  *                      It should be empty if block reduce is not called from naive decomposition.
  */                     
-bool block_reduce_hom(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
+inline bool block_reduce_hom(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
                 bool restricted_batch, vec<index>& relevant_blocks, vec<Block_iterator>& block_map, bitset& sub_batch_indices,
                 std::shared_ptr<Base_change_virtual>& base_change, vec<index>& row_map, Hom_map& hom_spaces,  
                 const bitset& extra_columns = bitset(0), bool delete_N = false){ 
@@ -1945,7 +981,7 @@ bool block_reduce_hom(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<
  *                      If naive_first is false, this is the set of columns-indices of the batch which belong to the first subspace tested in naive decomposition.
  *                      It should be empty if block reduce is not called from naive decomposition.
  */                     
-bool block_reduce_hom_full_support(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
+inline bool block_reduce_hom_full_support(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
                 bool restricted_batch, vec<index>& relevant_blocks, vec<Block_iterator>& block_map,
                 std::shared_ptr<Base_change_virtual>& base_change, vec<index>& row_map, Hom_map& hom_spaces,  
                 bool delete_N = false){ 
@@ -2029,7 +1065,7 @@ bool block_reduce_hom_full_support(GradedMatrix& A, vec<index>& b_vec, Sub_batch
  * @return true 
  * @return false 
  */
-bool use_either_block_reduce(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
+inline bool use_either_block_reduce(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
                 bool restricted_batch, vec<index>& blocks, vec<Block_iterator>& block_map, bitset& support, std::shared_ptr<Base_change_virtual>& base_change, 
                 vec<index>& row_map, Hom_map& hom_spaces, bool brute_force = false, bool compare_both = false,  
                 const bitset& extra_columns = bitset(0), bool delete_N = false){
@@ -2081,7 +1117,7 @@ bool use_either_block_reduce(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_ma
  * @return true 
  * @return false 
  */
-bool use_either_block_reduce_full_support(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
+inline bool use_either_block_reduce_full_support(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
                 bool restricted_batch, vec<index>& blocks, vec<Block_iterator>& block_map, std::shared_ptr<Base_change_virtual>& base_change, 
                 vec<index>& row_map, Hom_map& hom_spaces, bool brute_force = false, bool compare_both = false,  
                 const bitset& extra_columns = bitset(0), bool delete_N = false){
@@ -2122,7 +1158,7 @@ bool use_either_block_reduce_full_support(GradedMatrix& A, vec<index>& b_vec, Su
  * @param row_map 
  * @return array<index> 
  */
-vec< Batch_transform > compute_internal_col_ops(Merge_data& virtual_source_block, Merge_data& virtual_target_block, 
+inline vec< Batch_transform > compute_internal_col_ops(Merge_data& virtual_source_block, Merge_data& virtual_target_block, 
     Sub_batch& N_map, Hom_map& hom_spaces, vec<index>& row_map, index& k, vec<Block_iterator>& block_map){
 
     bitset& source_batch_indices = virtual_source_block.second;
@@ -2232,7 +1268,7 @@ vec< Batch_transform > compute_internal_col_ops(Merge_data& virtual_source_block
  * @param A the matrix
  * @param batch 
  */
-void compute_touched_blocks(indtree& active_blocks, vec<Block_iterator>& block_map, 
+inline void compute_touched_blocks(indtree& active_blocks, vec<Block_iterator>& block_map, 
                             GradedMatrix& A, vec<index>& batch, Sub_batch& N_map) {
 
     for(index j = 0; j < batch.size(); j++){
@@ -2272,7 +1308,7 @@ void compute_touched_blocks(indtree& active_blocks, vec<Block_iterator>& block_m
  * @param N_map 
  * @param vector_space_decompositions 
  */
-vec< Merge_data > exhaustive_alpha_decomp(
+inline vec< Merge_data > exhaustive_alpha_decomp(
                         GradedMatrix& A, Block_list& B_list, vec<Block_iterator>& block_map, 
                         vec<index>& pierced_blocks, vec<index>& batch_indices, const bitset& N_column_indices, 
                         vec<bitset>& e_vec, Sub_batch& N_map, vec<vec<transition>>& vector_space_decompositions,
@@ -2522,7 +1558,7 @@ vec< Merge_data > exhaustive_alpha_decomp(
  * @return true 
  * @return false 
  */
-bool alpha_extension_decomposition(GradedMatrix& A, index& b, bitset& b_non_zero_columns, vec<index>& non_processed_blocks,
+inline bool alpha_extension_decomposition(GradedMatrix& A, index& b, bitset& b_non_zero_columns, vec<index>& non_processed_blocks,
     Merge_data& pro_block, vec<index>& incoming_vertices, vec<Merge_data>& pro_blocks, bitset& deleted_cocycles_b,
     Graph& hom_graph, Hom_map& hom_spaces, Transform_Map& batch_transforms, std::shared_ptr<Base_change_virtual>& base_change, vec<index>& external_incoming_vertices, Row_transform_map& component_transforms, 
     vec<Block_iterator>& block_map, vec<index>& row_map, Sub_batch& N_map){
@@ -2603,7 +1639,7 @@ bool alpha_extension_decomposition(GradedMatrix& A, index& b, bitset& b_non_zero
  * 
 
  */
-bool virtual_alpha_extension_decomposition(GradedMatrix& A, index& b, bitset& b_non_zero_columns, vec<index>& non_processed_blocks,
+inline bool virtual_alpha_extension_decomposition(GradedMatrix& A, index& b, bitset& b_non_zero_columns, vec<index>& non_processed_blocks,
     Merge_data& pro_block, vec<index>& incoming_vertices, vec<Merge_data>& pro_blocks, bitset& deleted_cocycles_b,
     Graph& hom_graph, Hom_map& hom_spaces, Transform_Map& batch_transforms, std::shared_ptr<Base_change_virtual>& base_change, 
     vec<Block_iterator>& block_map, vec<index>& row_map, Sub_batch& N_map){
@@ -2673,7 +1709,7 @@ bool virtual_alpha_extension_decomposition(GradedMatrix& A, index& b, bitset& b_
     return reduced_to_zero;
 }
 
-Row_transform compute_internal_row_ops(bitset& source_deleted_cocycles, bitset& target_deleted_cocycles){
+inline Row_transform compute_internal_row_ops(bitset& source_deleted_cocycles, bitset& target_deleted_cocycles){
     // TO-DO: Implement this.
     // Question is: can the collection of cocycles in source_deleted_cocycles be deleted when in target_deleted_cocycles?
     // Right now I will only program this for the case where we deal with components which are cyclic modules.
@@ -2711,7 +1747,7 @@ Row_transform compute_internal_row_ops(bitset& source_deleted_cocycles, bitset& 
  * @param is_resolvable_cycle
  * @return vec< Merge_data > 
  */
-vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, Block_list& B_list, vec<Block_iterator>& block_map, 
+inline vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, Block_list& B_list, vec<Block_iterator>& block_map, 
     vec<index>& local_pierced_blocks, vec<index>& batch_indices, const bitset& N_column_indices, 
     vec<bitset>& e_vec, Sub_batch& N_map, vec<vec<transition>>& vector_space_decompositions,
     AIDA_config& config, std::shared_ptr<Base_change_virtual>& base_change,
@@ -3051,7 +2087,7 @@ vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, Block_li
  * @param has_unresolvable_cycle 
  * @param has_multiple_cycles 
  */
-void get_cycle_information(vec<index>& pierced_blocks, vec<vec<index>>& scc, vec<Block_iterator>& block_map,
+inline void get_cycle_information(vec<index>& pierced_blocks, vec<vec<index>>& scc, vec<Block_iterator>& block_map,
     bool& has_cycle,
     bool& has_unresolvable_cycle,
     bool& has_multiple_cycles,
@@ -3088,7 +2124,7 @@ void get_cycle_information(vec<index>& pierced_blocks, vec<vec<index>>& scc, vec
     }
 }
 
-void reduce_hom_alpha_graph(Hom_map& hom_spaces, vec<index>& local_pierced_blocks, 
+inline void reduce_hom_alpha_graph(Hom_map& hom_spaces, vec<index>& local_pierced_blocks, 
     Graph& hom_digraph, r2degree& alpha, vec<Block_iterator>& block_map) {
 
     auto edges = boost::edges(hom_digraph);
@@ -3151,7 +2187,7 @@ void reduce_hom_alpha_graph(Hom_map& hom_spaces, vec<index>& local_pierced_block
  * @param acyclic_counter 
  * @return false if there are unresolvable cycles 
  */
-bool construct_graphs_from_hom(Graph& hom_digraph, std::vector<index>& component, vec<vec<index>>& scc, vec<bool>& is_resolvable_cycle,
+inline bool construct_graphs_from_hom(Graph& hom_digraph, std::vector<index>& component, vec<vec<index>>& scc, vec<bool>& is_resolvable_cycle,
         Graph& condensation, vec<index>& computation_order, vec<index>& pierced_blocks, Hom_map& hom_spaces, 
         AIDA_runtime_statistics& statistics, AIDA_config& config, index& t, vec<Block_iterator>& block_map, r2degree& alpha){
     
@@ -3246,7 +2282,7 @@ bool construct_graphs_from_hom(Graph& hom_digraph, std::vector<index>& component
  * @param support 
  * @return vec<Merge_data>
  */
-vec<Merge_data> find_prelim_decomposition(Sub_batch& N_map, const vec<index>& blocks, const bitset& support){
+inline vec<Merge_data> find_prelim_decomposition(Sub_batch& N_map, const vec<index>& blocks, const bitset& support){
     index k = support.size();
     assert(k == N_map[blocks[0]].get_num_cols());
     vec<Merge_data> block_to_columns; 
@@ -3288,7 +2324,7 @@ vec<Merge_data> find_prelim_decomposition(Sub_batch& N_map, const vec<index>& bl
  * @param merge_info_1 
  * @param merge_info_2 
  */
-void compare_merge_info(Full_merge_info& merge_info_1, Full_merge_info& merge_info_2){
+inline void compare_merge_info(Full_merge_info& merge_info_1, Full_merge_info& merge_info_2){
     assert(merge_info_1.size() == merge_info_2.size());
     bool success = true;
     for(index i = 0; i < merge_info_1.size(); i++){
@@ -3303,8 +2339,8 @@ void compare_merge_info(Full_merge_info& merge_info_1, Full_merge_info& merge_in
             std::sort(merge.first.begin(), merge.first.end());
             assert(is_sorted(merge.first));
         }
-        std::sort(merge_vec_1.begin(), merge_vec_1.end(), comparator);
-        std::sort(merge_vec_2.begin(), merge_vec_2.end(), comparator);
+        std::sort(merge_vec_1.begin(), merge_vec_1.end(), merge_comparator);
+        std::sort(merge_vec_2.begin(), merge_vec_2.end(), merge_comparator);
 
         if(merge_vec_1.size() != merge_vec_2.size()){
             success = false;
@@ -3365,7 +2401,6 @@ void compare_merge_info(Full_merge_info& merge_info_1, Full_merge_info& merge_in
 
 
 } // namespace aida
-
 
 
 #endif // AIDA_HPP

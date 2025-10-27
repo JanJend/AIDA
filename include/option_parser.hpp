@@ -3,9 +3,11 @@
 #ifndef AIDA_OPTION_PARSER_HPP
 #define AIDA_OPTION_PARSER_HPP
 
+#include "config.hpp"
 #include <string>
 #include <vector>
-#include "config.hpp"
+#include <getopt.h>
+
 
 namespace aida {
     
@@ -65,7 +67,7 @@ namespace aida {
         bool test_files_ = false;
         
         void build_option_strings(std::string& short_opts, 
-                                  std::vector<struct option>& long_opts);
+                                  std::vector<::option>& long_opts);
         bool handle_no_input(int argc, char**& argv);
     };
     

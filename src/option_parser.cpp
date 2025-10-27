@@ -1,4 +1,4 @@
-#include <aida/option_parser.hpp>
+#include "option_parser.hpp"
 #include <iostream>
 #include <sstream>
 #include <cstring>
@@ -18,7 +18,7 @@ OptionParser::OptionParser()
 }
 
 void OptionParser::build_option_strings(std::string& short_opts, 
-                                       std::vector<struct option>& long_opts) {
+                                       std::vector<::option>& long_opts) {
     short_opts = "hv";
     
     // Help and version always included
@@ -130,7 +130,7 @@ bool OptionParser::handle_no_input(int argc, char**& argv) {
     return true;
 }
 
-bool OptionParser::parse(int argc, char** argv, Config& config) {
+bool OptionParser::parse(int argc, char** argv, AIDA_config& config) {
     // Handle no arguments case
     if (argc < 2) {
         if (!handle_no_input(argc, argv)) {
