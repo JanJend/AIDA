@@ -38,6 +38,7 @@ struct multipers_interface_input{
     vec<std::pair<double, double>> row_degrees;
     vec<vec<index>> matrix;
 };
+
 template<typename index>
 struct multipers_interface_output {
     vec<std::pair<double, double>> col_degrees;
@@ -164,8 +165,8 @@ struct AIDA_functor {
         std::list<multipers_interface_output<index>> results;
         for(auto& B : B_list){
             multipers_interface_output<index> result;
-            result.col_degrees = B.col_degrees();
-            result.row_degrees = B.row_degrees();
+            result.col_degrees = B.col_degrees;
+            result.row_degrees = B.row_degrees;
             result.matrix = B.data;
             results.push_back(result);
         }
