@@ -32,6 +32,19 @@
 
 namespace aida {
 
+template<typename index>
+struct mutlipers_interface_input{
+    vec<std::pair<double, double>> col_degrees;
+    vec<std::pair<double, double>> row_degrees;
+    vec<vec<index>> matrix;
+};
+template<typename index>
+struct multipers_interface_output {
+    vec<std::pair<double, double>> col_degrees;
+    vec<std::pair<double, double>> row_degrees;
+    vec<vec<index>> matrix;
+};
+
 /**
  * @brief Applies AIDA to streams.
  */
@@ -140,6 +153,27 @@ struct AIDA_functor {
             B.to_stream_r2(ofstr);
         }
     }
+
+    template<typename index>
+    std::list<multipers_interface_result<index>> multipers_interface(multipers_interface_input<index>& input){
+        R2GradedSparseMatrix<index> A(input.col_degrees.size(), input.row_degrees.size());
+        A.data = input.matrix;
+        A.col_degrees = input.col_degrees;
+        A.row_degrees = input.row_degrees;    
+        Block_list B_list;
+        operator()(A, B_list);
+        std::list<multipers_interface_result<index>> results;
+        for(auto& B : B_list){
+            multipers_interface_result<index> result;
+            result.col_degrees = B.col_degrees();
+            result.row_degrees = B.row_degrees();
+            result.matrix = B.data;
+            results.push_back(result);
+        }
+        return results;
+    }
+
+    
 };
 
 } // namespace aida
