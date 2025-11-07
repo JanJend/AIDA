@@ -33,7 +33,7 @@
 namespace aida {
 
 template<typename index>
-struct mutlipers_interface_input{
+struct multipers_interface_input{
     vec<std::pair<double, double>> col_degrees;
     vec<std::pair<double, double>> row_degrees;
     vec<vec<index>> matrix;
@@ -69,7 +69,6 @@ struct AIDA_functor {
     Sparse_Matrix get_row_basis(index i, index m);
     Sparse_Matrix get_row_basis(index m);
 
-    // Template methods must remain in header
     template<typename InputStream>
     void operator()(InputStream& ifstr, Block_list& B_list_cumulative) {
         vec<GradedMatrix> matrices;
@@ -155,16 +154,16 @@ struct AIDA_functor {
     }
 
     template<typename index>
-    std::list<multipers_interface_result<index>> multipers_interface(multipers_interface_input<index>& input){
+    std::list<multipers_interface_output<index>> multipers_interface(multipers_interface_input<index>& input){
         R2GradedSparseMatrix<index> A(input.col_degrees.size(), input.row_degrees.size());
         A.data = input.matrix;
         A.col_degrees = input.col_degrees;
         A.row_degrees = input.row_degrees;    
         Block_list B_list;
         operator()(A, B_list);
-        std::list<multipers_interface_result<index>> results;
+        std::list<multipers_interface_output<index>> results;
         for(auto& B : B_list){
-            multipers_interface_result<index> result;
+            multipers_interface_output<index> result;
             result.col_degrees = B.col_degrees();
             result.row_degrees = B.row_degrees();
             result.matrix = B.data;
@@ -173,7 +172,7 @@ struct AIDA_functor {
         return results;
     }
 
-    
+
 };
 
 } // namespace aida
