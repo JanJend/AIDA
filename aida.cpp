@@ -34,6 +34,7 @@ int main(int argc, char** argv) {
     decomposer.config.progress = true;
     decomposer.config.show_info = true;
     decomposer.config.sort_output = true;
+    decomposer.config.sort = true;
     
     // Parse options
     aida::OptionParser parser;

@@ -57,7 +57,7 @@ struct AIDA_functor {
     vec<Full_merge_info> merge_data_vec;
     vec<std::shared_ptr<Base_change_virtual>> base_changes;
 
-    inline AIDA_functor();
+    AIDA_functor();
 
     void load_vector_space_decompositions(int max_dim, std::string decomp_path);
     void load_existing_decompositions(int& k_max);
@@ -153,22 +153,22 @@ struct AIDA_functor {
     }
 
     template<typename index>
-    vec<multipers_interface_output<index>> multipers_interface(multipers_interface_input<index>& input){
+    multipers_interface_output<index> multipers_interface(multipers_interface_input<index>& input){
         R2GradedSparseMatrix<index> A(input.col_degrees.size(), input.row_degrees.size());
         A.data = input.matrix;
         A.col_degrees = input.col_degrees;
         A.row_degrees = input.row_degrees;    
         Block_list B_list;
-        operator()(A, B_list);
-        vec<multipers_interface_output<index>> results;
+        this->operator()(A, B_list);
+        multipers_interface_output<index> result;
         for(auto& B : B_list){
-            multipers_interface_output<index> result;
-            result.col_degrees = B.col_degrees;
-            result.row_degrees = B.row_degrees;
-            result.matrix = B.data;
-            results.push_back(result);
+            multipers_interface_input<index> summand;
+            summand.col_degrees = B.col_degrees;
+            summand.row_degrees = B.row_degrees;
+            summand.matrix = B.data;
+            result.summands.push_back(summand);
         }
-        return results;
+        return result;
     }
 
 

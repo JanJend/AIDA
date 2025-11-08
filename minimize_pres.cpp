@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
 
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " <file_path>" << std::endl;
-        filepath = "/home/wsljan/MP-Workspace/data/CompPer25/pointsets/circles3.sccsum";
+        filepath = "/home/wsljan/AIDA/tests/test_presentations/davids_annulus_min.sccsum";
     } else {
         filepath = argv[1];
     }

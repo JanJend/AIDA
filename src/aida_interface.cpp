@@ -3,15 +3,7 @@
  * @author Jan Jendrysiak
  */
 
-#ifndef AIDA_WITH_STATS
-#define TIMERS 1
-#else
-#if AIDA_WITH_STATS
-#define TIMERS 1
-#else
-#define TIMERS 0
-#endif
-#endif
+
 
 #include "aida_interface.hpp"
 #include <regex>
@@ -71,6 +63,11 @@ void AIDA_functor::clear_decompositions() {
 void AIDA_functor::operator()(R2GradedSparseMatrix<index>& A, Block_list& B_list) {
     int k_max = A.k_max;
     load_existing_decompositions(k_max);
+    if (config.sort){
+        A.sort_columns_lexicographically();
+        A.sort_rows_lexicographically();
+    }
+    A.compute_col_batches();
 
     if(config.show_info) {
         std::cout << " Matrix has " << A.get_num_rows() << " rows and " << A.get_num_cols()
@@ -111,6 +108,7 @@ void AIDA_functor::operator()(R2GradedSparseMatrix<index>& A, Block_list& B_list
     for(auto& runtime_stat : runtime_statistics) {
         cumulative_runtime_statistics += runtime_stat;
     }
+
 
     if(config.sort_output) {
         B_list.sort(Compare_by_degrees<r2degree, index, R2GradedSparseMatrix<index>>());
