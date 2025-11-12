@@ -26,7 +26,7 @@ endif()
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/Persistence-Algebra/include
+    ${CMAKE_SOURCE_DIR}/../Persistence-Algebra/include
 )
 
 # Find Boost libraries
@@ -55,3 +55,7 @@ add_executable(generate_decompositions ${CMAKE_SOURCE_DIR}/generate_decompositio
 
 target_compile_options(aida PUBLIC -DAIDA_WITH_STATS=0)
 target_compile_options(aida_with_stats PUBLIC -DAIDA_WITH_STATS=1)
+
+install(TARGETS aida aida_with_stats generate_decompositions
+    RUNTIME DESTINATION bin
+)
