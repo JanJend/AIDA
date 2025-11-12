@@ -8,7 +8,7 @@
 
 #include "config.hpp"
 #include <unistd.h>
-#include <climits.h>
+#include <climits>
 #include <regex>
 #include <filesystem>
 #include <stdexcept>
