@@ -18,8 +18,14 @@
  * 4. brute_force: Uses the exhaustive algorithm and also does not compute hom-spaces explicitly.
  * 5. compare_both: Compares the hom space and direct version of block_reduce. Only for debugging.
  *
- * @version 0.1
- * @date 2024-10-07
+ * @version 0.2
+ * @date 2025-10-21
+  * @copyright 2025 TU Graz
+ *  This file is part of the AIDA library. 
+ *  You can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
  */
 
 #pragma once
