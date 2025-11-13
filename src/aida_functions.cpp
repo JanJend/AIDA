@@ -2,7 +2,7 @@
  * @file aida.cpp
  * @author Jan Jendrysiak
  * @version 0.2
- * @date 2025-03-21
+ * @date 2025-10-21
  * @brief  How to use the AIDA program
  * @copyright 2025 TU Graz
  *  This file is part of the AIDA library. 

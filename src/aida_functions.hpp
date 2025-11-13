@@ -339,7 +339,7 @@ inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B,
             if(optimised){
                 return hom_space_optimised(C, B, C.rows, B.rows);
             } else {
-                return hom_space(C, B, C.rows, B.rows);
+                return hom_space_no_opt(C, B, true, C.rows, B.rows);
             }
             
             break;
@@ -350,7 +350,7 @@ inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B,
             if(optimised){
                 return hom_space_optimised(C, B, C.rows, B.rows);
             } else {
-                return hom_space(C, B, C.rows, B.rows);
+                return hom_space_no_opt(C, B, true, C.rows, B.rows);
             }
             break;
             #if CHECK_INT
@@ -394,7 +394,7 @@ inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B,
             if(optimised){
                 return hom_space_optimised(C, B, C.rows, B.rows);
             } else {
-                return hom_space(C, B, C.rows, B.rows);
+                return hom_space_no_opt(C, B, true, C.rows, B.rows);
             }
             break;
             /*
