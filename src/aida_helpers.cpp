@@ -26,12 +26,14 @@ std::string getExecutableDir() {
 }
 
 std::string findDecompositionsDir() {
-    std::string base_path = getExecutableDir();
+    std::string this_file = __FILE__;
+    std::string aida_source_dir = fs::path(this_file).parent_path().string();
+    
     std::string relative_path_1 = "/../lists_of_decompositions";
     std::string relative_path_2 = "/lists_of_decompositions";
 
-    std::string full_path_1 = base_path + relative_path_1;
-    std::string full_path_2 = base_path + relative_path_2;
+    std::string full_path_1 = aida_source_dir + relative_path_1;
+    std::string full_path_2 = aida_source_dir + relative_path_2;
 
     if (fs::exists(full_path_1)) {
         return full_path_1;

@@ -46,12 +46,29 @@ set(AIDA_SOURCES
     ${CMAKE_SOURCE_DIR}/src/block.cpp
 )
 
-# Create executables with all sources
+# Create static library
+add_library(aida_static STATIC ${AIDA_SOURCES})
+target_include_directories(aida_static PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/../Persistence-Algebra/include
+)
+target_link_libraries(aida_static PUBLIC Boost::timer Boost::chrono)
+
+set_target_properties(aida_static PROPERTIES OUTPUT_NAME aida)
+
+# Install libraries
+install(TARGETS aida_static 
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+)
+
+# Create executables with sources (they need different compile flags)
 add_executable(aida ${CMAKE_SOURCE_DIR}/aida.cpp ${AIDA_SOURCES})
 add_executable(aida_with_stats ${CMAKE_SOURCE_DIR}/aida.cpp ${AIDA_SOURCES})
-
-# For Decomposition of Vectorspaces temporarily deactivated
 add_executable(generate_decompositions ${CMAKE_SOURCE_DIR}/generate_decompositions.cpp)
+
+target_link_libraries(generate_decompositions PRIVATE aida_static)
 
 target_compile_options(aida PUBLIC -DAIDA_WITH_STATS=0)
 target_compile_options(aida_with_stats PUBLIC -DAIDA_WITH_STATS=1)
