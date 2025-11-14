@@ -1,6 +1,4 @@
 import matplotlib.pyplot as plt
-import networkx as nx
-import pandas as pd
 
 def read_presentation(filepath):
     # Find the position of the dot in the file extension
@@ -125,7 +123,7 @@ def visualize_presentation(generators, relations):
 
 
 # Example usage
-presentation_data = read_presentation("/home/wsljan/AIDA/persistence_algebra/test_presentations/full_rips_size_1_instance_5_min_pres.scc")
+presentation_data = read_presentation("/home/wsljan/AIDA/Persistence-Algebra/test_presentations/noisy_annulus_socg_largecomp.scc")
 if presentation_data:
     relations, generators = presentation_data
     visualize_presentation(generators, relations)
