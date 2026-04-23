@@ -1,5 +1,3 @@
-
-
 # AIDA
 
 **A**utomorphism **I**nvariant **D**ecomposition **A**lgorithm
@@ -13,7 +11,7 @@ AIDA is a C++ library and tool for decomposing finitely presented multiparameter
 - Optimized hom-space calculations for faster computation for modules with low layer-thickness (pointwise dimension of indecomposable summands)
 - Runtime and statistical analysis tools
 
-- Missing features: O(n³) algorithm for interval-decomposable modules (not)
+- Missing features: O(n³) algorithm for interval-decomposable modules 
 
 ## Installation
 
@@ -55,6 +53,16 @@ sudo make install
 This installs:
 - Static library `libaida.a` to `/usr/local/lib`
 - Executables to `/usr/local/bin`
+
+> **Note for library users:** If you want to use AIDA as a library in another CMake project, the install step above is **required** — not optional. Without it, `libaida.a` only exists inside the build directory and other programs will not be able to find it. The recommended way to install is:
+> ```bash
+> sudo cmake --install build
+> ```
+> Run this from the `AIDA/` directory after building. You can also specify a custom install prefix:
+> ```bash
+> cmake --install build --prefix /your/custom/path
+> ```
+> After installing to a custom prefix, make sure to add the `lib/` subdirectory to your linker search path (e.g. via `LD_LIBRARY_PATH` or your project's `CMAKE_PREFIX_PATH`).
 
 ### Platform Support
 
@@ -156,6 +164,8 @@ AIDA can be used as a static library. Link against `libaida.a` and include heade
 // Your code here
 ```
 
+**Important:** Before using AIDA as a library in another project, make sure you have run `sudo cmake --install build` as described in the [Installation](#installation) section above. This places `libaida.a` and the headers in system-wide locations so your project's build system can find them.
+
 ## Testing
 
 Test presentations are available in `tests/test_presentations/`. Any `.scc` file can be used for testing:
@@ -166,17 +176,36 @@ Test presentations are available in `tests/test_presentations/`. Any `.scc` file
 
 ## Citation
 
-If you use AIDA in your research, please cite:
 
 ```bibtex
-@misc{dey2025decomposingmultiparameterpersistencemodules,
-      title={Decomposing Multiparameter Persistence Modules},
-      author={Tamal K. Dey and Jan Jendrysiak and Michael Kerber},
-      year={2025},
-      eprint={2504.08119},
-      archivePrefix={arXiv},
-      primaryClass={math.RT},
-      url={https://arxiv.org/abs/2504.08119},
+@software{Jendrysiak_AIDA_2024,
+  author  = {Jendrysiak, Jan},
+  title   = {{AIDA}: Automorphism Invariant Decomposition Algorithm},
+  year    = {2024},
+  doi     = {10.4230/artifacts.23282},
+  url     = {https://github.com/JanJend/AIDA},
+  version = {0.2},
+  license = {LGPL-3.0-or-later}
+}
+```
+
+If you use AIDA in your research, please also cite the accompanying paper:
+
+```bibtex
+@InProceedings{djk25,
+  author =	{Dey, Tamal K. and Jendrysiak, Jan and Kerber, Michael},
+  title =	{{Decomposing Multiparameter Persistence Modules}},
+  booktitle =	{41st International Symposium on Computational Geometry (SoCG 2025)},
+  pages =	{41:1--41:19},
+  series =	{Leibniz International Proceedings in Informatics (LIPIcs)},
+  ISBN =	{978-3-95977-370-6},
+  ISSN =	{1868-8969},
+  year =	{2025},
+  volume =	{332},
+  editor =	{Aichholzer, Oswin and Wang, Haitao},
+  publisher =	{Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
+  address =	{Dagstuhl, Germany},
+  doi =		{10.4230/LIPIcs.SoCG.2025.41},
 }
 ```
 
@@ -189,8 +218,7 @@ AIDA is licensed under the [LGPL-3.0-or-later](LICENSE) license.
 ## Authors
 
 - Jan Jendrysiak (TU Graz) - [ORCID](https://orcid.org/0000-0002-3761-3463)
-- Tamal K. Dey
-- Michael Kerber
+
 
 ## Version
 
