@@ -1,0 +1,4 @@
+[submodule "Persistence-Algebra"]
+	path = Persistence-Algebra
+	url = https://github.com/JanJend/Persistence-Algebra.git
+	branch = aida-changes
