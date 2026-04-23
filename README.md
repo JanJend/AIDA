@@ -26,7 +26,7 @@ AIDA is a C++ library and tool for decomposing finitely presented multiparameter
 
 1. Clone both repositories into the same parent directory:
 ```bash
-git clone https://github.com/yourorg/AIDA.git
+git clone https://github.com/JanJend/AIDA.git
 git clone https://github.com/JanJend/Persistence-Algebra.git
 ```
 
