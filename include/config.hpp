@@ -98,7 +98,7 @@ struct AIDA_config {
         bool turn_off_hom_optimisation = false, 
         bool show_info = false, bool exhaustive_test = false, 
         bool compare_hom = false, bool alpha_hom = false)
-        : supress_col_sweep(supress_col_sweep), save_base_change(save_base_change), sort_output(sort_output), sort(sort), exhaustive(exhaustive), brute_force(brute_force), compare_both(compare_both), progress(progress), turn_off_hom_optimisation(turn_off_hom_optimisation), show_info(show_info), exhaustive_test(exhaustive_test), compare_hom(compare_hom) { 
+        : supress_col_sweep(supress_col_sweep), save_base_change(save_base_change), sort_output(sort_output), sort(sort), exhaustive(exhaustive), brute_force(brute_force), compare_both(compare_both), progress(progress), turn_off_hom_optimisation(turn_off_hom_optimisation), show_info(show_info), exhaustive_test(exhaustive_test), compare_hom(compare_hom), alpha_hom(alpha_hom) {
             decomp_failure = vec<vec<int>>();
         }
 
