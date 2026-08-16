@@ -2,7 +2,10 @@
 cmake_minimum_required(VERSION 3.12)
 project(Aida CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+# C++ standard (overridable on the command line for testing newer standards)
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 17)
+endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -34,6 +37,22 @@ include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/../Persistence-Algebra/include)
 
 # Find Boost libraries
 find_package(Boost REQUIRED COMPONENTS timer chrono)
+
+# OpenMP is optional: used when available, ignored otherwise.
+# Apple clang ships no OpenMP runtime, so point CMake at Homebrew's libomp if present.
+if(APPLE AND NOT DEFINED OpenMP_ROOT)
+    execute_process(COMMAND brew --prefix libomp
+                    OUTPUT_VARIABLE _brew_libomp
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    ERROR_QUIET)
+    if(_brew_libomp AND EXISTS "${_brew_libomp}")
+        set(OpenMP_ROOT "${_brew_libomp}")
+    endif()
+endif()
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    link_libraries(OpenMP::OpenMP_CXX)
+endif()
 
 # Collect source files
 set(AIDA_SOURCES
