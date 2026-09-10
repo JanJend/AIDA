@@ -83,12 +83,12 @@ void compute_decomp_resolutions_streaming(std::filesystem::path input_path, std:
             // Reset to position before header and let constructor handle parsing
             input_file.seekg(pos_before_header);
             
-            R2GradedSparseMatrix<int> minimal_presentation(input_file);
-            R2Resolution<int> resolution(minimal_presentation, false);
+            R2Module<int> module(input_file);
+            module.compute_projective_resolution();
             
             // Output format: type line + resolution output
             output_file << type << "\n";
-            resolution.to_stream(output_file);
+            module.to_stream(output_file);
             output_file << "\n";
             
             processed_sections++;
@@ -123,14 +123,14 @@ void compute_decomp_resolutions_streaming(std::filesystem::path input_path, std:
 
 void compute_resolution(std::filesystem::path input_path, std::filesystem::path output_path) {
     
-    R2GradedSparseMatrix<int> minimal_presentation = R2GradedSparseMatrix<int>(input_path.string());
-    R2Resolution<int> resolution(minimal_presentation, false);
+    R2Module<int> module(input_path.string());
+    module.compute_projective_resolution();
     std::ofstream output_file(output_path);
     if (!output_file.is_open()) {
         std::cerr << "Error: Unable to open output file " << output_path << std::endl;
         return;
     } else {
-        resolution.to_stream(output_file);
+        module.to_stream(output_file);
         output_file.close();
         std::cout << "Resolution computed and saved to: " << output_path << std::endl;
     }
@@ -157,7 +157,7 @@ int main(int argc, char** argv) {
 
     std::filesystem::path input_path(filepath);
     
-    std::string modified_path = insert_suffix_before_extension(filepath, "_resolution");
+    std::string modified_path = ::insert_suffix_before_extension(filepath, "_resolution", "");
     std::filesystem::path output_path(modified_path);
     
     if (is_decomp_file(input_path)) {

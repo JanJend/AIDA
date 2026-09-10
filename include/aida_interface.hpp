@@ -71,6 +71,10 @@ struct AIDA_functor {
     void clear_decompositions();
     
     void operator()(R2GradedSparseMatrix<index>& A, Block_list& B_list);
+    /** Module-owning entry point; the matrix overload remains for compatibility. */
+    void operator()(PersistenceModule& module, Block_list& B_list) {
+        operator()(module.mutable_presentation(), B_list);
+    }
     Sparse_Matrix get_row_basis(index i, index m);
     Sparse_Matrix get_row_basis(index m);
 
@@ -81,6 +85,9 @@ struct AIDA_functor {
             aida::load_matrices_timer.start();
         #endif
         construct_matrices_from_stream(matrices, ifstr, config.sort, true);
+        vec<PersistenceModule> modules;
+        modules.reserve(matrices.size());
+        for (auto& matrix : matrices) modules.emplace_back(std::move(matrix));
         #if TIMERS
             aida::load_matrices_timer.stop();
             double load_matrices = aida::load_matrices_timer.elapsed().wall/1e9;
@@ -90,7 +97,8 @@ struct AIDA_functor {
             }
         #endif
         int k_max = 0;
-        for(auto& A : matrices){
+        for(auto& module : modules){
+            const auto& A = module.presentation();
             if(A.k_max > k_max){
                 k_max = A.k_max;
             }
@@ -98,8 +106,9 @@ struct AIDA_functor {
 
         load_existing_decompositions(k_max);
 
-        for (GradedMatrix& A : matrices) {
-            if(config.show_info && matrices.size() == 1){
+        for (PersistenceModule& module : modules) {
+            GradedMatrix& A = module.mutable_presentation();
+            if(config.show_info && modules.size() == 1){
                 std::cout << " Matrix has " << A.get_num_rows() << " rows and " << A.get_num_cols() <<
                 " columns, k_max is " << A.k_max << ", and there are " << A.col_batches.size() << " batches." << std::endl;
             }
@@ -160,12 +169,13 @@ struct AIDA_functor {
 
     template<typename index>
     multipers_interface_output<index> multipers_interface(multipers_interface_input<index>& input){
-        R2GradedSparseMatrix<index> A(input.col_degrees.size(), input.row_degrees.size());
-        A.data = input.matrix;
-        A.col_degrees = input.col_degrees;
-        A.row_degrees = input.row_degrees;    
+        R2GradedSparseMatrix<index> presentation(input.col_degrees.size(), input.row_degrees.size());
+        presentation.data = input.matrix;
+        presentation.col_degrees = input.col_degrees;
+        presentation.row_degrees = input.row_degrees;
+        PersistenceModule module(std::move(presentation));
         Block_list B_list;
-        this->operator()(A, B_list);
+        this->operator()(module, B_list);
         multipers_interface_output<index> result;
         for(auto& B : B_list){
             multipers_interface_input<index> summand;

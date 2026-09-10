@@ -40,6 +40,7 @@ using array = vec<vec<T>>;
 
 using Sparse_Matrix = SparseMatrix<index>;
 using GradedMatrix = R2GradedSparseMatrix<index>;
+using PersistenceModule = R2Module<index>;
 using indtree = std::set<index>;
 using CT = Column_traits<vec<index>, index>;
 // a list of blocks with a corresponding subset of the columns of the current batch

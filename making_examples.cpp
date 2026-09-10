@@ -33,14 +33,15 @@ int main(int argc, char** argv) {
         {8}        // col 13
     };
 
-    std::cout << M.is_graded_matrix() << std::endl;
-    M.print_graded();
+    R2Module<int> module(std::move(M));
+    std::cout << module.presentation().is_graded_matrix() << std::endl;
+    module.presentation().print_graded();
     std::filesystem::path output_path("/home/wsljan/AIDA/Persistence-Algebra/test_presentations/two_small_circles_2.scc");
     std::ofstream output_file(output_path);
     if (!output_file.is_open()) {
         std::cerr << "Error: Could not open output file " << output_path << std::endl;
         return 1;
     }
-    M.to_stream(output_file);
+    module.to_stream(output_file);
     output_file.close();
 } // main

@@ -28,6 +28,7 @@ using index = int; //Change to large enough int type.
 using indvec = vec<index>;
 using Sparse_Matrix = SparseMatrix<index>;
 using GradedMatrix = R2GradedSparseMatrix<index>;
+using PersistenceModule = R2Module<index>;
 using indtree = std::set<index>;
 using Merge_data = std::pair<indtree, bitset>;
 using op_info = std::pair< std::pair<index, index>, std::pair<index, index> >;
@@ -1343,7 +1344,8 @@ int main(int argc, char** argv){
     }
     
     // This fills the matrix with the data from the file and also computes the batches and k_max.
-    aida::GradedMatrix A(test_matrix, true);
+    aida::PersistenceModule module(aida::GradedMatrix(test_matrix, true));
+    aida::GradedMatrix& A = module.mutable_presentation();
 
 
     // This stores all vector space decompositions for all batch-sizes. 
