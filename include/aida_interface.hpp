@@ -72,7 +72,7 @@ struct AIDA_functor {
     
     void operator()(R2GradedSparseMatrix<index>& A, Block_list& B_list);
     /** Module-owning entry point; the matrix overload remains for compatibility. */
-    void operator()(PersistenceModule& module, Block_list& B_list) {
+    void operator()(Module& module, Block_list& B_list) {
         operator()(module.mutable_presentation(), B_list);
     }
     Sparse_Matrix get_row_basis(index i, index m);
@@ -85,7 +85,7 @@ struct AIDA_functor {
             aida::load_matrices_timer.start();
         #endif
         construct_matrices_from_stream(matrices, ifstr, config.sort, true);
-        vec<PersistenceModule> modules;
+        vec<Module> modules;
         modules.reserve(matrices.size());
         for (auto& matrix : matrices) modules.emplace_back(std::move(matrix));
         #if TIMERS
@@ -106,7 +106,7 @@ struct AIDA_functor {
 
         load_existing_decompositions(k_max);
 
-        for (PersistenceModule& module : modules) {
+        for (Module& module : modules) {
             GradedMatrix& A = module.mutable_presentation();
             if(config.show_info && modules.size() == 1){
                 std::cout << " Matrix has " << A.get_num_rows() << " rows and " << A.get_num_cols() <<
@@ -173,7 +173,7 @@ struct AIDA_functor {
         presentation.data = input.matrix;
         presentation.col_degrees = input.col_degrees;
         presentation.row_degrees = input.row_degrees;
-        PersistenceModule module(std::move(presentation));
+        Module module(std::move(presentation));
         Block_list B_list;
         this->operator()(module, B_list);
         multipers_interface_output<index> result;

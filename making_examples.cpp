@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
     R2Module<int> module(std::move(M));
     std::cout << module.presentation().is_graded_matrix() << std::endl;
     module.presentation().print_graded();
-    std::filesystem::path output_path("/home/wsljan/AIDA/Persistence-Algebra/test_presentations/two_small_circles_2.scc");
+    std::filesystem::path output_path = argc > 1 ? argv[1] : "two_small_circles_2.scc";
     std::ofstream output_file(output_path);
     if (!output_file.is_open()) {
         std::cerr << "Error: Could not open output file " << output_path << std::endl;

@@ -1196,7 +1196,7 @@ BitMatrixTree loadBitMatrixTree(const std::string& filename) {
 }
 
 void saveDecompositions(int k) {
-    const std::string folderName = "/home/wsljan/generalized_persistence/code/listsof_decompositions";
+    const std::string folderName = "listsof_decompositions";
     std::filesystem::create_directory(folderName);
 
     for (int n = 1; n <= k; ++n) {
@@ -1240,7 +1240,7 @@ int main() {
     //testGenerateBitsetsWithHalfOnes(n);
     
     
-    // BitMatrixTree tree = loadBitMatrixTree("/home/wsljan/OneDrive/persistence_algebra/listsof_decompositions/decomposition_3.bin");
+    // BitMatrixTree tree = loadBitMatrixTree("listsof_decompositions/decomposition_3.bin");
     // size_t counter = tree_size(tree);    
     //std::cout << "size of loaded tree is " << counter << std::endl;
 
@@ -1249,4 +1249,3 @@ int main() {
     
     
 }
-
