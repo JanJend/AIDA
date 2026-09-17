@@ -5,10 +5,9 @@
 using namespace graded_linalg;
 
 void death(std::filesystem::path input_path, std::filesystem::path output_path, double epsilon) {
-    R2GradedSparseMatrix<int> presentation = R2GradedSparseMatrix<int>(input_path.string());
-    presentation.sort_columns_lexicographically();
-    presentation.sort_rows_lexicographically();
-    presentation.minimize();
+    R2Module<int> module(input_path.string());
+    module.minimize();
+    R2GradedSparseMatrix<int> presentation = module.presentation();
     r2degree step = {epsilon, epsilon};
     auto original = presentation;
     presentation.shift(step);
@@ -18,14 +17,14 @@ void death(std::filesystem::path input_path, std::filesystem::path output_path, 
     zero.data = vec<vec<int>>();
     R2GradedSparseMatrix<int> shifted = shifted_identity<r2degree, R2GradedSparseMatrix<int>>(presentation.row_degrees, step);
     auto ker_epsilon = shifted.inverse_image_copy(presentation, zero);
-    auto death = ker_epsilon.presentation_of_submodule(original);
+    R2Module<int> death_module(ker_epsilon.presentation_of_submodule(original));
 
     std::ofstream output_file(output_path);
     if (!output_file.is_open()) {
         std::cerr << "Error: Unable to open output file " << output_path << std::endl;
         return;
     } else {
-        death.to_stream(output_file);
+        death_module.to_stream(output_file);
         output_file.close();
         std::cout << "death curve computed and saved to: " << output_path << std::endl;
     }
@@ -34,10 +33,9 @@ void death(std::filesystem::path input_path, std::filesystem::path output_path, 
 
 
 void birth(std::filesystem::path input_path, std::filesystem::path output_path, double epsilon) {
-    R2GradedSparseMatrix<int> presentation = R2GradedSparseMatrix<int>(input_path.string());
-    presentation.sort_columns_lexicographically();
-    presentation.sort_rows_lexicographically();
-    presentation.minimize();
+    R2Module<int> module(input_path.string());
+    module.minimize();
+    R2GradedSparseMatrix<int> presentation = module.presentation();
     r2degree step = {epsilon, epsilon};
     R2GradedSparseMatrix<int> shifted = shifted_identity<r2degree, R2GradedSparseMatrix<int>>(presentation.row_degrees, step);
     presentation.quotient_by(shifted);
@@ -47,7 +45,7 @@ void birth(std::filesystem::path input_path, std::filesystem::path output_path, 
         std::cerr << "Error: Unable to open output file " << output_path << std::endl;
         return;
     } else {
-        presentation.to_stream(output_file);
+        R2Module<int>(std::move(presentation)).to_stream(output_file);
         output_file.close();
         std::cout << "birth curve computed and saved to: " << output_path << std::endl;
     }
@@ -60,7 +58,7 @@ int main(int argc, char** argv) {
 
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " <file_path>" << std::endl;
-        filepath = "/home/wsljan/AIDA/tests/test_presentations/ex1.scc";
+        return 1;
     } else {
         filepath = argv[1];
     }

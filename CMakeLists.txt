@@ -28,14 +28,17 @@ endif()
 
 # Include directories
 include_directories(
-    ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 # Treat Persistence-Algebra as a system include — suppresses warnings from its headers
-include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/../Persistence-Algebra/include)
+include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/../Persistence-Algebra/include)
 
 # Find Boost libraries
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.30)
+    cmake_policy(SET CMP0167 NEW)
+endif()
 find_package(Boost REQUIRED COMPONENTS timer chrono)
 
 # OpenMP is optional: used when available, ignored otherwise.
@@ -56,23 +59,23 @@ endif()
 
 # Collect source files
 set(AIDA_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/aida_decompose.cpp
-    ${CMAKE_SOURCE_DIR}/src/aida_functions.cpp
-    ${CMAKE_SOURCE_DIR}/src/aida_helpers.cpp
-    ${CMAKE_SOURCE_DIR}/src/aida_interface.cpp
-    ${CMAKE_SOURCE_DIR}/src/config.cpp
-    ${CMAKE_SOURCE_DIR}/src/option_parser.cpp
-    ${CMAKE_SOURCE_DIR}/src/block.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/aida_decompose.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/aida_functions.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/aida_helpers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/aida_interface.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/option_parser.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/block.cpp
 )
 
 # Static library
 add_library(aida_static STATIC ${AIDA_SOURCES})
 target_include_directories(aida_static PUBLIC
-    ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 target_include_directories(aida_static SYSTEM PUBLIC
-    ${CMAKE_SOURCE_DIR}/../Persistence-Algebra/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../Persistence-Algebra/include
 )
 target_link_libraries(aida_static PUBLIC Boost::timer Boost::chrono)
 set_target_properties(aida_static PROPERTIES OUTPUT_NAME aida)
@@ -83,15 +86,15 @@ install(TARGETS aida_static
 )
 
 # Executables
-add_executable(aida ${CMAKE_SOURCE_DIR}/aida.cpp ${AIDA_SOURCES})
+add_executable(aida ${CMAKE_CURRENT_SOURCE_DIR}/aida.cpp ${AIDA_SOURCES})
 target_link_libraries(aida PRIVATE Boost::timer Boost::chrono)
 target_compile_definitions(aida PUBLIC AIDA_WITH_STATS=0)
 
-add_executable(aida_with_stats ${CMAKE_SOURCE_DIR}/aida.cpp ${AIDA_SOURCES})
+add_executable(aida_with_stats ${CMAKE_CURRENT_SOURCE_DIR}/aida.cpp ${AIDA_SOURCES})
 target_link_libraries(aida_with_stats PRIVATE Boost::timer Boost::chrono)
 target_compile_definitions(aida_with_stats PUBLIC AIDA_WITH_STATS=1)
 
-add_executable(generate_decompositions ${CMAKE_SOURCE_DIR}/generate_decompositions.cpp)
+add_executable(generate_decompositions ${CMAKE_CURRENT_SOURCE_DIR}/generate_decompositions.cpp)
 target_link_libraries(generate_decompositions PRIVATE aida_static)
 
 install(TARGETS aida aida_with_stats generate_decompositions

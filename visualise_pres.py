@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 def read_presentation(filepath):
     # Find the position of the dot in the file extension
@@ -123,7 +124,7 @@ def visualize_presentation(generators, relations):
 
 
 # Example usage
-presentation_data = read_presentation("/home/wsljan/AIDA/Persistence-Algebra/test_presentations/noisy_annulus_socg_largecomp.scc")
+presentation_data = read_presentation(str(Path(__file__).resolve().parent.parent / "Persistence-Algebra/test_presentations/noisy_circle_firep_8_0_min_pres.scc"))
 if presentation_data:
     relations, generators = presentation_data
     visualize_presentation(generators, relations)

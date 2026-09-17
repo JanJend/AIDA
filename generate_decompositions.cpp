@@ -342,7 +342,7 @@ void load_files(int dim, bool reduced){
     std::vector<DecompTree> trees;
     for(int i=1; i<dim; i++){
         // std::cout << "loading half decompositions for " << i << std::endl;
-        std::string filename = std::string("/home/wsljan/OneDrive/persistence_algebra/listsof_decompositions/decompositions_") + (reduced ?  "reduced_" : "") + std::to_string(i) + ".bin";
+        std::string filename = std::string("listsof_decompositions/decompositions_") + (reduced ?  "reduced_" : "") + std::to_string(i) + ".bin";
         trees.emplace_back(loadDecompTree(filename));
         std::cout << i << " " << tree_size(trees.back()) << std::endl;
     }
@@ -654,4 +654,3 @@ int main(int argc, char* argv[]) {
     return 0;
 
 }
-
