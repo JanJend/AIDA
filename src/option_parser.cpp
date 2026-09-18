@@ -10,7 +10,7 @@ namespace aida {
 
 bool OptionParser::parse(int argc, char** argv, AIDA_config& config) {
     CLI::App app{"AIDA - Decomposition Tool"};
-    app.set_version_flag("-v,--version", "AIDA version 0.2.1\nCopyright 2025 TU Graz");
+    app.set_version_flag("-v,--version", "AIDA version " AIDA_VERSION "\nCopyright 2025 TU Graz");
 
     // Positional input file
     app.add_option("input_file", input_file_,

@@ -2,7 +2,7 @@
  * @file aida_decompose.cpp
     * @author Jan Jendrysiak
     * @brief Decomposes a presentation matrix using AIDA
-    * @version 0.2
+    * @version 0.9.0
     * @date 2025-10-21
     *   This file is part of the AIDA library.
    You can redistribute it and/or modify
