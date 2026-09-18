@@ -1,7 +1,7 @@
 /*
  * @file aida_helpers.hpp
  * @author Jan Jendrysiak
- * @version 0.2
+ * @version 0.9.0
  * @date 2025-10-21
  * @brief Helper functions for AIDA library
  */

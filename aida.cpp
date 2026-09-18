@@ -1,7 +1,7 @@
 /**
  * @file aida.cpp
  * @author Jan Jendrysiak
- * @version 0.2.1
+ * @version 0.9.0
  * @date 2025-10-21
  * @copyright 2025 TU Graz
  *  This file is part of the AIDA library.

@@ -2,7 +2,7 @@
  * @file generate_decompositions.cpp
  * @author Jan Jendrysiak
  * @brief Generates all vector space decompositions of finite vectorspaces over F_2.
- * @version 0.1
+ * @version 0.9.0
  * @date 2024-10-07
  * 
  * @copyright ?

@@ -1,7 +1,7 @@
 /**
  * @file option_parser.hpp
  * @author Jan Jendrysiak
- * @version 0.3
+ * @version 0.9.0
  * @date 2025-10-21
  * @brief parses input options for the AIDA decomposer
  * @copyright 2025 TU Graz

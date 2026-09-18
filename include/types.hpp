@@ -2,7 +2,7 @@
 /**
  * @file option_parser.hpp
  * @author Jan Jendrysiak
- * @version 0.2
+ * @version 0.9.0
  * @date 2025-10-21
  * @brief  defines types used throughout the AIDA library
  * @copyright 2025 TU Graz

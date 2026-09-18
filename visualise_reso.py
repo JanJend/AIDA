@@ -295,7 +295,7 @@ def read_sccsum(filepath, param=5):
 
 if __name__ == "__main__":
 
-    default_path = "/home/wsljan/AIDA/Persistence-Algebra/test_presentations/two_circles_2_dim1_minpres_resolution.scc"
+    default_path = str(Path(__file__).resolve().parent.parent / "Persistence-Algebra/test_presentations/two_circles_2_dim1_minpres_resolution.scc")
 
     if len(sys.argv) < 2:
         print(f"Usage: {sys.argv[0]} <input_file.scc | input_file.sccsum> [optional_integer_for_sccsum]")        
@@ -364,7 +364,7 @@ if __name__ == "__main__":
 
 
 """
-Folder = "/home/wsljan/AIDA/Persistence-Algebra/test_presentations/torus_100_0.10_dim1_decomposition"
+Folder = Path(__file__).resolve().parent.parent / "Persistence-Algebra/test_presentations/torus_100_0.10_dim1_decomposition"
 
 
 for file in Path(Folder).glob("*resolution.scc"):

@@ -1,7 +1,7 @@
 /**
  * @file config.cpp
  * @author Jan Jendrysiak
- * @version 0.2
+ * @version 0.9.0
  * @date 2025-10-21
  * @brief Configuration options for AIDA library
  */

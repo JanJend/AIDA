@@ -2,7 +2,7 @@
  * @file aida_functions.hpp
  * @author Jan Jendrysiak
  * @brief 
- * @version 0.2
+ * @version 0.9.0
  * @date 2025-10-21
  * 
  * @copyright 2025 TU Graz

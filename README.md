@@ -181,10 +181,10 @@ Test presentations are available in `tests/test_presentations/`. Any `.scc` file
 @software{Jendrysiak_AIDA_2024,
   author  = {Jendrysiak, Jan},
   title   = {{AIDA}: Automorphism Invariant Decomposition Algorithm},
-  year    = {2024},
+  year    = {2026},
   doi     = {10.4230/artifacts.23282},
   url     = {https://github.com/JanJend/AIDA},
-  version = {0.2},
+  version = {0.9.0},
   license = {LGPL-3.0-or-later}
 }
 ```
@@ -222,7 +222,7 @@ AIDA is licensed under the [LGPL-3.0-or-later](LICENSE) license.
 
 ## Version
 
-Current version: 0.2.1 (Released: 2024-10-01)
+Current version: **0.9.0**
 
 ---
 

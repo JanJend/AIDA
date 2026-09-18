@@ -1,6 +1,7 @@
 # CMakeLists.txt
 cmake_minimum_required(VERSION 3.12)
-project(Aida CXX)
+project(Aida VERSION 0.9.0 LANGUAGES CXX)
+add_compile_definitions(AIDA_VERSION="${PROJECT_VERSION}")
 
 # C++ standard (overridable on the command line for testing newer standards)
 if(NOT DEFINED CMAKE_CXX_STANDARD)

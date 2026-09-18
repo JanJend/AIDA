@@ -5,9 +5,8 @@ authors:
     given-names: Jan
     orcid: https://orcid.org/0000-0002-3761-3463
 title: "AIDA"
-version: 0.2
+version: 0.9.0
 license: "LGPL-3.0-or-later"
 identifiers:
   - type: doi
     value: 10.4230/artifacts.23282
-date-released: 2024-10-01
