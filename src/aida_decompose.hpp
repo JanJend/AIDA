@@ -16,6 +16,7 @@
 #define AIDA_DECOMPOSE_HPP
 
 #include "aida_functions.hpp"
+#include "column_batches.hpp"
 
 namespace aida {
 
@@ -30,7 +31,32 @@ namespace aida {
  * @param merge_info 
  */
 void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_space_decompositions, std::shared_ptr<Base_change_virtual>& base_change, AIDA_runtime_statistics& statistics,
-    AIDA_config& config, Full_merge_info& merge_info);
+    AIDA_config& config, Full_merge_info& merge_info, const Column_batches& batch_info);
+
+inline void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_space_decompositions,
+                 std::shared_ptr<Base_change_virtual>& base_change, AIDA_runtime_statistics& statistics,
+                 AIDA_config& config, Full_merge_info& merge_info) {
+    AIDA(A, B_list, vector_space_decompositions, base_change, statistics, config, merge_info, Column_batches(A));
+}
+
+// NEW: the editable algorithm keeps vector columns; CSC is rebuilt only at the boundary.
+inline void AIDA(CSCGradedMatrix& matrix,
+                 Block_list& blocks, vec<vec<transition>>& decompositions,
+                 std::shared_ptr<Base_change_virtual>& base_change,
+                 AIDA_runtime_statistics& statistics, AIDA_config& config,
+                 Full_merge_info& merge_info) {
+    GradedMatrix editable(matrix.get_num_cols(), matrix.get_num_rows(),
+                          matrix.col_degrees, matrix.row_degrees);
+    array<index> columns;
+    for (index i = 0; i < matrix.get_num_cols(); ++i) columns.push_back(matrix.get_col(i));
+    editable.assign_data(std::move(columns));
+    editable.compatibly_sorted = matrix.compatibly_sorted;
+    editable.sort_compatibly();
+    AIDA(editable, blocks, decompositions, base_change, statistics, config, merge_info);
+    matrix = CSCGradedMatrix(editable.get_num_cols(), editable.get_num_rows(), editable.data,
+                             editable.real_col_degrees(), editable.real_row_degrees());
+    matrix.compatibly_sorted = editable.compatibly_sorted;
+}
 
 } // namespace aida
 

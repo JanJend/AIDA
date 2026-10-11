@@ -35,6 +35,9 @@ struct Block : GradedMatrix {
         return *this;
     }
 
+    explicit Block(const GradedMatrix& matrix) : GradedMatrix(matrix) {}
+    explicit Block(GradedMatrix&& matrix) : GradedMatrix(std::move(matrix)) {}
+
     Block() : GradedMatrix() {
         rows = vec<index>();
         columns = vec<index>();
@@ -53,7 +56,7 @@ struct Block : GradedMatrix {
 
     vec<index> local_admissible_cols; // Stores the indices of the columns which can be used for column operations.
     vec<index> local_admissible_rows; // Stores the actual row_indices which can be used for row operations.
-    vec<index> local_basislift_indices; // Stores a set of indices defining a subset of local_admissible_rows which forms a basis at the local r2degree.
+    vec<index> local_basislift_indices; // Stores a set of indices defining a subset of local_admissible_rows which forms a basis at the local Degree.
     // Careful, these are indices only locally for this block!
 
     // This will store the columns which can be added to the current batch, i.e. local_data = data | admissible_cols.
@@ -84,11 +87,11 @@ struct Block : GradedMatrix {
      * 
      * @return vec<index> 
      */
-    vec<r2degree> endpoints(){
-        vec<r2degree> result;
+    vec<Degree> endpoints(){
+        vec<Degree> result;
         for(index i = 0; i < get_num_cols(); i++){
             if(data[i].size() == 1){
-                result.push_back(col_degrees[i]);
+                result.push_back(this->col_degrees[i]);
             }
         }
         return result;
@@ -100,17 +103,34 @@ struct Block : GradedMatrix {
      * @brief If admissible_cols has been set, this fetches the columns for further processing.
      * 
      */
-    void compute_local_data(r2degree d){
+    // NEW: blocks retain source row indices until the final normalisation.
+    // Restrict degrees without validating those temporary indices as local rows.
+    std::pair<Sparse_Matrix, vec<index>> map_at_degree_pair(const Degree& degree,
+                                                          bool shifted = true) const {
+        auto selected_rows = this->admissible_row_indices(degree);
+        vec<index> selected_columns;
+        auto matrix = this->map_at_degree(degree, selected_columns);
+        matrix.set_num_rows(selected_rows.size());
+        if (selected_rows.empty()) {
+            matrix.data.clear();
+            matrix.set_num_cols(0);
+        } else if (shifted) {
+            matrix.transform_data(shiftIndicesMap(selected_rows));
+        }
+        return {std::move(matrix), std::move(selected_rows)};
+    }
+
+    void compute_local_data(Degree d){
         // TO-DO: Can we make it so that this is already reduced?
         local_data = std::make_shared<Sparse_Matrix>(this->map_at_degree(d, local_admissible_cols));
     }
 
     /**
-     * @brief stores the rows of r2degree <= d for repeated usage.
+     * @brief stores the rows of Degree <= d for repeated usage.
      * 
      * @param d 
      */
-    void compute_local_generators(r2degree d){
+    void compute_local_generators(Degree d){
         local_admissible_rows = vec<index>();
         for( index i = 0; i < get_num_rows(); i++){
             if( is_admissible_row_operation(d, i)){
@@ -128,7 +148,7 @@ struct Block : GradedMatrix {
      *  Assumes, that local data has been computed and reduced.
      * @param d 
      */
-    void compute_local_basislift(r2degree d){
+    void compute_local_basislift(Degree d){
         compute_local_generators(d);
         // The following returns a subset of the indeices in local_admissible_row_indices.
         local_basislift_indices = local_data_normalised->coKernel_basis(local_admissible_rows, true);
@@ -175,7 +195,7 @@ struct Block : GradedMatrix {
      * 
      * @param N 
      */
-    bool delete_with_col_ops(r2degree d, Sparse_Matrix& N, bool no_deletion = false) {
+    bool delete_with_col_ops(Degree d, Sparse_Matrix& N, bool no_deletion = false) {
 
         this->compute_local_data(d);
 
@@ -214,12 +234,12 @@ struct Block : GradedMatrix {
 
 
     //To-Do: Update the constructors, so that memory for the data  is reserved??
-    Block(const vec<index>& c, const vec<index>& r) : GradedMatrix(c.size(), r.size()){
+    Block(const vec<index>& c, const vec<index>& r) : GradedMatrix(c.size(), r.size(), 0){
         std::copy(c.begin(),c.end(),std::back_inserter(this->columns));
         std::copy(r.begin(),r.end(),std::back_inserter(this->rows));
     }
 
-    Block(const vec<index>& c, const vec<index>& r, BlockType t) : GradedMatrix(c.size(), r.size()){
+    Block(const vec<index>& c, const vec<index>& r, BlockType t) : GradedMatrix(c.size(), r.size(), 0){
         std::copy(c.begin(),c.end(),std::back_inserter(this->columns));
         std::copy(r.begin(),r.end(),std::back_inserter(this->rows));
         this->type = t;
@@ -250,6 +270,28 @@ struct Block : GradedMatrix {
         }
     }
 }; //Block	
+
+// NEW: compare exported summands by real coordinates, including separate grids.
+struct CompareBlocksByDegrees {
+    bool operator()(const Block& lhs, const Block& rhs) const {
+        using DT = Degree_traits<RealDegree>;
+        if (lhs.parameter_count() != rhs.parameter_count())
+            return lhs.parameter_count() < rhs.parameter_count();
+        for (index i = 0; i < std::min(lhs.get_num_rows(), rhs.get_num_rows()); ++i) {
+            auto a = lhs.real_row_degree(i), b = rhs.real_row_degree(i);
+            if (DT::lex_order(a, b)) return true;
+            if (DT::lex_order(b, a)) return false;
+        }
+        if (lhs.get_num_rows() != rhs.get_num_rows())
+            return lhs.get_num_rows() < rhs.get_num_rows();
+        for (index i = 0; i < std::min(lhs.get_num_cols(), rhs.get_num_cols()); ++i) {
+            auto a = lhs.real_col_degree(i), b = rhs.real_col_degree(i);
+            if (DT::lex_order(a, b)) return true;
+            if (DT::lex_order(b, a)) return false;
+        }
+        return lhs.get_num_cols() < rhs.get_num_cols();
+    }
+};
 
 typedef std::list<Block> Block_list;
 typedef Block_list::iterator Block_iterator;
@@ -301,7 +343,7 @@ void print_block_list_status(Block_list& B_list);
  */
 void extend_block(Block& B, Sparse_Matrix& N, 
     vec<index> batch_indices, bitset& batch_positions, 
-    r2degree& alpha);
+    Degree& alpha);
 
 
 
@@ -319,7 +361,7 @@ void extend_block(Block& B, Sparse_Matrix& N,
  */
 void merge_blocks_into_block(vec<index>& block_indices, vec<Block_list::iterator>& block_map, Block& new_block, 
                             Sub_batch& N_map, bitset& batch_positions, vec<index>& batch_indices, 
-                            vec<index>& row_map, r2degree& alpha);
+                            vec<index>& row_map, Degree& alpha);
 
                             
 /**
@@ -333,7 +375,7 @@ void merge_blocks_into_block(vec<index>& block_indices, vec<Block_list::iterator
  */
 void merge_blocks(Block_list& B_list, Sub_batch& N_map, 
                     vec<Block_list::iterator>& block_map, vec<Merge_data>& block_partition, vec<index>& batch_indices, 
-                    vec<index>& row_map, r2degree& alpha);
+                    vec<index>& row_map, Degree& alpha);
 
 } //namespace aida
 

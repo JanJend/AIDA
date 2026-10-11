@@ -26,14 +26,14 @@ namespace aida {
  * @param merge_info 
  */
 void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_space_decompositions, std::shared_ptr<Base_change_virtual>& base_change, AIDA_runtime_statistics& statistics,
-    AIDA_config& config, Full_merge_info& merge_info) {
+    AIDA_config& config, Full_merge_info& merge_info, const Column_batches& batch_info) {
     
     #if TIMERS
         aida::full_timer.start();
         aida::misc_timer.start();
     #endif
 
-    index batches = A.col_batches.size();
+    index batches = batch_info.col_batches.size();
     
 
     // Only for analysis and optimisation ->
@@ -43,10 +43,10 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
         // Continuous monitoring of the content of a batch
         observe_row_indices = vec<index>();
 
-        std::cout << "Observing batch " << observe_batch_index << " with columns " << A.col_batches[observe_batch_index] << " at " << std::endl;
-        Degree_traits<r2degree>::print_degree(A.col_degrees[A.col_batches[observe_batch_index][0]]);
+        std::cout << "Observing batch " << observe_batch_index << " with columns " << batch_info.col_batches[observe_batch_index] << " at " << std::endl;
+        Degree_traits<Degree>::print_degree(A.col_degrees[batch_info.col_batches[observe_batch_index][0]]);
         std::cout << " and with content:" << std::endl;
-        Sparse_Matrix observed_batch_comparison = A.restricted_domain_copy(A.col_batches[observe_batch_index]);
+        Sparse_Matrix observed_batch_comparison = A.restricted_domain_copy(batch_info.col_batches[observe_batch_index]);
         observed_batch_comparison.print();
         // Save indices to see where the first change to this batch occurs.
         for(vec<index> column : observed_batch_comparison.data){
@@ -76,8 +76,8 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
     Hom_map hom_spaces; // Stores the hom-spaces for each pair of initials (c, b) where necessary
     std::unordered_map< index, vec<index>> domain_keys; // For some c, stores the indices b for which hom_spaces has a key (c, b).
     std::unordered_map< index, vec<index>> codomain_keys; // For some b, stores the indices c for which hom_spaces has a key (c, b).    
-    vec<bitset> e_vec = compute_standard_vectors(A.k_max);
-    vec<bitset> count_vector = compute_sum_of_standard_vectors(A.k_max);
+    vec<bitset> e_vec = compute_standard_vectors(batch_info.k_max);
+    vec<bitset> count_vector = compute_sum_of_standard_vectors(batch_info.k_max);
 
     #if TIMERS
         misc_timer.stop();
@@ -118,10 +118,10 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
         #endif
 
         bool one_block_left = false;
-        vec<index> batch_indices = A.col_batches[t]; // Indices of the columns in the batch
+        vec<index> batch_indices = batch_info.col_batches[t]; // Indices of the columns in the batch
         int k_ = batch_indices.size(); // Number of columns in the batch
         // TO-DO: Have seen rounding errors here, investigate.
-        r2degree alpha = A.col_degrees[batch_indices[0]]; // r2degree of the batch
+        Degree alpha = A.col_degrees[batch_indices[0]]; // Degree of the batch
         
         #if DETAILS
             std::cout << "Processing batch " << t << " with " << k_ << " columns at the indices " << batch_indices <<  std::endl;
@@ -234,7 +234,7 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
 
             
             // Then delete with previously computed hom-spaces.
-            // We want to start with the blocks of lowest r2degree, because the spaces of homomorphisms with these codomains are smaller.
+            // We want to start with the blocks of lowest Degree, because the spaces of homomorphisms with these codomains are smaller.
 
             for(auto itr = active_blocks.rbegin(); itr != active_blocks.rend();) {
                 index b = *itr; vec<index> b_vec = {b}; 
@@ -446,10 +446,10 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
         merge_info.push_back(block_partition);
 
         #if OBSERVE
-        Sparse_Matrix observed_batch = A.restricted_domain_copy(A.col_batches[observe_batch_index]);
+        Sparse_Matrix observed_batch = A.restricted_domain_copy(batch_info.col_batches[observe_batch_index]);
         index changed_relation = observed_batch.equals_with_entry_check(observed_batch_comparison, true);
         if( changed_relation > -1 ){
-            std::cout << " Observed batch was altered in batch " << t << " at " << A.col_batches[t][changed_relation] << std::endl;
+            std::cout << " Observed batch was altered in batch " << t << " at " << batch_info.col_batches[t][changed_relation] << std::endl;
             vec<index> sorted_current = observed_batch.data[changed_relation];
             vec<index> sorted_old = observed_batch_comparison.data[changed_relation];
             std::sort(sorted_current.begin(), sorted_current.end());   

@@ -16,11 +16,13 @@ void initialise_block_list(const GradedMatrix& A, Block_list& B_list, vec<Block_
     for(int i=0; i < A.get_num_rows(); i++) {
         // Block B({},{i}, BlockType::FREE);
         // B.set_num_rows(1);
-        auto it = B_list.emplace(B_list.end(), std::vector<index>{}, std::vector<index>{i}, BlockType::FREE);
+        auto it = B_list.emplace(B_list.end(), A.empty_like(0, 1));
+        it->rows = {i};
+        it->type = BlockType::FREE;
         // B_list.back().set_num_cols(0);
         B_list.back().set_num_rows(1);
         block_map.push_back(it);
-        (*it).row_degrees[0] = A.row_degrees[i];
+        it->row_degrees[0] = A.row_degrees[i];
         (*it)._rows = vec<vec<index>>(1);
         (*it).rows_computed = true;
     }
@@ -49,7 +51,7 @@ void print_block_list_status(Block_list& B_list) {
  * @param batch_positions 
  * @param batch_indices 
  */
-void extend_block(Block& B, Sparse_Matrix& N, vec<index> batch_indices, bitset& batch_positions, r2degree& alpha) {
+void extend_block(Block& B, Sparse_Matrix& N, vec<index> batch_indices, bitset& batch_positions, Degree& alpha) {
     if(batch_positions.empty()){
         batch_positions = bitset(N.get_num_cols(), true);
     }
@@ -91,7 +93,7 @@ void extend_block(Block& B, Sparse_Matrix& N, vec<index> batch_indices, bitset& 
  */
 void merge_blocks_into_block(vec<index>& block_indices, vec<Block_list::iterator>& block_map, Block& new_block, 
                             Sub_batch& N_map, bitset& batch_positions, vec<index>& batch_indices, 
-                            vec<index>& row_map, r2degree& alpha){
+                            vec<index>& row_map, Degree& alpha){
     
     std::priority_queue<block_position, vec<block_position>, compare_block_position_row> row_heap;
     std::priority_queue<block_position, vec<block_position>, compare_block_position_column> column_heap;
@@ -127,11 +129,11 @@ void merge_blocks_into_block(vec<index>& block_indices, vec<Block_list::iterator
 
 
     // Check if we stay being an interval
-    Degree_traits<r2degree> traits;
+    Degree_traits<Degree> traits;
     if(batch_positions.count() == 1 && block_indices.size() == 2 && input_is_interval){
         auto i = batch_positions.find_first();
         bool N_is_length_two = true;
-        vec<r2degree> generators;
+        vec<Degree> generators;
         for(index b : block_indices){
             if( N_map[b].data[i].size() != 1 ){
                 N_is_length_two = false;
@@ -247,7 +249,7 @@ void merge_blocks_into_block(vec<index>& block_indices, vec<Block_list::iterator
  */
 void merge_blocks(Block_list& B_list, Sub_batch& N_map, 
                     vec<Block_list::iterator>& block_map, vec<Merge_data>& block_partition, vec<index>& batch_indices, 
-                    vec<index>& row_map, r2degree& alpha){ 
+                    vec<index>& row_map, Degree& alpha){
     for(auto& partition : block_partition){
         vec<index>& block_indices = partition.first;
         bitset& batch_positions = partition.second; 
@@ -259,7 +261,7 @@ void merge_blocks(Block_list& B_list, Sub_batch& N_map,
                 std::cout << "  Warning: No Merge info at batch indices " <<  batch_indices << std::endl;
                 assert(false);
             }
-            Block new_block({}, {});
+            Block new_block(block_map[first]->empty_like(0, 0));
             // TO-DO: In many cases it might be better to find the largest block and merge the others into it.
             auto new_it = B_list.insert(B_list.end(), new_block);
             merge_blocks_into_block(block_indices, block_map, *new_it, N_map, batch_positions, batch_indices, row_map, alpha); 

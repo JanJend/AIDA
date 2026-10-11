@@ -101,3 +101,12 @@ target_link_libraries(generate_decompositions PRIVATE aida_static)
 install(TARGETS aida aida_with_stats generate_decompositions
     RUNTIME DESTINATION bin
 )
+
+# Grid grading and CSC boundaries use the existing editable AIDA algorithm.
+include(CTest)
+# Embedded builds may exclude AIDA targets from the parent's default build.
+if(BUILD_TESTING AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    add_executable(aida_runtime_grid_test tests/runtime_grid/runtime_grid.cpp)
+    target_link_libraries(aida_runtime_grid_test PRIVATE aida_static)
+    add_test(NAME aida_runtime_grid COMMAND aida_runtime_grid_test)
+endif()

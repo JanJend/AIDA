@@ -9,7 +9,7 @@
  * 
  */
 
-#include<grlina/dense_matrix.hpp>
+#include<grlina/mat_dense.hpp>
 #include<filesystem>
 
 using namespace graded_linalg; 

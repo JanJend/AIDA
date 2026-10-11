@@ -1,4 +1,5 @@
 #include <iostream>
+#include "include/column_batches.hpp"
 #include <grlina/graded_linalg.hpp>
 #include <unordered_set>
 #include <list>
@@ -1003,9 +1004,10 @@ std::list<std::pair< indtree , bitset>> naive_decomposition(
  */
 void decompose(GradedMatrix& A, Block_list& B_list, vec<vec<transition>> vector_space_decompositions) {
     
-    index batches = A.col_batches.size();
+    const Column_batches batch_info(A);
+    index batches = batch_info.col_batches.size();
     std::cout << "Decomposing matrix with " << A.get_num_rows() << " rows and " << A.get_num_cols() << " columns." << std::endl;
-    std::cout << "k_max is " << A.k_max << " and there are " << batches << " batches." << std::endl;
+    std::cout << "k_max is " << batch_info.k_max << " and there are " << batches << " batches." << std::endl;
     // A.print_graded();
 
     #if ANALYSIS
@@ -1057,8 +1059,8 @@ void decompose(GradedMatrix& A, Block_list& B_list, vec<vec<transition>> vector_
 
     std::unordered_map<index, Sparse_Matrix> N_map;
     
-    vec<bitset> e_vec = compute_standard_vectors(A.k_max);
-    vec<bitset> count_vector = compute_sum_of_standard_vectors(A.k_max);
+    vec<bitset> e_vec = compute_standard_vectors(batch_info.k_max);
+    vec<bitset> count_vector = compute_sum_of_standard_vectors(batch_info.k_max);
 
 
     A.compute_revrows();
@@ -1094,8 +1096,8 @@ void decompose(GradedMatrix& A, Block_list& B_list, vec<vec<transition>> vector_
                 last_percent = percent;
             }
         #endif
-        int k_ = A.k_vec[t]; // Number of columns in the batch
-        indvec batch_indices = A.col_batches[t]; // Indices of the columns in the batch
+        int k_ = batch_info.col_batches[t].size(); // Number of columns in the batch
+        indvec batch_indices = batch_info.col_batches[t]; // Indices of the columns in the batch
         #if DETAILS
             std::cout << std::endl;
             std::cout << "Processing batch " << t << " with " << k_ << " columns at the indices " << batch_indices << std::endl;
@@ -1344,9 +1346,10 @@ int main(int argc, char** argv){
         test_matrix=std::string(argv[1]);
     }
     
-    // This fills the matrix with the data from the file and also computes the batches and k_max.
+    // Load and sort the matrix before computing AIDA batches.
     aida::Module module(aida::GradedMatrix(test_matrix, true));
     aida::GradedMatrix& A = module.mutable_presentation();
+    const aida::Column_batches batch_info(A);
 
 
     // This stores all vector space decompositions for all batch-sizes. 
@@ -1358,7 +1361,7 @@ int main(int argc, char** argv){
     const std::string tran_path = "lists_of_decompositions/transitions_reduced_";
     const std::string command = "./generate_decompositions -at -cover -transitions ";
 
-    for(int k = 2; k <= A.k_max; k++) {
+    for(int k = 2; k <= batch_info.k_max; k++) {
         if(!aida::fs::exists(tran_path + std::to_string(k) + ".bin")){
             std::cout << "Could not find " << tran_path + std::to_string(k) + ".bin" << std::endl;
             int result = system( (command + std::to_string(k)).c_str() );
