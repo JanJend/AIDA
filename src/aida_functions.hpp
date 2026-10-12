@@ -128,7 +128,7 @@ void update_hom_spaces( vec<Merge_data>& block_partition, Hom_map& hom_spaces,
 /**
  * @brief Constructs the digraph of non-zero homomorphisms between the blocks in vertex_labels.
  *        Not that the way hom_spaces is computed, meanse that there might be extra edges in the digraph, 
- *        where the corresponding homomorphisms are actually zero or zero at the r2degree of the current batch.
+ *        where the corresponding homomorphisms are actually zero or zero at the Degree of the current batch.
  * 
  * @param hom_spaces 
  * @param vertex_labels 
@@ -308,7 +308,7 @@ void construct_linear_system_extension(Sparse_Matrix& S, vec<hom_info>& hom_stor
  * @return vec<Sparse_Matrix> 
  */
 inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, 
-    r2degree& alpha, const bool& optimised = false, 
+    Degree& alpha, const bool& optimised = false,
     const bool& alpha_hom = false){
 
     vec< pair > row_ops; // we store the matrices Q_i which form the basis of hom(C, B) as vectors
@@ -367,7 +367,7 @@ inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B,
                     return lex_order( lhs, rhs);
                     });
                 
-                vec<vec<r2degree>> intersection;
+                vec<vec<Degree>> intersection;
                 index segment_counter;
 
                 //TO-DO: finish
@@ -450,7 +450,7 @@ inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B,
             // Now we need to delete the entries of K which correspond to the row-operations.
             K.cull_columns(row_op_threshold, false);
             
-            // Last we need to quotient out those Q where for every i the column Q_i - with its r2degree alpha_i -
+            // Last we need to quotient out those Q where for every i the column Q_i - with its Degree alpha_i -
             // lies in the image of N, that is, it lies in the image of N|alpha_i.
             // That is equivalent to locally reducing every column of Q.
             
@@ -458,7 +458,7 @@ inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B,
             std::unordered_map< std::pair<index, index>, index, pair_hash<index> > pair_to_index = pair_to_index_map(row_ops);
 
             for(index i = 0; i < C.rows.size(); i++){
-                r2degree alpha = C.row_degrees[i];
+                Degree alpha = C.row_degrees[i];
                 vec<index> local_admissible_columns;
                 auto [B_alpha, rows_alpha] = B.map_at_degree_pair(alpha);
                 if(rows_alpha.empty() || B_alpha.get_num_cols() == 0){
@@ -504,7 +504,7 @@ inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B,
  */
 inline void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterator>& block_map, indtree& active_blocks, 
                                 Hom_map& hom_spaces, std::unordered_map<index, vec<index>>& domain_keys, 
-                                std::unordered_map<index, vec<index>>& codomain_keys, r2degree& alpha, AIDA_runtime_statistics& statistics, 
+                                std::unordered_map<index, vec<index>>& codomain_keys, Degree& alpha, AIDA_runtime_statistics& statistics,
                                 AIDA_config& config){ //turn_off_hom_optimisation, bool compare_hom_space_computation = false, bool compute_alpha_hom = true
     Block& B = *block_map[b];
     for(index c : active_blocks){
@@ -2108,7 +2108,7 @@ inline void get_cycle_information(vec<index>& pierced_blocks, vec<vec<index>>& s
 }
 
 inline void reduce_hom_alpha_graph(Hom_map& hom_spaces, vec<index>& local_pierced_blocks, 
-    Graph& hom_digraph, r2degree& alpha, vec<Block_iterator>& block_map) {
+    Graph& hom_digraph, Degree& alpha, vec<Block_iterator>& block_map) {
 
     auto edges = boost::edges(hom_digraph);
     std::vector<std::pair<Graph::vertex_descriptor, Graph::vertex_descriptor>> edges_to_remove;
@@ -2172,7 +2172,7 @@ inline void reduce_hom_alpha_graph(Hom_map& hom_spaces, vec<index>& local_pierce
  */
 inline bool construct_graphs_from_hom(Graph& hom_digraph, std::vector<index>& component, vec<vec<index>>& scc, vec<bool>& is_resolvable_cycle,
         Graph& condensation, vec<index>& computation_order, vec<index>& pierced_blocks, Hom_map& hom_spaces, 
-        AIDA_runtime_statistics& statistics, AIDA_config& config, index& t, vec<Block_iterator>& block_map, r2degree& alpha){
+        AIDA_runtime_statistics& statistics, AIDA_config& config, index& t, vec<Block_iterator>& block_map, Degree& alpha){
     
     // Graph on pierced blocks representing Hom(C,B) != 0 
     hom_digraph = construct_hom_digraph(hom_spaces, pierced_blocks);

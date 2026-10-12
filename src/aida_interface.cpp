@@ -60,18 +60,19 @@ void AIDA_functor::clear_decompositions() {
     vector_space_decompositions.clear();
 }
 
-void AIDA_functor::operator()(R2GradedSparseMatrix<index>& A, Block_list& B_list) {
-    int k_max = A.k_max;
-    load_existing_decompositions(k_max);
+void AIDA_functor::operator()(GradedMatrix& A, Block_list& B_list) {
     if (config.sort){
-        A.sort_columns_lexicographically();
-        A.sort_rows_lexicographically();
+        A.sort_compatibly();
     }
-    A.compute_col_batches();
+    GRLINA_DEBUG_CHECK(if (!A.compatibly_sorted)
+        throw std::invalid_argument("AIDA requires compatibly sorted rows and columns"));
+    const Column_batches batch_info(A);
+    int k_max = batch_info.k_max;
+    load_existing_decompositions(k_max);
 
     if(config.show_info) {
         std::cout << " Matrix has " << A.get_num_rows() << " rows and " << A.get_num_cols()
-                  << " columns, k_max is " << A.k_max << ", and there are " << A.col_batches.size() << " batches." << std::endl;
+                  << " columns, k_max is " << batch_info.k_max << ", and there are " << batch_info.col_batches.size() << " batches." << std::endl;
     }
     
     std::shared_ptr<Base_change_virtual> base_change;
@@ -89,7 +90,7 @@ void AIDA_functor::operator()(R2GradedSparseMatrix<index>& A, Block_list& B_list
         runtime_statistics.back().initialise_timers();
     #endif
 
-    AIDA(A, B_list, vector_space_decompositions, base_changes.back(), runtime_statistics.back(), config, merge_info);
+    AIDA(A, B_list, vector_space_decompositions, base_changes.back(), runtime_statistics.back(), config, merge_info, batch_info);
     
     #if TIMERS
         runtime_statistics.back().evaluate_timers();
@@ -111,7 +112,7 @@ void AIDA_functor::operator()(R2GradedSparseMatrix<index>& A, Block_list& B_list
 
 
     if(config.sort_output) {
-        B_list.sort(Compare_by_degrees<r2degree, index, R2GradedSparseMatrix<index>>());
+        B_list.sort(CompareBlocksByDegrees{});
     }
 }
 

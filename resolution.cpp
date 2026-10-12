@@ -1,4 +1,4 @@
-#include "grlina/r2graded_matrix.hpp"
+#include "grlina/mat_r2.hpp"
 #include <grlina/graded_linalg.hpp>
 #include <iostream>
 #include <filesystem>

@@ -13,6 +13,32 @@ AIDA is a C++ library and tool for decomposing finitely presented multiparameter
 
 - Missing features: O(n³) algorithm for interval-decomposable modules 
 
+## Matrix inputs
+
+`aida::GradedMatrix` uses
+`graded_linalg::GridGradedSparseMatrix<double, 2, int>`.
+The compiled core accepts two grading parameters. Stored degrees contain grid
+indices; `real_row_degree(i)` and `real_col_degree(i)` return physical coordinates.
+
+```cpp
+aida::Module module{aida::GradedMatrix(input_stream)};
+aida::AIDA_functor decompose;
+decompose.config.sort = true;
+aida::Block_list summands;
+decompose(module, summands);
+```
+
+For another scalar or index type, use
+`GridGradedSparseMatrix<Scalar, 2, Index>` with
+`std::vector<Matrix>` as the output container. This overload runs AIDA on exact
+grid ordinals and restores the original grids, including unused values and
+distinct `long double` coordinates. Ranks and grid sizes must fit `int`.
+
+`aida::CSCGradedMatrix` uses the current
+`R2GradedSparseMatrix<int, CSCStorage<int>>` type with physical double degrees.
+CSC inputs are copied into vector columns for AIDA and packed back in a batch.
+Both matrix and module overloads return summands through `Block_list`.
+
 ## Installation
 
 ### Prerequisites
