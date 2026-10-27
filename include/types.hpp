@@ -24,8 +24,8 @@
 #include <unordered_map> 
 #include <tuple>         
 #include <grlina/graded_linalg.hpp>
-#include <grlina/mat_grid.hpp>
-#include <grlina/mat_csc.hpp>
+#include <grlina/matrices/grid.hpp>
+#include <grlina/storage/csc.hpp>
 #include <boost/timer/timer.hpp>  
 
 namespace aida{
@@ -44,7 +44,7 @@ using Sparse_Matrix = SparseMatrix<index>;
 using GradedMatrix = GridGradedSparseMatrix<double, 2, index>;
 using CSCGradedMatrix = R2GradedSparseMatrix<index, CSCStorage<index>>;
 using Degree = typename GradedMatrix::degree_type;
-using RealDegree = typename GradedMatrix::real_degree_type;
+using GridD = typename GradedMatrix::GridD;
 using Module = graded_linalg::Module<GradedMatrix>;
 using PersistenceModule = Module; // compatibility alias
 using indtree = std::set<index>;

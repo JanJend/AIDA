@@ -27,6 +27,8 @@
 #include <cstdlib>
 #include <cmath>
 #include <utility>
+#include <grlina/matrices/matrix_algorithms.hpp>
+#include <grlina/subspaces.hpp>
 
 namespace aida{
 
@@ -321,7 +323,7 @@ inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B,
             index counter = 0;
             for( index i = 0; i < C.get_num_rows(); i++){
                 // indices in rows_alpha are internal to C. For external change to .., true) 
-                auto [B_alpha, rows_alpha] = B.map_at_degree_pair(C.row_degrees[i], false);
+                auto [B_alpha, rows_alpha] = B.map_at_grid_degree_pair(C.row_degrees[i], false);
                 vec<index> basislift = B_alpha.coKernel_basis(rows_alpha, B.rows);
                 for( index j : basislift){
                     row_ops.push_back( {i, j} );
@@ -460,7 +462,7 @@ inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B,
             for(index i = 0; i < C.rows.size(); i++){
                 Degree alpha = C.row_degrees[i];
                 vec<index> local_admissible_columns;
-                auto [B_alpha, rows_alpha] = B.map_at_degree_pair(alpha);
+                auto [B_alpha, rows_alpha] = B.map_at_grid_degree_pair(alpha);
                 if(rows_alpha.empty() || B_alpha.get_num_cols() == 0){
                     continue;
                 }

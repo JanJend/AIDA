@@ -1,7 +1,7 @@
 /** Equal-degree column batches used during an AIDA decomposition. */
 #pragma once
 
-#include <grlina/deg_traits.hpp>
+#include <grlina/posets/traits.hpp>
 #include <algorithm>
 #include <vector>
 

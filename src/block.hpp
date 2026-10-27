@@ -105,11 +105,11 @@ struct Block : GradedMatrix {
      */
     // NEW: blocks retain source row indices until the final normalisation.
     // Restrict degrees without validating those temporary indices as local rows.
-    std::pair<Sparse_Matrix, vec<index>> map_at_degree_pair(const Degree& degree,
-                                                          bool shifted = true) const {
-        auto selected_rows = this->admissible_row_indices(degree);
+    std::pair<Sparse_Matrix, vec<index>> map_at_grid_degree_pair(const Degree& degree,
+                                                               bool shifted = true) const {
+        auto selected_rows = this->admissible_row_indices_at_grid_degree(degree);
         vec<index> selected_columns;
-        auto matrix = this->map_at_degree(degree, selected_columns);
+        auto matrix = this->map_at_grid_degree(degree, selected_columns);
         matrix.set_num_rows(selected_rows.size());
         if (selected_rows.empty()) {
             matrix.data.clear();
@@ -122,7 +122,7 @@ struct Block : GradedMatrix {
 
     void compute_local_data(Degree d){
         // TO-DO: Can we make it so that this is already reduced?
-        local_data = std::make_shared<Sparse_Matrix>(this->map_at_degree(d, local_admissible_cols));
+        local_data = std::make_shared<Sparse_Matrix>(this->map_at_grid_degree(d, local_admissible_cols));
     }
 
     /**
@@ -133,7 +133,7 @@ struct Block : GradedMatrix {
     void compute_local_generators(Degree d){
         local_admissible_rows = vec<index>();
         for( index i = 0; i < get_num_rows(); i++){
-            if( is_admissible_row_operation(d, i)){
+            if( is_admissible_row_operation_at_grid_degree(d, i)){
                 local_admissible_rows.push_back(rows[i]);
             }
         }
@@ -274,7 +274,7 @@ struct Block : GradedMatrix {
 // NEW: compare exported summands by real coordinates, including separate grids.
 struct CompareBlocksByDegrees {
     bool operator()(const Block& lhs, const Block& rhs) const {
-        using DT = Degree_traits<RealDegree>;
+        using DT = Degree_traits<GridD>;
         if (lhs.parameter_count() != rhs.parameter_count())
             return lhs.parameter_count() < rhs.parameter_count();
         for (index i = 0; i < std::min(lhs.get_num_rows(), rhs.get_num_rows()); ++i) {

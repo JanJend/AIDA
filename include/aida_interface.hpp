@@ -36,7 +36,9 @@
 #include "config.hpp"
 #include "aida_decompose.hpp"
 #include "grid_aida_adapter.hpp"
-#include <grlina/mat_coord.hpp>
+#include <grlina/matrices/coord.hpp>
+#include <grlina/subspaces.hpp>
+#include <grlina/matrices/io.hpp>
 
 namespace aida {
 
@@ -89,7 +91,10 @@ struct AIDA_functor {
     }
     void operator()(graded_linalg::Module<CSCGradedMatrix>& module,
                     Block_list& blocks) {
-        operator()(module.mutable_presentation(), blocks);
+        module.proj_res_.differentials().resize(1);
+        module.res_complete_ = false;
+        module.inj_res_.clear();
+        operator()(module.presentation(), blocks);
     }
     // Typed summand presentations preserve scalar and index types.
     template<class Scalar, class Index>
@@ -100,7 +105,10 @@ struct AIDA_functor {
     template<class Scalar, class Index>
     void operator()(graded_linalg::Module<GridGradedSparseMatrix<Scalar, 2, Index>>& module,
                     vec<GridGradedSparseMatrix<Scalar, 2, Index>>& summands) {
-        operator()(module.mutable_presentation(), summands);
+        module.proj_res_.differentials().resize(1);
+        module.res_complete_ = false;
+        module.inj_res_.clear();
+        operator()(module.presentation(), summands);
     }
     // Block_list stores double/int; use vec<Matrix> for other scalar/index types.
     template<class Scalar, class Index,
@@ -109,7 +117,10 @@ struct AIDA_functor {
 
     /** Module-owning entry point; the matrix overload remains for compatibility. */
     void operator()(Module& module, Block_list& B_list) {
-        operator()(module.mutable_presentation(), B_list);
+        module.proj_res_.differentials().resize(1);
+        module.res_complete_ = false;
+        module.inj_res_.clear();
+        operator()(module.presentation(), B_list);
     }
     Sparse_Matrix get_row_basis(index i, index m);
     Sparse_Matrix get_row_basis(index m);
@@ -143,7 +154,7 @@ struct AIDA_functor {
         load_existing_decompositions(k_max);
 
         for (std::size_t i = 0; i < modules.size(); ++i) {
-            GradedMatrix& A = modules[i].mutable_presentation();
+            GradedMatrix& A = modules[i].presentation();
             const Column_batches& batch_info = batch_data[i];
             if(config.show_info && modules.size() == 1){
                 std::cout << " Matrix has " << A.get_num_rows() << " rows and " << A.get_num_cols() <<

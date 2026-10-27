@@ -102,17 +102,17 @@ static void wider_index_and_precise_scalar() {
     assert(next > first);
     Matrix matrix(1, 2, {{1}}, {{next, 1.0L}},
                               {{first, 0.0L}, {next, 0.0L}});
-    const auto original_grids = matrix.grids;
+    const auto original_grids = matrix.grid_;
     aida::AIDA_functor decompose;
     decompose.config.sort = true;
     aida::vec<Matrix> summands;
     decompose(matrix, summands);
     assert(summands.size() == 2);
-    assert(matrix.grids == original_grids);
+    assert(matrix.grid_ == original_grids);
     bool found_first = false, found_next = false;
     for (const auto& summand : summands) {
         assert(summand.is_graded_matrix());
-        assert(summand.grids == original_grids);
+        assert(summand.grid_ == original_grids);
         const auto degree = summand.real_row_degree(0);
         if (degree[0] == first) found_first = true;
         if (degree[0] == next) found_next = true;

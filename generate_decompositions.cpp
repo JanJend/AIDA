@@ -9,8 +9,10 @@
  * 
  */
 
-#include<grlina/mat_dense.hpp>
+#include<grlina/matrices/dense.hpp>
 #include<filesystem>
+#include <grlina/matrices/matrix_algorithms.hpp>
+#include <grlina/subspaces.hpp>
 
 using namespace graded_linalg; 
 

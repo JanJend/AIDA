@@ -24,13 +24,13 @@ int aida_checked_int(Number value) {
 
 template <class Matrix>
 Matrix restore_aida_grid(const GradedMatrix& ordinal,
-                         const typename Matrix::grid_type& grids) {
+                         const typename Matrix::Grid& grids) {
     using Index = typename Matrix::index_type;
-    using Editable = GridGradedSparseMatrix<typename Matrix::real_degree_type::value_type, 2, Index>;
+    using Editable = GridGradedSparseMatrix<typename Matrix::GridD::value_type, 2, Index>;
     Editable result(ordinal.get_num_cols(), ordinal.get_num_rows());
     // Restore the original scalar coordinates, including unused grid points.
     // AIDA's output degrees still index these same axes.
-    result.grids = grids;
+    result.grid_ = grids;
     auto degree = [&](auto view) {
         typename Matrix::degree_type owned{};
         for (std::size_t axis = 0; axis < view.size(); ++axis)
@@ -58,15 +58,15 @@ void grid_aida_decompose(Decomposer& decomposer,
                             GridGradedSparseMatrix<Scalar, 2, Index>& matrix,
                             vec<GridGradedSparseMatrix<Scalar, 2, Index>>& summands) {
     using Matrix = GridGradedSparseMatrix<Scalar, 2, Index>;
-    // Work in editable int columns. Physical coordinates stay in matrix.grids;
+    // Work in editable int columns. Physical coordinates stay in matrix.grid_;
     // the core sees only their order, encoded as consecutive integer values.
     GradedMatrix ordinal(detail::aida_checked_int(matrix.get_num_cols()),
                          detail::aida_checked_int(matrix.get_num_rows()));
     for (std::size_t axis = 0; axis < matrix.parameter_count(); ++axis) {
         const int count = detail::aida_checked_int(matrix.grid(axis).size());
-        ordinal.grids[axis].resize(count);
+        ordinal.grid_[axis].resize(count);
         for (int i = 0; i < count; ++i)
-            ordinal.grids[axis][i] = i;
+            ordinal.grid_[axis][i] = i;
     }
     auto degree = [&](auto view) {
         Degree owned{};
@@ -86,11 +86,11 @@ void grid_aida_decompose(Decomposer& decomposer,
     decomposer(ordinal, blocks);
 
     // Finish all conversions before replacing the caller's matrix and summands.
-    auto restored_matrix = detail::restore_aida_grid<Matrix>(ordinal, matrix.grids);
+    auto restored_matrix = detail::restore_aida_grid<Matrix>(ordinal, matrix.grid_);
     vec<Matrix> result;
     result.reserve(blocks.size());
     for (const Block& block : blocks)
-        result.push_back(detail::restore_aida_grid<Matrix>(block, matrix.grids));
+        result.push_back(detail::restore_aida_grid<Matrix>(block, matrix.grid_));
     matrix = std::move(restored_matrix);
     summands = std::move(result);
 }

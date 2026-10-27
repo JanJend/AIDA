@@ -9,6 +9,8 @@
 #include <filesystem>
 #include <queue>
 #include <functional>
+#include <grlina/matrices/matrix_algorithms.hpp>
+#include <grlina/subspaces.hpp>
 namespace aida{
 
 using namespace graded_linalg;
@@ -1348,7 +1350,7 @@ int main(int argc, char** argv){
     
     // Load and sort the matrix before computing AIDA batches.
     aida::Module module(aida::GradedMatrix(test_matrix, true));
-    aida::GradedMatrix& A = module.mutable_presentation();
+    aida::GradedMatrix& A = module.presentation();
     const aida::Column_batches batch_info(A);
 
 
