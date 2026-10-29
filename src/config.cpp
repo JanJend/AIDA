@@ -42,12 +42,12 @@ namespace aida {
         cpu_timer full_block_reduce_timer;
     #endif
     
-double calculateAverage(const vec<index>& values) {
+double calculateAverage(const vec<std::size_t>& values) {
     if (values.empty()) return 0.0;
-    return static_cast<double>(std::accumulate(values.begin(), values.end(), 0)) / values.size();
+    return static_cast<double>(std::accumulate(values.begin(), values.end(), 0.0)) / values.size();
 }
 
-double calculateMedian(vec<index> values) {
+double calculateMedian(vec<std::size_t> values) {
     if (values.empty()) return 0.0;
     std::sort(values.begin(), values.end());
     size_t n = values.size();
@@ -76,33 +76,6 @@ AIDA_statistics::AIDA_statistics()
     , gen_max(0) 
 {}
 
-void AIDA_statistics::compute_statistics(Block_list& B_list) {
-    num_of_summands = B_list.size();
-    for(Block& B : B_list) {
-        if(B.type == BlockType::FREE) {
-            num_of_free++;
-            total_num_rows++;
-        } else if (B.type == BlockType::CYC) {
-            num_of_cyclic++;
-            total_num_rows++;
-        } else if (B.type == BlockType::INT) {
-            num_of_intervals++;
-            size_of_intervals += B.rows.size();
-            total_num_rows += B.rows.size();
-            if(B.rows.size() > gen_max) {
-                gen_max = B.rows.size();
-            }
-        } else {
-            size_of_non_intervals += B.rows.size();
-            total_num_rows += B.rows.size();
-            if(B.rows.size() > gen_max) {
-                gen_max = B.rows.size();
-            }
-        }
-    }
-    interval_ratio = static_cast<double>(num_of_intervals + num_of_free + num_of_cyclic) / num_of_summands;
-    interval_size_ratio = static_cast<double>(size_of_intervals + num_of_free + num_of_cyclic) / total_num_rows;
-}
 
 void AIDA_statistics::operator+=(const AIDA_statistics& other) {
     num_of_summands += other.num_of_summands;
@@ -226,7 +199,7 @@ void AIDA_runtime_statistics::print() {
     std::cout << "  Column Block deletions: " << counter_col_deletion << std::endl;
     std::cout << "  Row Block deletions: " << counter_row_deletion << std::endl;
     std::cout << "  Hom-spaces calculated: " << dim_hom_vec.size() << std::endl;
-    std::cout << "  Total dimension of calculated hom-spaces: " << std::accumulate(dim_hom_vec.begin(), dim_hom_vec.end(), 0) << std::endl;
+    std::cout << "  Total dimension of calculated hom-spaces: " << std::accumulate(dim_hom_vec.begin(), dim_hom_vec.end(), std::size_t{}) << std::endl;
     std::cout << "  Maximum dimension of calculated hom-spaces: " << dim_hom_max << std::endl;
     std::cout << "  Average dimension of calculated hom-spaces: " << calculateAverage(dim_hom_vec) << std::endl;
     std::cout << "  Median dimension of calculated hom-spaces: " << calculateMedian(dim_hom_vec) << std::endl;

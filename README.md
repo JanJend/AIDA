@@ -15,29 +15,37 @@ AIDA is a C++ library and tool for decomposing finitely presented multiparameter
 
 ## Matrix inputs
 
-`aida::GradedMatrix` uses
-`graded_linalg::GridGradedSparseMatrix<double, 2, int>`.
-The compiled core accepts two grading parameters. Stored degrees contain grid
-indices; `real_row_degree(i)` and `real_col_degree(i)` return physical coordinates.
+`aida::AIDA_functor<Index>` carries the matrix index type through the
+algorithm, including batches, hom spaces, blocks, and saved row operations.
+The default is `int`; `long` and `long long` are also supported. Indices must
+meet Persistence-Algebra's signed-integer requirements (`-1` is its sentinel).
 
 ```cpp
-aida::Module module{aida::GradedMatrix(input_stream)};
-aida::AIDA_functor decompose;
+using Index = std::int64_t;
+using Matrix = graded_linalg::GridGradedSparseMatrix<long double, 2, Index>;
+Matrix matrix(input_stream);
+aida::AIDA_functor<Index> decompose;
 decompose.config.sort = true;
-aida::Block_list summands;
-decompose(module, summands);
+std::vector<Matrix> summands;
+decompose(matrix, summands);
 ```
 
-For another scalar or index type, use
-`GridGradedSparseMatrix<Scalar, 2, Index>` with
-`std::vector<Matrix>` as the output container. This overload runs AIDA on exact
-grid ordinals and restores the original grids, including unused values and
-distinct `long double` coordinates. Ranks and grid sizes must fit `int`.
+Coordinate matrices are decomposed directly. For a grid matrix, AIDA decomposes
+`CoordGradedSparseMatrix<Index, Dimension, Index>` using the stored integer
+degrees, then constructs each grid summand from its coordinate matrix and the
+original grid. Physical coordinates never pass through `double`; unused grid
+points and the original scalar precision are retained. There is no conversion
+to an `int` matrix and no requirement that the input index type be `int`.
 
-`aida::CSCGradedMatrix` uses the current
-`R2GradedSparseMatrix<int, CSCStorage<int>>` type with physical double degrees.
-CSC inputs are copied into vector columns for AIDA and packed back in a batch.
-Both matrix and module overloads return summands through `Block_list`.
+Use `std::vector<Matrix>` for summand matrices or `aida::Block_list_t<Matrix>`
+for summands with AIDA's block metadata. `Module<Matrix>` inputs accept the same
+outputs and discard obsolete resolution maps when their presentation changes.
+CSC inputs are copied into editable columns and packed back after decomposition.
+
+The existing `aida::GradedMatrix`, `aida::Module`, and `aida::Block_list` aliases
+still use `GridGradedSparseMatrix<double, 2, int>`. Existing function signatures
+that mention the functor must now spell the default type as
+`aida::AIDA_functor<>`.
 
 ## Installation
 

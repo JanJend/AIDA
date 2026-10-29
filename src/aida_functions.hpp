@@ -36,7 +36,7 @@ namespace aida{
  * @brief Comparator for merge_data
  * 
  */
-inline auto merge_comparator = [](const Merge_data& a, const Merge_data& b) {
+inline auto merge_comparator = [](const auto& a, const auto& b) {
     return a.first[0] < b.first[0];
 };
 
@@ -52,9 +52,10 @@ inline auto merge_comparator = [](const Merge_data& a, const Merge_data& b) {
  * @param sub_batch_indices
  * @return vec<index> 
  */
+template<typename index = int>
 vec<index> hom_action(index& row_glueing, index& total_num_rows, 
-    vec<index>& hom, vec<pair>& row_ops, 
-    Sparse_Matrix& N, bitset& sub_batch_indices);
+    vec<index>& hom, vec<pair_t<index>>& row_ops,
+    SparseMatrix<index>& N, bitset& sub_batch_indices);
 
 
 /**
@@ -68,9 +69,10 @@ vec<index> hom_action(index& row_glueing, index& total_num_rows,
  * @param N
  * @return vec<index> 
  */
+template<typename index = int>
 vec<index> hom_action_full_support(index& row_glueing, index& total_num_rows, 
-    vec<index>& hom, vec<pair>& row_ops, 
-    Sparse_Matrix& N);
+    vec<index>& hom, vec<pair_t<index>>& row_ops,
+    SparseMatrix<index>& N);
 
 /**
  * @brief Given a homomorphism from a block C to another, presented by a matrix Q, which is given as a list hom of row-operations,
@@ -83,9 +85,10 @@ vec<index> hom_action_full_support(index& row_glueing, index& total_num_rows,
  * @param N
  * @return vec<index> 
  */
+template<typename index = int>
 vec<index> hom_action_extension(index& row_glueing, index& total_num_rows, 
-    vec<index>& hom, vec<pair>& row_ops, 
-    Sparse_Matrix& N);
+    vec<index>& hom, vec<pair_t<index>>& row_ops,
+    SparseMatrix<index>& N);
 
 /**
  * @brief Apply a homomorphism from c to b to all of A
@@ -96,9 +99,10 @@ vec<index> hom_action_extension(index& row_glueing, index& total_num_rows,
  * @param hom 
  * @param row_ops 
  */
-void hom_action_A(GradedMatrix& A, vec<index>& source_rows, 
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+void hom_action_A(Matrix& A, vec<index>& source_rows,
     vec<index>& target_rows, vec<index>& hom, 
-    vec<pair>& row_ops, std::shared_ptr<Base_change_virtual>& base_change);
+    vec<pair_t<index>>& row_ops, std::shared_ptr<Base_change_virtual_t<index>>& base_change);
 
 
 /**
@@ -106,9 +110,10 @@ void hom_action_A(GradedMatrix& A, vec<index>& source_rows,
  *  TO-DO: At the moment we change N everywhere, is that a problem?
  * 
  */
-void hom_action_N(Block& B_target, Sparse_Matrix& N_source, 
-    Sparse_Matrix& N_target, vec<index>& hom, 
-    vec<pair>& row_ops);
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+void hom_action_N(Block_t<Matrix>& B_target, SparseMatrix<index>& N_source,
+    SparseMatrix<index>& N_target, vec<index>& hom,
+    vec<pair_t<index>>& row_ops);
 
 
 /**
@@ -122,7 +127,8 @@ void hom_action_N(Block& B_target, Sparse_Matrix& N_source,
  * @param domain_keys 
  * @param codomain_keys
  */
-void update_hom_spaces( vec<Merge_data>& block_partition, Hom_map& hom_spaces, 
+template<typename index = int>
+void update_hom_spaces( vec<Merge_data_t<index>>& block_partition, Hom_map_t<index>& hom_spaces,
     std::unordered_map<index, vec<index>>& domain_keys, 
     std::unordered_map<index, vec<index>>& codomain_keys);
 
@@ -136,9 +142,11 @@ void update_hom_spaces( vec<Merge_data>& block_partition, Hom_map& hom_spaces,
  * @param vertex_labels 
  * @return edge_list 
  */
-Graph construct_hom_digraph( Hom_map& hom_spaces, vec<index>& vertex_labels);
+template<typename index = int>
+Graph construct_hom_digraph( Hom_map_t<index>& hom_spaces, vec<index>& vertex_labels);
 
-Graph construct_batch_transform_graph(Transform_Map& batch_transforms, vec<Merge_data>& virtual_blocks);
+template<typename index = int>
+Graph construct_batch_transform_graph(Transform_Map_t<index>& batch_transforms, vec<Merge_data_t<index>>& virtual_blocks);
 
 
 
@@ -148,7 +156,8 @@ Graph construct_batch_transform_graph(Transform_Map& batch_transforms, vec<Merge
  * @param target 
  * @param source 
  */
-inline void merge_virtual_blocks(Merge_data& target, Merge_data& source ){
+template<typename index = int>
+inline void merge_virtual_blocks(Merge_data_t<index>& target, Merge_data_t<index>& source ){
     assert( (target.second & source.second).none() );
     target.first.insert(target.first.end(), source.first.begin(), source.first.end());
     target.second |= source.second;
@@ -158,19 +167,22 @@ inline void merge_virtual_blocks(Merge_data& target, Merge_data& source ){
  * @brief Fills c with the linearised entries of N_B restricted by a bitset.
  * 
  */
-void linearise_prior( GradedMatrix& A, std::vector<std::reference_wrapper<Sparse_Matrix>>& Ns, vec<index>& batch_indices, vec<long>& result, bitset& sub_batch_indices);
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+void linearise_prior( Matrix& A, std::vector<std::reference_wrapper<SparseMatrix<index>>>& Ns, vec<index>& batch_indices, vec<std::intmax_t>& result, bitset& sub_batch_indices);
 
 
 /**
  * @brief Fills c with the linearised entries of N_B restricted by a bitset.
  * 
  */
-void linearise_prior_full_support( GradedMatrix& A, std::vector<std::reference_wrapper<Sparse_Matrix>>& Ns,
-     vec<index>& batch_indices, vec<long>& result);
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+void linearise_prior_full_support( Matrix& A, std::vector<std::reference_wrapper<SparseMatrix<index>>>& Ns,
+     vec<index>& batch_indices, vec<std::intmax_t>& result);
 
 
 
-inline void test_rows_of_A(GradedMatrix& A, index batch){
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline void test_rows_of_A(Matrix& A, index batch){
     for(index i = 0; i < A.get_num_rows(); i++){
         if(!A._rows[i].empty()){
             for(index j : A._rows[i]){
@@ -202,11 +214,12 @@ inline void test_rows_of_A(GradedMatrix& A, index batch){
  * @param b_vec
  * @param N_map
  */
-void construct_linear_system(GradedMatrix& A, vec<index>& batch_indices, 
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+void construct_linear_system(Matrix& A, vec<index>& batch_indices,
     bitset& sub_batch_indices, bool restricted_batch,
-    vec<index>& relevant_blocks, vec<Block_list::iterator>& block_map, 
-    SparseMatrix<long>& S, vec<op_info>& ops, 
-    vec<index>& b_vec, Sub_batch& N_map,
+    vec<index>& relevant_blocks, vec<Block_iterator_t<Matrix>>& block_map,
+    SparseMatrix<std::intmax_t>& S, vec<op_info_t<index>>& ops,
+    vec<index>& b_vec, Sub_batch_t<index>& N_map,
     const bitset& extra_columns = bitset(0));
 
 
@@ -227,10 +240,11 @@ void construct_linear_system(GradedMatrix& A, vec<index>& batch_indices,
  * @param b_vec
  * @param N_map
  */
-void construct_linear_system_full_support(GradedMatrix& A, vec<index>& batch_indices, bool restricted_batch,
-                            vec<index>& relevant_blocks, vec<Block_list::iterator>& block_map, 
-                            SparseMatrix<long>& S, vec<op_info>& ops, 
-                            vec<index>& b_vec, Sub_batch& N_map);
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+void construct_linear_system_full_support(Matrix& A, vec<index>& batch_indices, bool restricted_batch,
+                            vec<index>& relevant_blocks, vec<Block_iterator_t<Matrix>>& block_map,
+                            SparseMatrix<std::intmax_t>& S, vec<op_info_t<index>>& ops,
+                            vec<index>& b_vec, Sub_batch_t<index>& N_map);
 
 /**
  * @brief  
@@ -249,11 +263,12 @@ void construct_linear_system_full_support(GradedMatrix& A, vec<index>& batch_ind
  * @param y 
  * @param extra_columns 
  */
+template<class Matrix, typename index = matrix_index_t<Matrix>>
 void construct_linear_system_hom(vec<index>& batch_indices, bitset& sub_batch_indices, bool& restricted_batch,
-                            vec<index>& relevant_blocks, vec<Block_list::iterator>& block_map, 
-                            Sparse_Matrix& S, vec< hom_info >& ops, 
-                            vec<index>& b_vec, Sub_batch& N_map,
-                            Hom_map& hom_spaces,
+                            vec<index>& relevant_blocks, vec<Block_iterator_t<Matrix>>& block_map,
+                            SparseMatrix<index>& S, vec< hom_info_t<index> >& ops,
+                            vec<index>& b_vec, Sub_batch_t<index>& N_map,
+                            Hom_map_t<index>& hom_spaces,
                             vec<index>& row_map,
                             vec<index>& y,
                             const bitset& extra_columns = bitset(0));
@@ -275,11 +290,12 @@ void construct_linear_system_hom(vec<index>& batch_indices, bitset& sub_batch_in
  * @param y 
  * @param extra_columns 
  */
+template<class Matrix, typename index = matrix_index_t<Matrix>>
 void construct_linear_system_hom_full_support(vec<index>& batch_indices, bool& restricted_batch,
-                            vec<index>& relevant_blocks, vec<Block_list::iterator>& block_map, 
-                            Sparse_Matrix& S, vec< hom_info >& ops, 
-                            vec<index>& b_vec, Sub_batch& N_map,
-                            Hom_map& hom_spaces,
+                            vec<index>& relevant_blocks, vec<Block_iterator_t<Matrix>>& block_map,
+                            SparseMatrix<index>& S, vec< hom_info_t<index> >& ops,
+                            vec<index>& b_vec, Sub_batch_t<index>& N_map,
+                            Hom_map_t<index>& hom_spaces,
                             vec<index>& row_map,
                             vec<index>& y);
 
@@ -292,14 +308,16 @@ void construct_linear_system_hom_full_support(vec<index>& batch_indices, bool& r
  * @param row_map 
  * @return vec<index> 
  */
-void linearise_sub_batch_entries(vec<index>& result, Sparse_Matrix& N, 
+template<typename index = int>
+void linearise_sub_batch_entries(vec<index>& result, SparseMatrix<index>& N,
     bitset& batch_column_indices, vec<index>& row_map);
 
-void construct_linear_system_extension(Sparse_Matrix& S, vec<hom_info>& hom_storage, index& E_threshold,
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+void construct_linear_system_extension(SparseMatrix<index>& S, vec<hom_info_t<index>>& hom_storage, index& E_threshold,
     index& N_threshold, index& M_threshold, index& b, bitset& b_non_zero_columns, 
-    Merge_data& pro_block, vec<index>& incoming_vertices, vec<Merge_data>& pro_blocks, bitset& deleted_cocycles_b,
-    Graph& hom_graph, Hom_map& hom_spaces, Transform_Map& batch_transforms, 
-    vec<Block_iterator>& block_map, vec<index>& row_map, Sub_batch& N_map);
+    Merge_data_t<index>& pro_block, vec<index>& incoming_vertices, vec<Merge_data_t<index>>& pro_blocks, bitset& deleted_cocycles_b,
+    Graph& hom_graph, Hom_map_t<index>& hom_spaces, Transform_Map_t<index>& batch_transforms,
+    vec<Block_iterator_t<Matrix>>& block_map, vec<index>& row_map, Sub_batch_t<index>& N_map);
 
 /**
  * @brief Computes a basis for the hom-space Hom(C, B).
@@ -309,21 +327,22 @@ void construct_linear_system_extension(Sparse_Matrix& S, vec<hom_info>& hom_stor
  * @param B 
  * @return vec<Sparse_Matrix> 
  */
-inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B, 
-    Degree& alpha, const bool& optimised = false,
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline Hom_space_t<index> compute_hom_space(Matrix& A, Block_t<Matrix>& C, Block_t<Matrix>& B,
+    base_degree<Matrix>& alpha, const bool& optimised = false,
     const bool& alpha_hom = false){
 
-    vec< pair > row_ops; // we store the matrices Q_i which form the basis of hom(C, B) as vectors
+    vec< pair_t<index> > row_ops; // we store the matrices Q_i which form the basis of hom(C, B) as vectors
     // This translates from entries of the vector to entries of the matrix.
 
-    Sparse_Matrix K(0,0);
+    SparseMatrix<index> K(0,0);
 
     switch (C.type){
         case BlockType::FREE : {
             index counter = 0;
             for( index i = 0; i < C.get_num_rows(); i++){
                 // indices in rows_alpha are internal to C. For external change to .., true) 
-                auto [B_alpha, rows_alpha] = B.map_at_grid_degree_pair(C.row_degrees[i], false);
+                auto [B_alpha, rows_alpha] = B.map_at_stored_degree_pair(C.row_degrees[i], false);
                 vec<index> basislift = B_alpha.coKernel_basis(rows_alpha, B.rows);
                 for( index j : basislift){
                     row_ops.push_back( {i, j} );
@@ -369,7 +388,7 @@ inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B,
                     return lex_order( lhs, rhs);
                     });
                 
-                vec<vec<Degree>> intersection;
+                vec<vec<base_degree<Matrix>>> intersection;
                 index segment_counter;
 
                 //TO-DO: finish
@@ -414,7 +433,7 @@ inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B,
                         S.data.push_back(vec<index>());
                         for(auto rit = C._rows[i].rbegin(); rit != C._rows[i].rend(); rit++){
                             auto& internal_column_index = *rit;
-                            S.data[S_index].emplace_back(A.linearise_position_reverse(C.columns[internal_column_index], target_row_index));
+                            S.data[S_index].emplace_back(linearise_position_reverse_ext<std::intmax_t>(C.columns[internal_column_index], target_row_index, A.get_num_cols(), A.get_num_rows()));
                         }
                         S_index++;
                     }
@@ -437,7 +456,7 @@ inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B,
                     if(A.is_admissible_column_operation(B.columns[i], C.columns[j])){
                         S.data.push_back(vec<index>());
                         for(index row_index : B.data[i]){
-                            S.data[S_index].emplace_back(A.linearise_position_reverse(C.columns[j], row_index));
+                            S.data[S_index].emplace_back(linearise_position_reverse_ext<std::intmax_t>(C.columns[j], row_index, A.get_num_cols(), A.get_num_rows()));
                         }
                         S_index++;
                     }
@@ -452,7 +471,7 @@ inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B,
             // Now we need to delete the entries of K which correspond to the row-operations.
             K.cull_columns(row_op_threshold, false);
             
-            // Last we need to quotient out those Q where for every i the column Q_i - with its Degree alpha_i -
+            // Last we need to quotient out those Q where for every i the column Q_i - with its matrix_degree alpha_i -
             // lies in the image of N, that is, it lies in the image of N|alpha_i.
             // That is equivalent to locally reducing every column of Q.
             
@@ -460,9 +479,9 @@ inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B,
             std::unordered_map< std::pair<index, index>, index, pair_hash<index> > pair_to_index = pair_to_index_map(row_ops);
 
             for(index i = 0; i < C.rows.size(); i++){
-                Degree alpha = C.row_degrees[i];
+                matrix_degree alpha = C.row_degrees[i];
                 vec<index> local_admissible_columns;
-                auto [B_alpha, rows_alpha] = B.map_at_grid_degree_pair(alpha);
+                auto [B_alpha, rows_alpha] = B.map_at_stored_degree_pair(alpha);
                 if(rows_alpha.empty() || B_alpha.get_num_cols() == 0){
                     continue;
                 }
@@ -481,12 +500,12 @@ inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B,
         }
 
         default: {
-            std::cerr << "Error: Each Block needs a type." << std::endl;
+            std::cerr << "Error: Each Block_t<Matrix> needs a type." << std::endl;
             exit(1);
-            return {Sparse_Matrix(0,0), {}};
+            return {SparseMatrix<index>(0,0), {}};
         }
     }
-    return {Sparse_Matrix(0,0), {}};
+    return {SparseMatrix<index>(0,0), {}};
 }
 
 
@@ -504,13 +523,14 @@ inline Hom_space compute_hom_space(GradedMatrix& A, Block& C, Block& B,
  * @param alpha 
  * @param compare_hom_space_computation 
  */
-inline void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterator>& block_map, indtree& active_blocks, 
-                                Hom_map& hom_spaces, std::unordered_map<index, vec<index>>& domain_keys, 
-                                std::unordered_map<index, vec<index>>& codomain_keys, Degree& alpha, AIDA_runtime_statistics& statistics,
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline void compute_hom_to_b (Matrix& A, index& b, vec<Block_iterator_t<Matrix>>& block_map, indtree_t<index>& active_blocks,
+                                Hom_map_t<index>& hom_spaces, std::unordered_map<index, vec<index>>& domain_keys,
+                                std::unordered_map<index, vec<index>>& codomain_keys, base_degree<Matrix>& alpha, AIDA_runtime_statistics& statistics,
                                 AIDA_config& config){ //turn_off_hom_optimisation, bool compare_hom_space_computation = false, bool compute_alpha_hom = true
-    Block& B = *block_map[b];
+    Block_t<Matrix>& B = *block_map[b];
     for(index c : active_blocks){
-        Block& C = *block_map[c];
+        Block_t<Matrix>& C = *block_map[c];
         if(b != c){
             // Do not compute again unless needed; This should save a lot of time hopefully.
             // TO-DO: Run some tests, cannot use if hom_alpha is used
@@ -521,7 +541,7 @@ inline void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterato
                 #endif
                 
                 
-                hom_spaces.emplace(std::make_pair(c,b), compute_hom_space(A, C, B, alpha, !config.turn_off_hom_optimisation, config.alpha_hom));    
+                hom_spaces.emplace(std::make_pair(c,b), compute_hom_space<Matrix>(A, C, B, alpha, !config.turn_off_hom_optimisation, config.alpha_hom));
                 
                 
                 #if TIMERS
@@ -530,7 +550,7 @@ inline void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterato
                 #endif
                 
                 
-                int dim = hom_spaces[{c,b}].first.get_num_cols();
+                index dim = hom_spaces[{c,b}].first.get_num_cols();
                 statistics.dim_hom_vec.push_back(dim);
                 if(dim > statistics.dim_hom_max){
                     statistics.dim_hom_max = dim;
@@ -559,8 +579,8 @@ inline void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterato
                         hom_space_test_timer.resume();
                         misc_timer.stop();
                     #endif
-                    Sparse_Matrix S(0,0);
-                    auto non_optimised_hom = compute_hom_space(A, C, B, alpha, false, config.alpha_hom);
+                    SparseMatrix<index> S(0,0);
+                    auto non_optimised_hom = compute_hom_space<Matrix>(A, C, B, alpha, false, config.alpha_hom);
                     #if TIMERS
                         hom_space_test_timer.stop();
                         misc_timer.resume();
@@ -582,8 +602,9 @@ inline void compute_hom_to_b (GradedMatrix& A, index& b, vec<Block_list::iterato
  * @brief Changes A and N according to the row_operations computed by block_reduce
  * 
  */
-inline void update_matrix(GradedMatrix& A, Sub_batch& N_map, vec<Block_iterator>& block_map, vec<index>& batch_indices, 
-            vec<index>& solution, index& row_op_limit, vec<op_info>& ops, bool& restricted_batch, bool& delete_N){
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline void update_matrix(Matrix& A, Sub_batch_t<index>& N_map, vec<Block_iterator_t<Matrix>>& block_map, vec<index>& batch_indices,
+            vec<index>& solution, index& row_op_limit, vec<op_info_t<index>>& ops, bool& restricted_batch, bool& delete_N){
 
     for(index operation_index : solution){
 
@@ -607,7 +628,7 @@ inline void update_matrix(GradedMatrix& A, Sub_batch& N_map, vec<Block_iterator>
                 // TO-DO: Here we only change _rows of N. We should also change the columns/data. 
                 // We also dont need to change the part of N which we are looking at, because it can be reduced to zero with the column operations.
                 auto& source_row = N_source._rows[op.first.first];
-                CT::add_to(source_row, N_target._rows[op.first.second]);     
+                Column_traits<vec<index>, index>::add_to(source_row, N_target._rows[op.first.second]);
             }
         }
     }
@@ -627,12 +648,13 @@ inline void update_matrix(GradedMatrix& A, Sub_batch& N_map, vec<Block_iterator>
  * @param sub_batch_indices The indices of the columns of N_B which are to be deleted.
  * @param extra_columns 
  */                     
-inline bool block_reduce(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
-                bool restricted_batch, vec<index>& relevant_blocks, vec<Block_iterator>& block_map, bitset& sub_batch_indices, std::shared_ptr<Base_change_virtual>& base_change,   
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline bool block_reduce(Matrix& A, vec<index>& b_vec, Sub_batch_t<index>& N_map, vec<index>& batch_indices,
+                bool restricted_batch, vec<index>& relevant_blocks, vec<Block_iterator_t<Matrix>>& block_map, bitset& sub_batch_indices, std::shared_ptr<Base_change_virtual_t<index>>& base_change,
                 vec<index>& row_map, 
                 bool compare_both = false, const bitset& extra_columns = bitset(0), bool delete_N = false) {
-    vec<long> solution_long; vec<index> solution; index row_op_limit; vec<op_info> ops; bool reduced_to_zero = false;
-    vec<long> c;  std::vector<std::reference_wrapper<Sparse_Matrix>> Ns; SparseMatrix<long> S(0,0);
+    vec<std::intmax_t> wide_solution; vec<index> solution; index row_op_limit; vec<op_info_t<index>> ops; bool reduced_to_zero = false;
+    vec<std::intmax_t> c;  std::vector<std::reference_wrapper<SparseMatrix<index>>> Ns; SparseMatrix<std::intmax_t> S(0,0);
 
     for(index i : b_vec){
         Ns.push_back(N_map[i]);
@@ -653,8 +675,8 @@ inline bool block_reduce(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, v
         misc_timer.stop();      
         constructing_linear_system_timer.resume();
     #endif
-    linearise_prior(A, Ns, batch_indices, c, sub_batch_indices);
-    construct_linear_system(A, batch_indices, sub_batch_indices, restricted_batch, relevant_blocks, block_map, S, ops, b_vec, N_map, extra_columns);
+    linearise_prior<Matrix>(A, Ns, batch_indices, c, sub_batch_indices);
+    construct_linear_system<Matrix>(A, batch_indices, sub_batch_indices, restricted_batch, relevant_blocks, block_map, S, ops, b_vec, N_map, extra_columns);
     row_op_limit = ops.size();
 
     #if TIMERS
@@ -668,8 +690,8 @@ inline bool block_reduce(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, v
         // std::cout << "c: " <<  c << std::endl;
     #endif
     S.compute_num_cols();
-    reduced_to_zero = S.solve_col_reduction(c, solution_long);
-    for(long i : solution_long){
+    reduced_to_zero = S.solve_col_reduction(c, wide_solution);
+    for(std::intmax_t i : wide_solution){
         solution.push_back(i);
     }
     #if TIMERS
@@ -681,7 +703,7 @@ inline bool block_reduce(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, v
         #if DETAILS
             std::cout << "      Deleted N at: " << b_vec << "x (" << sub_batch_indices << ")" << std::endl;
         #endif
-        update_matrix(A, N_map, block_map, batch_indices, solution, row_op_limit, ops, restricted_batch, delete_N);
+        update_matrix<Matrix>(A, N_map, block_map, batch_indices, solution, row_op_limit, ops, restricted_batch, delete_N);
         if(restricted_batch){
             // TO-DO: This could be done faster.
             for(index b : b_vec){
@@ -714,12 +736,13 @@ inline bool block_reduce(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, v
  * @param sub_batch_indices The indices of the columns of N_B which are to be deleted.
  * @param extra_columns 
  */                     
-inline  bool block_reduce_full_support(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
-                bool restricted_batch, vec<index>& relevant_blocks, vec<Block_iterator>& block_map, std::shared_ptr<Base_change_virtual>& base_change,   
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline  bool block_reduce_full_support(Matrix& A, vec<index>& b_vec, Sub_batch_t<index>& N_map, vec<index>& batch_indices,
+                bool restricted_batch, vec<index>& relevant_blocks, vec<Block_iterator_t<Matrix>>& block_map, std::shared_ptr<Base_change_virtual_t<index>>& base_change,
                 vec<index>& row_map, 
                 bool compare_both = false, bool delete_N = false) {
-    vec<long> solution_long; vec<index> solution; index row_op_limit; vec<op_info> ops; bool reduced_to_zero = false;
-    vec<long> c;  std::vector<std::reference_wrapper<Sparse_Matrix>> Ns; SparseMatrix<long> S(0,0);
+    vec<std::intmax_t> wide_solution; vec<index> solution; index row_op_limit; vec<op_info_t<index>> ops; bool reduced_to_zero = false;
+    vec<std::intmax_t> c;  std::vector<std::reference_wrapper<SparseMatrix<index>>> Ns; SparseMatrix<std::intmax_t> S(0,0);
 
     for(index i : b_vec){
         Ns.push_back(N_map[i]);
@@ -739,8 +762,8 @@ inline  bool block_reduce_full_support(GradedMatrix& A, vec<index>& b_vec, Sub_b
         misc_timer.stop();      
         constructing_linear_system_timer.resume();
     #endif
-    linearise_prior_full_support(A, Ns, batch_indices, c);
-    construct_linear_system_full_support(A, batch_indices, restricted_batch, relevant_blocks, block_map, S, ops, b_vec, N_map);
+    linearise_prior_full_support<Matrix>(A, Ns, batch_indices, c);
+    construct_linear_system_full_support<Matrix>(A, batch_indices, restricted_batch, relevant_blocks, block_map, S, ops, b_vec, N_map);
     row_op_limit = ops.size();
 
     #if TIMERS
@@ -754,8 +777,8 @@ inline  bool block_reduce_full_support(GradedMatrix& A, vec<index>& b_vec, Sub_b
         // std::cout << "c: " <<  c << std::endl;
     #endif
     S.compute_num_cols();
-    reduced_to_zero = S.solve_col_reduction(c, solution_long);
-    for(long i : solution_long){
+    reduced_to_zero = S.solve_col_reduction(c, wide_solution);
+    for(std::intmax_t i : wide_solution){
         solution.push_back(i);
     }
 
@@ -768,7 +791,7 @@ inline  bool block_reduce_full_support(GradedMatrix& A, vec<index>& b_vec, Sub_b
         #if DETAILS
             std::cout << "      Deleted N at: " << b_vec << "x (" << batch_indices << ")" << std::endl;
         #endif
-        update_matrix(A, N_map, block_map, batch_indices, solution, row_op_limit, ops, restricted_batch, delete_N);
+        update_matrix<Matrix>(A, N_map, block_map, batch_indices, solution, row_op_limit, ops, restricted_batch, delete_N);
     }
     #if TIMERS
         update_matrix_timer.stop();
@@ -790,9 +813,10 @@ inline  bool block_reduce_full_support(GradedMatrix& A, vec<index>& b_vec, Sub_b
  * @param restricted_batch 
  * @param naive_first 
  */
-inline void update_matrix_hom(GradedMatrix& A, Sub_batch& N_map, vec<Block_iterator>& block_map, 
-            vec<index>& batch_indices, Hom_map& hom_spaces, std::shared_ptr<Base_change_virtual>& base_change, vec<index>& row_map,
-            vec<index>& solution, index& row_op_limit, vec<hom_info>& ops,
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline void update_matrix_hom(Matrix& A, Sub_batch_t<index>& N_map, vec<Block_iterator_t<Matrix>>& block_map,
+            vec<index>& batch_indices, Hom_map_t<index>& hom_spaces, std::shared_ptr<Base_change_virtual_t<index>>& base_change, vec<index>& row_map,
+            vec<index>& solution, index& row_op_limit, vec<hom_info_t<index>>& ops,
             bool restricted_batch = false, bool delete_N = false){
     
 
@@ -808,23 +832,24 @@ inline void update_matrix_hom(GradedMatrix& A, Sub_batch& N_map, vec<Block_itera
                 
             auto& C = B_source;
             auto& B = B_target;
-            Hom_space& hom_cb = hom_spaces[{op.second.first, op.second.second}];
+            Hom_space_t<index>& hom_cb = hom_spaces[{op.second.first, op.second.second}];
 
-            hom_action_A(A, B_source.rows, B_target.rows, hom_cb.first.data[op.first], hom_cb.second, base_change);
+            hom_action_A<Matrix>(A, B_source.rows, B_target.rows, hom_cb.first.data[op.first], hom_cb.second, base_change);
 
             if(restricted_batch && !delete_N){
                 auto& N_source = N_map[op.second.first];
                 auto& N_target = N_map[op.second.second];
-                hom_action_N(B, N_source, N_target, hom_cb.first.data[op.first], hom_cb.second);
+                hom_action_N<Matrix>(B, N_source, N_target, hom_cb.first.data[op.first], hom_cb.second);
             } 
         }
     }
 }
 
-inline void update_matrix_extension(GradedMatrix& A, Sub_batch& N_map, vec<Block_iterator>& block_map, 
-    Hom_map& hom_spaces, std::shared_ptr<Base_change_virtual>& base_change, vec<index>& non_processed_blocks, 
-    vec<index>& row_map, vec<index>& solution, index& E_threshold, index& N_threshold, index& M_threshold, vec<hom_info>& hom_storage,
-    Transform_Map& batch_transforms, vec<Merge_data>& pro_blocks, Merge_data& pro_block){
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline void update_matrix_extension(Matrix& A, Sub_batch_t<index>& N_map, vec<Block_iterator_t<Matrix>>& block_map,
+    Hom_map_t<index>& hom_spaces, std::shared_ptr<Base_change_virtual_t<index>>& base_change, vec<index>& non_processed_blocks,
+    vec<index>& row_map, vec<index>& solution, index& E_threshold, index& N_threshold, index& M_threshold, vec<hom_info_t<index>>& hom_storage,
+    Transform_Map_t<index>& batch_transforms, vec<Merge_data_t<index>>& pro_blocks, Merge_data_t<index>& pro_block){
 
     for(index operation_index : solution){
 
@@ -833,11 +858,11 @@ inline void update_matrix_extension(GradedMatrix& A, Sub_batch& N_map, vec<Block
             auto& C = *block_map[op.second.first];
             auto& B = *block_map[op.second.second];
            
-            Hom_space& hom_cb = hom_spaces[{op.second.first, op.second.second}];
-            hom_action_A(A, C.rows, B.rows, hom_cb.first.data[op.first], hom_cb.second, base_change);
+            Hom_space_t<index>& hom_cb = hom_spaces[{op.second.first, op.second.second}];
+            hom_action_A<Matrix>(A, C.rows, B.rows, hom_cb.first.data[op.first], hom_cb.second, base_change);
         } else if (operation_index < N_threshold){
             auto op = hom_storage[operation_index];
-            Batch_transform& transform_space = batch_transforms[std::make_pair(pro_blocks[op.second.first], pro_block)][op.first];
+            Batch_transform_t<index>& transform_space = batch_transforms[std::make_pair(pro_blocks[op.second.first], pro_block)][op.first];
             auto& hom_infos = transform_space.second;
             auto& T = transform_space.first;
             for(index c : non_processed_blocks){
@@ -846,8 +871,8 @@ inline void update_matrix_extension(GradedMatrix& A, Sub_batch& N_map, vec<Block
             for(auto hom_info : hom_infos){
                 auto& C = *block_map[std::get<0>(hom_info)];
                 auto& B = *block_map[std::get<1>(hom_info)];
-                Hom_space& hom_cb = hom_spaces[{std::get<0>(hom_info), std::get<1>(hom_info)}];
-                hom_action_A(A, C.rows, B.rows, hom_cb.first.data[std::get<2>(hom_info)], hom_cb.second, base_change);
+                Hom_space_t<index>& hom_cb = hom_spaces[{std::get<0>(hom_info), std::get<1>(hom_info)}];
+                hom_action_A<Matrix>(A, C.rows, B.rows, hom_cb.first.data[std::get<2>(hom_info)], hom_cb.second, base_change);
             }
         } else if (operation_index < M_threshold){
             auto& op = hom_storage[operation_index];
@@ -877,13 +902,14 @@ inline void update_matrix_extension(GradedMatrix& A, Sub_batch& N_map, vec<Block
  *                      If naive_first is false, this is the set of columns-indices of the batch which belong to the first subspace tested in naive decomposition.
  *                      It should be empty if block reduce is not called from naive decomposition.
  */                     
-inline bool block_reduce_hom(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
-                bool restricted_batch, vec<index>& relevant_blocks, vec<Block_iterator>& block_map, bitset& sub_batch_indices,
-                std::shared_ptr<Base_change_virtual>& base_change, vec<index>& row_map, Hom_map& hom_spaces,  
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline bool block_reduce_hom(Matrix& A, vec<index>& b_vec, Sub_batch_t<index>& N_map, vec<index>& batch_indices,
+                bool restricted_batch, vec<index>& relevant_blocks, vec<Block_iterator_t<Matrix>>& block_map, bitset& sub_batch_indices,
+                std::shared_ptr<Base_change_virtual_t<index>>& base_change, vec<index>& row_map, Hom_map_t<index>& hom_spaces,
                 const bitset& extra_columns = bitset(0), bool delete_N = false){ 
-    vec<index> solution; index row_op_limit; vec<hom_info> ops; bool reduced_to_zero = false;
-    vec<index> c;  Sparse_Matrix S(0,0); 
-    std::vector<std::reference_wrapper<Sparse_Matrix>> Ns;
+    vec<index> solution; index row_op_limit; vec<hom_info_t<index>> ops; bool reduced_to_zero = false;
+    vec<index> c;  SparseMatrix<index> S(0,0);
+    std::vector<std::reference_wrapper<SparseMatrix<index>>> Ns;
     for(index i : b_vec){
         Ns.push_back(N_map[i]);
     }
@@ -904,7 +930,7 @@ inline bool block_reduce_hom(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_ma
         misc_timer.stop();     
         constructing_linear_system_timer.resume();
     #endif
-    construct_linear_system_hom(batch_indices, sub_batch_indices, restricted_batch, 
+    construct_linear_system_hom<Matrix>(batch_indices, sub_batch_indices, restricted_batch,
             relevant_blocks, block_map, S, ops, b_vec, N_map, hom_spaces, row_map, c, extra_columns);
     row_op_limit = ops.size();
 
@@ -929,7 +955,7 @@ inline bool block_reduce_hom(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_ma
         #if DETAILS
             std::cout << "      Deleted N at: " << b_vec << " and " << sub_batch_indices << std::endl;
         #endif
-        update_matrix_hom(A, N_map, block_map, batch_indices, hom_spaces, base_change, row_map, solution, row_op_limit, ops, restricted_batch, delete_N);
+        update_matrix_hom<Matrix>(A, N_map, block_map, batch_indices, hom_spaces, base_change, row_map, solution, row_op_limit, ops, restricted_batch, delete_N);
         for(index b : b_vec){
             if(restricted_batch && !delete_N){
                 N_map[b].compute_columns_from_rows((*block_map[b]).rows);
@@ -966,13 +992,14 @@ inline bool block_reduce_hom(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_ma
  *                      If naive_first is false, this is the set of columns-indices of the batch which belong to the first subspace tested in naive decomposition.
  *                      It should be empty if block reduce is not called from naive decomposition.
  */                     
-inline bool block_reduce_hom_full_support(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
-                bool restricted_batch, vec<index>& relevant_blocks, vec<Block_iterator>& block_map,
-                std::shared_ptr<Base_change_virtual>& base_change, vec<index>& row_map, Hom_map& hom_spaces,  
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline bool block_reduce_hom_full_support(Matrix& A, vec<index>& b_vec, Sub_batch_t<index>& N_map, vec<index>& batch_indices,
+                bool restricted_batch, vec<index>& relevant_blocks, vec<Block_iterator_t<Matrix>>& block_map,
+                std::shared_ptr<Base_change_virtual_t<index>>& base_change, vec<index>& row_map, Hom_map_t<index>& hom_spaces,
                 bool delete_N = false){ 
-    vec<index> solution; index row_op_limit; vec<hom_info> ops; bool reduced_to_zero = false;
-    vec<index> c;  Sparse_Matrix S(0,0); 
-    std::vector<std::reference_wrapper<Sparse_Matrix>> Ns;
+    vec<index> solution; index row_op_limit; vec<hom_info_t<index>> ops; bool reduced_to_zero = false;
+    vec<index> c;  SparseMatrix<index> S(0,0);
+    std::vector<std::reference_wrapper<SparseMatrix<index>>> Ns;
     for(index i : b_vec){
         Ns.push_back(N_map[i]);
     }
@@ -993,7 +1020,7 @@ inline bool block_reduce_hom_full_support(GradedMatrix& A, vec<index>& b_vec, Su
         misc_timer.stop();     
         constructing_linear_system_timer.resume();
     #endif
-    construct_linear_system_hom_full_support(batch_indices, restricted_batch, 
+    construct_linear_system_hom_full_support<Matrix>(batch_indices, restricted_batch,
             relevant_blocks, block_map, S, ops, b_vec, N_map, hom_spaces, row_map, c);
     row_op_limit = ops.size();
 
@@ -1018,7 +1045,7 @@ inline bool block_reduce_hom_full_support(GradedMatrix& A, vec<index>& b_vec, Su
         #if DETAILS
             std::cout << "      Deleted N at: " << b_vec << " and " << batch_indices << std::endl;
         #endif
-        update_matrix_hom(A, N_map, block_map, batch_indices, hom_spaces, base_change, row_map, solution, row_op_limit, ops, restricted_batch, delete_N);
+        update_matrix_hom<Matrix>(A, N_map, block_map, batch_indices, hom_spaces, base_change, row_map, solution, row_op_limit, ops, restricted_batch, delete_N);
     }
 
     #if TIMERS
@@ -1050,30 +1077,31 @@ inline bool block_reduce_hom_full_support(GradedMatrix& A, vec<index>& b_vec, Su
  * @return true 
  * @return false 
  */
-inline bool use_either_block_reduce(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
-                bool restricted_batch, vec<index>& blocks, vec<Block_iterator>& block_map, bitset& support, std::shared_ptr<Base_change_virtual>& base_change, 
-                vec<index>& row_map, Hom_map& hom_spaces, bool brute_force = false, bool compare_both = false,  
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline bool use_either_block_reduce(Matrix& A, vec<index>& b_vec, Sub_batch_t<index>& N_map, vec<index>& batch_indices,
+                bool restricted_batch, vec<index>& blocks, vec<Block_iterator_t<Matrix>>& block_map, bitset& support, std::shared_ptr<Base_change_virtual_t<index>>& base_change,
+                vec<index>& row_map, Hom_map_t<index>& hom_spaces, bool brute_force = false, bool compare_both = false,
                 const bitset& extra_columns = bitset(0), bool delete_N = false){
 
     bool block_reduce_result = false;
     bool block_reduce_result_hom = false;
 
     if (brute_force || compare_both) {
-        block_reduce_result = block_reduce(A, b_vec, N_map, batch_indices, restricted_batch, 
+        block_reduce_result = block_reduce<Matrix>(A, b_vec, N_map, batch_indices, restricted_batch,
         blocks, block_map, support, base_change, row_map, compare_both, extra_columns, delete_N);
     }
 
     if (!brute_force || compare_both){
-        block_reduce_result_hom = block_reduce_hom(A, b_vec, N_map, batch_indices, restricted_batch, 
+        block_reduce_result_hom = block_reduce_hom<Matrix>(A, b_vec, N_map, batch_indices, restricted_batch,
         blocks, block_map, support, base_change, row_map, hom_spaces, extra_columns, delete_N);
     }
     
     if(compare_both){
         if(block_reduce_result != block_reduce_result_hom){
-            std::cout << "Error: Block reduce and block reduce hom do not agree." << std::endl;
+            std::cout << "Error: Block_t<Matrix> reduce and block reduce hom do not agree." << std::endl;
             std::cout << "Blocks to delete: " << b_vec << std::endl;
             std::cout << "All blocks: " << blocks << std::endl;
-            std::cout << "Block reduce result: " << block_reduce_result << " Block reduce hom result: " << block_reduce_result_hom << std::endl;
+            std::cout << "Block_t<Matrix> reduce result: " << block_reduce_result << " Block_t<Matrix> reduce hom result: " << block_reduce_result_hom << std::endl;
         }
         assert(block_reduce_result == block_reduce_result_hom);
     }
@@ -1102,30 +1130,31 @@ inline bool use_either_block_reduce(GradedMatrix& A, vec<index>& b_vec, Sub_batc
  * @return true 
  * @return false 
  */
-inline bool use_either_block_reduce_full_support(GradedMatrix& A, vec<index>& b_vec, Sub_batch& N_map, vec<index>& batch_indices,
-                bool restricted_batch, vec<index>& blocks, vec<Block_iterator>& block_map, std::shared_ptr<Base_change_virtual>& base_change, 
-                vec<index>& row_map, Hom_map& hom_spaces, bool brute_force = false, bool compare_both = false,  
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline bool use_either_block_reduce_full_support(Matrix& A, vec<index>& b_vec, Sub_batch_t<index>& N_map, vec<index>& batch_indices,
+                bool restricted_batch, vec<index>& blocks, vec<Block_iterator_t<Matrix>>& block_map, std::shared_ptr<Base_change_virtual_t<index>>& base_change,
+                vec<index>& row_map, Hom_map_t<index>& hom_spaces, bool brute_force = false, bool compare_both = false,
                 const bitset& extra_columns = bitset(0), bool delete_N = false){
 
     bool block_reduce_result = false;
     bool block_reduce_result_hom = false;
 
     if (brute_force || compare_both) {
-        block_reduce_result = block_reduce_full_support(A, b_vec, N_map, batch_indices, restricted_batch, 
+        block_reduce_result = block_reduce_full_support<Matrix>(A, b_vec, N_map, batch_indices, restricted_batch,
         blocks, block_map, base_change, row_map, compare_both, delete_N);
     }
 
     if (!brute_force || compare_both){
-        block_reduce_result_hom = block_reduce_hom_full_support(A, b_vec, N_map, batch_indices, restricted_batch, 
+        block_reduce_result_hom = block_reduce_hom_full_support<Matrix>(A, b_vec, N_map, batch_indices, restricted_batch,
         blocks, block_map, base_change, row_map, hom_spaces, delete_N);
     }
     
     if(compare_both){
         if(block_reduce_result != block_reduce_result_hom){
-            std::cout << "Error: Block reduce and block reduce hom do not agree." << std::endl;
+            std::cout << "Error: Block_t<Matrix> reduce and block reduce hom do not agree." << std::endl;
             std::cout << "Blocks to delete: " << b_vec << std::endl;
             std::cout << "All blocks: " << blocks << std::endl;
-            std::cout << "Block reduce result: " << block_reduce_result << " Block reduce hom result: " << block_reduce_result_hom << std::endl;
+            std::cout << "Block_t<Matrix> reduce result: " << block_reduce_result << " Block_t<Matrix> reduce hom result: " << block_reduce_result_hom << std::endl;
         }
         assert(block_reduce_result == block_reduce_result_hom);
     }
@@ -1143,8 +1172,9 @@ inline bool use_either_block_reduce_full_support(GradedMatrix& A, vec<index>& b_
  * @param row_map 
  * @return array<index> 
  */
-inline vec< Batch_transform > compute_internal_col_ops(Merge_data& virtual_source_block, Merge_data& virtual_target_block, 
-    Sub_batch& N_map, Hom_map& hom_spaces, vec<index>& row_map, index& k, vec<Block_iterator>& block_map){
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline vec< Batch_transform_t<index> > compute_internal_col_ops(Merge_data_t<index>& virtual_source_block, Merge_data_t<index>& virtual_target_block,
+    Sub_batch_t<index>& N_map, Hom_map_t<index>& hom_spaces, vec<index>& row_map, index& k, vec<Block_iterator_t<Matrix>>& block_map){
 
     bitset& source_batch_indices = virtual_source_block.second;
     vec<index>& source_block_indices = virtual_source_block.first;
@@ -1168,10 +1198,10 @@ inline vec< Batch_transform > compute_internal_col_ops(Merge_data& virtual_sourc
         return linearise_position_reverse_ext<index>(column_index, source_block_row_map[target_block_number] + row_index, k, current_row);
     };
 
-    Sparse_Matrix S(0, target_batch_indices.count()*current_row);
+    SparseMatrix<index> S(0, target_batch_indices.count()*current_row);
     index col_op_threshold = 0;
     index hom_threshold = 0;
-    vec<pair> col_op_keys;
+    vec<pair_t<index>> col_op_keys;
     vec< std::tuple<index, index, index> > hom_keys;
 
     // First the homomorphisms aka row-ops from blocks in the target to blocks in the source.
@@ -1179,12 +1209,12 @@ inline vec< Batch_transform > compute_internal_col_ops(Merge_data& virtual_sourc
     for(index c : target_block_indices){
         for(index i = 0; i< source_block_indices.size(); i++){
             index& b = source_block_indices[i];
-            Hom_space& hom = hom_spaces[{c, b}];
-            Sparse_Matrix& hom_matrices = hom.first;
-            vec<pair>& row_op_keys = hom.second;
+            Hom_space_t<index>& hom = hom_spaces[{c, b}];
+            SparseMatrix<index>& hom_matrices = hom.first;
+            vec<pair_t<index>>& row_op_keys = hom.second;
             for(index hom_counter = 0; hom_counter < hom_matrices.data.size(); hom_counter++){
                 vec<index>& Q = hom_matrices.data[hom_counter];
-                S.data.emplace_back(hom_action_full_support(source_block_row_map[i], current_row, Q, row_op_keys, N_map[c]));
+                S.data.emplace_back(hom_action_full_support<index>(source_block_row_map[i], current_row, Q, row_op_keys, N_map[c]));
                 hom_keys.push_back({c, b, hom_counter});
             }
         }
@@ -1209,7 +1239,7 @@ inline vec< Batch_transform > compute_internal_col_ops(Merge_data& virtual_sourc
     // At last, local column operations from the source.
 
     for(index i = 0; i< source_block_indices.size(); i++){
-        Block& B = *block_map[source_block_indices[i]];
+        Block_t<Matrix>& B = *block_map[source_block_indices[i]];
         for(vec<index> column : B.local_data -> data){
             for(index j = target_batch_indices.find_first(); j != bitset::npos; j = target_batch_indices.find_next(j)){
                 S.data.push_back(vec<index>());
@@ -1253,8 +1283,9 @@ inline vec< Batch_transform > compute_internal_col_ops(Merge_data& virtual_sourc
  * @param A the matrix
  * @param batch 
  */
-inline void compute_touched_blocks(indtree& active_blocks, vec<Block_iterator>& block_map, 
-                            GradedMatrix& A, vec<index>& batch, Sub_batch& N_map) {
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline void compute_touched_blocks(indtree_t<index>& active_blocks, vec<Block_iterator_t<Matrix>>& block_map,
+                            Matrix& A, vec<index>& batch, Sub_batch_t<index>& N_map) {
 
     for(index j = 0; j < batch.size(); j++){
         index bj = batch[j];
@@ -1265,11 +1296,11 @@ inline void compute_touched_blocks(indtree& active_blocks, vec<Block_iterator>& 
             std::cout << "  Batch-col " << j << " after sorting: " << A.data[bj] << std::endl;
         #endif
         for(index i : A.data[bj]){
-            Block& B = *block_map[i];
+            Block_t<Matrix>& B = *block_map[i];
             index initial = B.rows.front();
 	        auto new_touched = active_blocks.insert(initial); 
             if(new_touched.second){
-                N_map.emplace(initial, Sparse_Matrix(batch.size(), B.rows.size()));
+                N_map.emplace(initial, SparseMatrix<index>(batch.size(), B.rows.size()));
                 N_map[initial].data = vec<vec<index>>(batch.size(), vec<index>());
             }
             N_map[initial].data[j].push_back(i);
@@ -1293,36 +1324,37 @@ inline void compute_touched_blocks(indtree& active_blocks, vec<Block_iterator>& 
  * @param N_map 
  * @param vector_space_decompositions 
  */
-inline vec< Merge_data > exhaustive_alpha_decomp(
-                        GradedMatrix& A, Block_list& B_list, vec<Block_iterator>& block_map, 
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline vec< Merge_data_t<index> > exhaustive_alpha_decomp(
+                        Matrix& A, Block_list_t<Matrix>& B_list, vec<Block_iterator_t<Matrix>>& block_map,
                         vec<index>& pierced_blocks, vec<index>& batch_indices, const bitset& N_column_indices, 
-                        vec<bitset>& e_vec, Sub_batch& N_map, vec<vec<transition>>& vector_space_decompositions,
-                        AIDA_config& config, std::shared_ptr<Base_change_virtual>& base_change,
-                        Hom_map& hom_spaces, vec<index> row_map, bool brute_force = false, bool compare_both = false) {
+                        vec<bitset>& e_vec, Sub_batch_t<index>& N_map, vec<vec<transition>>& vector_space_decompositions,
+                        AIDA_config& config, std::shared_ptr<Base_change_virtual_t<index>>& base_change,
+                        Hom_map_t<index>& hom_spaces, vec<index> row_map, bool brute_force = false, bool compare_both = false) {
                            
     //TO-DO: Implement a branch and bound strategy such that we do not need to iterate over those decompositions
     //TO-DO: Need to first decompose/reduce the left-hand columns, create an updated temporary block-merge and then decompose the right-hand columns.
-    int k = N_column_indices.count();    
-    int num_b = pierced_blocks.size();
+    index k = N_column_indices.count();
+    index num_b = pierced_blocks.size();
     assert(batch_indices.size() == N_column_indices.size());
     #if DETAILS
         std::cout << "  Calling exhaustive_alpha_decomp with " << k << " columns and " << 
         num_b << " blocks at N_column_indices: " << N_column_indices << std::endl;
     #endif
     if( k == 1 ){
-        vec< Merge_data > result;
+        vec< Merge_data_t<index> > result;
         result.emplace_back( make_pair(pierced_blocks, N_column_indices) );  
         return result;
     }
     if( k > vector_space_decompositions.size() + 1 ){
-        config.decomp_failure.push_back(batch_indices);
+        config.decomp_failure.emplace_back(batch_indices.begin(), batch_indices.end());
         if(true){
             std::cout << "  No vector space decompositions for the local (!) dimension " << k << 
             " provided. \n Warning: Decomposition is almost surely only partial from here on." << std::endl;
         }
         // TO-DO: We could call methods from generate decompositions here to try some column-operations 
         // to find a decomposition, then break if we dont find one after a certain time.
-        vec< Merge_data > result;
+        vec< Merge_data_t<index> > result;
         result.emplace_back( make_pair(pierced_blocks, N_column_indices) );  
         return result;
     }
@@ -1338,10 +1370,10 @@ inline vec< Merge_data > exhaustive_alpha_decomp(
         #endif
         vec<index> blocks_1;
         vec<index> blocks_2;
-        indtree blocks_conflict;
+        indtree_t<index> blocks_conflict;
         for(index b : pierced_blocks){
             N_map[b].multiply_dense_with_e_check(basechange, e_vec, N_column_indices);
-            Block& B = *block_map[b];
+            Block_t<Matrix>& B = *block_map[b];
             N_map[b].compute_rows_forward_map(row_map);
         }
 
@@ -1359,7 +1391,7 @@ inline vec< Merge_data > exhaustive_alpha_decomp(
 
         #if DETAILS
             for(index b : pierced_blocks){
-                std::cout << "  Block " << b << ": ";
+                std::cout << "  Block_t<Matrix> " << b << ": ";
                 N_map[b].print_rows();
             }
             std::cout << "B_1: " << blocks_1 << " B_2: " << blocks_2 << " B_conflict: " << blocks_conflict << std::endl;
@@ -1369,7 +1401,7 @@ inline vec< Merge_data > exhaustive_alpha_decomp(
         // Optimisation step: If we could not delete the lhs of a block in conflict, then try to delete the rhs without all operations. 
         // Only stop doing this if this does not work for one block because in this case we will have to try to delete all of these blcoks at once anyways.
         #if DETAILS
-            vec<pair> deletion_tracker;
+            vec<pair_t<index>> deletion_tracker;
         #endif
         if (blocks_conflict.size() > 0){
 
@@ -1382,7 +1414,7 @@ inline vec< Merge_data > exhaustive_alpha_decomp(
                     misc_timer.resume();  
                 #endif
 
-                bool deleted_N1 = use_either_block_reduce(A, b_vec, N_map, batch_indices, true, 
+                bool deleted_N1 = use_either_block_reduce<Matrix>(A, b_vec, N_map, batch_indices, true,
                     blocks_1, block_map, indices_1, base_change, row_map, hom_spaces, brute_force, compare_both);
 
                 #if TIMERS
@@ -1403,7 +1435,7 @@ inline vec< Merge_data > exhaustive_alpha_decomp(
                         alpha_decomp_timer.stop();
                         misc_timer.resume();
                     #endif
-                    bool deleted_N2 = use_either_block_reduce(A, b_vec, N_map, batch_indices, true, 
+                    bool deleted_N2 = use_either_block_reduce<Matrix>(A, b_vec, N_map, batch_indices, true,
                         blocks_2, block_map, indices_2, base_change, row_map, hom_spaces, brute_force, compare_both);
 
                     #if TIMERS
@@ -1443,7 +1475,7 @@ inline vec< Merge_data > exhaustive_alpha_decomp(
                 std::cout << "  Conflict could not be resolved. First reducing N_1 as much as possible." << std::endl;
             #endif
             
-            indtree blocks_excl_1;
+            indtree_t<index> blocks_excl_1;
             std::set_difference(blocks_1.begin(), blocks_1.end(), blocks_conflict.begin(), blocks_conflict.end(), std::inserter(blocks_excl_1, blocks_excl_1.begin()));
             // Only need to further reduce those blocks which are not in conflict, because they would have already been deleted in the first step.
             for(auto itr = blocks_excl_1.rbegin(); itr != blocks_excl_1.rend();){
@@ -1454,7 +1486,7 @@ inline vec< Merge_data > exhaustive_alpha_decomp(
                     alpha_decomp_timer.stop();
                     misc_timer.resume();
                 #endif
-                bool deleted_more_1 = use_either_block_reduce(A, b_vec, N_map, batch_indices, true, 
+                bool deleted_more_1 = use_either_block_reduce<Matrix>(A, b_vec, N_map, batch_indices, true,
                     blocks_1, block_map, indices_1, base_change, row_map, hom_spaces, brute_force, compare_both);
                 #if TIMERS
                     dispose_S_timer.stop();
@@ -1488,7 +1520,7 @@ inline vec< Merge_data > exhaustive_alpha_decomp(
                 alpha_decomp_timer.stop();
                 misc_timer.resume();
             #endif
-            conflict_resolution = use_either_block_reduce(A, blocks_1, N_map, batch_indices, true, 
+            conflict_resolution = use_either_block_reduce<Matrix>(A, blocks_1, N_map, batch_indices, true,
                 pierced_blocks, block_map, indices_2, base_change, row_map, hom_spaces, brute_force, compare_both, indices_1, true);
             #if TIMERS
                 dispose_S_timer.stop();
@@ -1506,17 +1538,17 @@ inline vec< Merge_data > exhaustive_alpha_decomp(
         if (conflict_resolution){ 
             assert(blocks_conflict.size() == 0);
             // A valid decomposition has been found. Continue here.
-            auto partition_1 = exhaustive_alpha_decomp(A, B_list, block_map, blocks_1, batch_indices, indices_1, 
+            auto partition_1 = exhaustive_alpha_decomp<Matrix>(A, B_list, block_map, blocks_1, batch_indices, indices_1,
                 e_vec, N_map, vector_space_decompositions, config, base_change,
                 hom_spaces, row_map, brute_force, compare_both);
-            auto partition_2 = exhaustive_alpha_decomp(A, B_list, block_map, blocks_2, batch_indices, indices_2, 
+            auto partition_2 = exhaustive_alpha_decomp<Matrix>(A, B_list, block_map, blocks_2, batch_indices, indices_2,
                 e_vec, N_map, vector_space_decompositions, config, base_change,
                 hom_spaces, row_map, brute_force, compare_both);
             partition_1.insert(partition_1.end(), partition_2.begin(), partition_2.end());
             return partition_1;
         }
     }
-    vec< Merge_data > result;
+    vec< Merge_data_t<index> > result;
     result.emplace_back( make_pair(pierced_blocks, N_column_indices) );  
     return result;
 } // exhaustive_alpha_decomp
@@ -1543,12 +1575,13 @@ inline vec< Merge_data > exhaustive_alpha_decomp(
  * @return true 
  * @return false 
  */
-inline bool alpha_extension_decomposition(GradedMatrix& A, index& b, bitset& b_non_zero_columns, vec<index>& non_processed_blocks,
-    Merge_data& pro_block, vec<index>& incoming_vertices, vec<Merge_data>& pro_blocks, bitset& deleted_cocycles_b,
-    Graph& hom_graph, Hom_map& hom_spaces, Transform_Map& batch_transforms, std::shared_ptr<Base_change_virtual>& base_change, vec<index>& external_incoming_vertices, Row_transform_map& component_transforms, 
-    vec<Block_iterator>& block_map, vec<index>& row_map, Sub_batch& N_map){
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline bool alpha_extension_decomposition(Matrix& A, index& b, bitset& b_non_zero_columns, vec<index>& non_processed_blocks,
+    Merge_data_t<index>& pro_block, vec<index>& incoming_vertices, vec<Merge_data_t<index>>& pro_blocks, bitset& deleted_cocycles_b,
+    Graph& hom_graph, Hom_map_t<index>& hom_spaces, Transform_Map_t<index>& batch_transforms, std::shared_ptr<Base_change_virtual_t<index>>& base_change, vec<index>& external_incoming_vertices, Row_transform_map_t<index>& component_transforms,
+    vec<Block_iterator_t<Matrix>>& block_map, vec<index>& row_map, Sub_batch_t<index>& N_map){
     
-    Block& B = *block_map[b];
+    Block_t<Matrix>& B = *block_map[b];
     bitset& target_batch_indices = pro_block.second;
 
     // If N_b is already zero, then we do not need to do anything.
@@ -1567,10 +1600,10 @@ inline bool alpha_extension_decomposition(GradedMatrix& A, index& b, bitset& b_n
         constructing_linear_system_timer.resume();
     #endif
     vec<index> y;
-    linearise_sub_batch_entries(y, N_map[b], target_batch_indices, row_map);
+    linearise_sub_batch_entries<index>(y, N_map[b], target_batch_indices, row_map);
     vec<index> solution;    
-    Sparse_Matrix S(0,0); vec<hom_info> hom_storage; index E_threshold;  index N_threshold; index M_threshold;
-    construct_linear_system_extension(S, hom_storage, E_threshold, N_threshold, M_threshold,
+    SparseMatrix<index> S(0,0); vec<hom_info_t<index>> hom_storage; index E_threshold;  index N_threshold; index M_threshold;
+    construct_linear_system_extension<Matrix>(S, hom_storage, E_threshold, N_threshold, M_threshold,
     b, b_non_zero_columns, 
     pro_block, incoming_vertices, pro_blocks, deleted_cocycles_b,
     hom_graph, hom_spaces, batch_transforms, 
@@ -1596,7 +1629,7 @@ inline bool alpha_extension_decomposition(GradedMatrix& A, index& b, bitset& b_n
         #if DETAILS
             std::cout << "      Deleted N at: " << b << " and " << target_batch_indices << std::endl;
         #endif
-        update_matrix_extension(A, N_map, block_map, hom_spaces, base_change, non_processed_blocks, row_map, 
+        update_matrix_extension<Matrix>(A, N_map, block_map, hom_spaces, base_change, non_processed_blocks, row_map,
         solution, E_threshold, N_threshold, M_threshold, hom_storage, batch_transforms, pro_blocks, pro_block);
         for(index i = target_batch_indices.find_first(); i != bitset::npos; i = target_batch_indices.find_next(i)){
                 N_map[b].data[i].clear();
@@ -1624,15 +1657,16 @@ inline bool alpha_extension_decomposition(GradedMatrix& A, index& b, bitset& b_n
  * 
 
  */
-inline bool virtual_alpha_extension_decomposition(GradedMatrix& A, index& b, bitset& b_non_zero_columns, vec<index>& non_processed_blocks,
-    Merge_data& pro_block, vec<index>& incoming_vertices, vec<Merge_data>& pro_blocks, bitset& deleted_cocycles_b,
-    Graph& hom_graph, Hom_map& hom_spaces, Transform_Map& batch_transforms, std::shared_ptr<Base_change_virtual>& base_change, 
-    vec<Block_iterator>& block_map, vec<index>& row_map, Sub_batch& N_map){
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline bool virtual_alpha_extension_decomposition(Matrix& A, index& b, bitset& b_non_zero_columns, vec<index>& non_processed_blocks,
+    Merge_data_t<index>& pro_block, vec<index>& incoming_vertices, vec<Merge_data_t<index>>& pro_blocks, bitset& deleted_cocycles_b,
+    Graph& hom_graph, Hom_map_t<index>& hom_spaces, Transform_Map_t<index>& batch_transforms, std::shared_ptr<Base_change_virtual_t<index>>& base_change,
+    vec<Block_iterator_t<Matrix>>& block_map, vec<index>& row_map, Sub_batch_t<index>& N_map){
     
-    Block& B = *block_map[b];
+    Block_t<Matrix>& B = *block_map[b];
     bitset& target_batch_indices = pro_block.second;
     //In general version the following should be the effect of a hom on a block.
-    Sparse_Matrix& Cocycle_container = N_map[b]; 
+    SparseMatrix<index>& Cocycle_container = N_map[b];
 
     // If N_b is already zero, then we do not need to do anything. 
     // Should be checked before calling, so not necessary to check again.
@@ -1651,10 +1685,10 @@ inline bool virtual_alpha_extension_decomposition(GradedMatrix& A, index& b, bit
         constructing_linear_system_timer.resume();
     #endif
     vec<index> y;
-    linearise_sub_batch_entries(y, Cocycle_container, target_batch_indices, row_map);
+    linearise_sub_batch_entries<index>(y, Cocycle_container, target_batch_indices, row_map);
     vec<index> solution;    
-    Sparse_Matrix S(0,0); vec<hom_info> hom_storage; index E_threshold;  index N_threshold; index M_threshold;
-    construct_linear_system_extension(S, hom_storage, E_threshold, N_threshold, M_threshold,
+    SparseMatrix<index> S(0,0); vec<hom_info_t<index>> hom_storage; index E_threshold;  index N_threshold; index M_threshold;
+    construct_linear_system_extension<Matrix>(S, hom_storage, E_threshold, N_threshold, M_threshold,
     b, b_non_zero_columns, 
     pro_block, incoming_vertices, pro_blocks, deleted_cocycles_b,
     hom_graph, hom_spaces, batch_transforms, 
@@ -1678,7 +1712,7 @@ inline bool virtual_alpha_extension_decomposition(GradedMatrix& A, index& b, bit
         #if DETAILS
             std::cout << "      Deleted N at: " << b << " and " << target_batch_indices << std::endl;
         #endif
-        update_matrix_extension(A, N_map, block_map, hom_spaces, base_change, non_processed_blocks, row_map, 
+        update_matrix_extension<Matrix>(A, N_map, block_map, hom_spaces, base_change, non_processed_blocks, row_map,
         solution, E_threshold, N_threshold, M_threshold, hom_storage, batch_transforms, pro_blocks, pro_block);
         for(index i = target_batch_indices.find_first(); i != bitset::npos; i = target_batch_indices.find_next(i)){
                 N_map[b].data[i].clear();
@@ -1694,7 +1728,8 @@ inline bool virtual_alpha_extension_decomposition(GradedMatrix& A, index& b, bit
     return reduced_to_zero;
 }
 
-inline Row_transform compute_internal_row_ops(bitset& source_deleted_cocycles, bitset& target_deleted_cocycles){
+template<typename index = int>
+inline Row_transform_t<index> compute_internal_row_ops(bitset& source_deleted_cocycles, bitset& target_deleted_cocycles){
     // TO-DO: Implement this.
     // Question is: can the collection of cocycles in source_deleted_cocycles be deleted when in target_deleted_cocycles?
     // Right now I will only program this for the case where we deal with components which are cyclic modules.
@@ -1704,11 +1739,11 @@ inline Row_transform compute_internal_row_ops(bitset& source_deleted_cocycles, b
     // check if we can delete each seperately via alpha-extension decomposition.
 
     for(index i = source_deleted_cocycles.find_first(); i != bitset::npos; i = source_deleted_cocycles.find_next(i)){
-        // bool deleteion = virtual_alpha_extension_decomposition(
+        // bool deleteion = virtual_alpha_extension_decomposition<Matrix>(
                             
     }
 
-    return Row_transform();
+    return Row_transform_t<index>();
 }
 
 /**
@@ -1732,17 +1767,18 @@ inline Row_transform compute_internal_row_ops(bitset& source_deleted_cocycles, b
  * @param is_resolvable_cycle
  * @return vec< Merge_data > 
  */
-inline vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, Block_list& B_list, vec<Block_iterator>& block_map, 
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline vec< Merge_data_t<index> > automorphism_sensitive_alpha_decomp( Matrix& A, Block_list_t<Matrix>& B_list, vec<Block_iterator_t<Matrix>>& block_map,
     vec<index>& local_pierced_blocks, vec<index>& batch_indices, const bitset& N_column_indices, 
-    vec<bitset>& e_vec, Sub_batch& N_map, vec<vec<transition>>& vector_space_decompositions,
-    AIDA_config& config, std::shared_ptr<Base_change_virtual>& base_change,
-    Hom_map& hom_spaces, vec<index>& row_map, Graph& hom_graph,
+    vec<bitset>& e_vec, Sub_batch_t<index>& N_map, vec<vec<transition>>& vector_space_decompositions,
+    AIDA_config& config, std::shared_ptr<Base_change_virtual_t<index>>& base_change,
+    Hom_map_t<index>& hom_spaces, vec<index>& row_map, Graph& hom_graph,
     vec<index>& computation_order, vec<vec<index>>& scc, Graph& condensation, vec<bool>& is_resolvable_cycle){
 
     index k = batch_indices.size();
 
-    Transform_Map batch_transforms; // storage for transforms; maps pairs of virtual (processed) blocks to the admissible batch-transforms.
-    vec<Merge_data> pro_blocks; // Processed blocks may have already merged, though not formally so.
+    Transform_Map_t<index> batch_transforms; // storage for transforms; maps pairs of virtual (processed) blocks to the admissible batch-transforms.
+    vec<Merge_data_t<index>> pro_blocks; // Processed blocks may have already merged, though not formally so.
     Graph pro_graph; // graph on processed blocks given by existence of associated column-operations.
     // There should be an optimisation which mostly avoids computing this ->
     array<index> pro_scc;
@@ -1756,16 +1792,16 @@ inline vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, B
         std::cout << "      Automorphism Sensitive Alpha Decomposition" << std::endl;
         std::cout << "Blocks: " << local_pierced_blocks << ", col-support: " << N_column_indices << " with hom-graph: " << std::endl;
         print_graph_with_labels(hom_graph, local_pierced_blocks);
-        vec<indtree> scc_labels;
+        vec<indtree_t<index>> scc_labels;
         // Create the labels for the SCCs for better readability.
         for( vec<index>& s : scc){
-            scc_labels.push_back(indtree());
+            scc_labels.push_back(indtree_t<index>());
             for(index number : s){
                 scc_labels.back().insert(local_pierced_blocks[number]);
             }
         }
         std::cout << " and condensation: " << std::endl;
-        print_graph_with_labels<indtree>(condensation, scc_labels);
+        print_graph_with_labels<indtree_t<index>>(condensation, scc_labels);
         vec<vec<bool>> N_map_indicator = vec<vec<bool>>(local_pierced_blocks.size(), vec<bool>(k, 0));
         for(index i = 0; i < local_pierced_blocks.size(); i++){
             for(index j = 0; j < k; j++){
@@ -1781,7 +1817,7 @@ inline vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, B
         vec<index>& component_blocks_numbers = scc[component_index];
         vec<index> component_blocks = vec_restriction(local_pierced_blocks, component_blocks_numbers);
         // This actually removes component blocks from non_processed_blocks of course.
-        CT::add_to(component_blocks, non_processed_blocks);
+        Column_traits<vec<index>, index>::add_to(component_blocks, non_processed_blocks);
         #if DETAILS
             std::cout << "Processing component " << component_index << " with vertices { " << 
             component_blocks_numbers << "} and blocks { " << component_blocks << "}"  << std::endl;
@@ -1792,7 +1828,7 @@ inline vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, B
             std::cout << std::endl;
             std::cout << "Internal col-op graph:" << std::endl;
                 vec<vec<index>> pro_graph_labels = vec<vec<index>>();
-                for(Merge_data virtual_block : pro_blocks){
+                for(Merge_data_t<index> virtual_block : pro_blocks){
                     pro_graph_labels.push_back(virtual_block.first);
                 }
                 print_graph_with_labels(pro_graph, pro_graph_labels);
@@ -1819,7 +1855,7 @@ inline vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, B
 
         Graph component_graph;
         // TO-DO: Need to store which colums-ops correspond to an operation that is legal via this graph.
-        Row_transform_map component_transforms;
+        Row_transform_map_t<index> component_transforms;
 
         if(component_blocks.size() == 1){
 
@@ -1884,7 +1920,7 @@ inline vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, B
             index& pro_component_index = *it;
             vec<index>& pro_component_blocks_numbers = pro_scc[pro_component_index];
             Vertex current_vertex = boost::vertex(pro_component_index, pro_condensation);
-            vec<Merge_data> current_pro_blocks = vec_restriction(pro_blocks, pro_component_blocks_numbers); 
+            vec<Merge_data_t<index>> current_pro_blocks = vec_restriction(pro_blocks, pro_component_blocks_numbers);
 
             #if DETAILS
                 std::cout << "  Deleting above " << pro_component_index << " with ";
@@ -1898,14 +1934,14 @@ inline vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, B
                 index& b = component_blocks[0];
                 bitset& b_non_zero_columns = component_non_zero_columns[0];
                 for(index pro_b : pro_component_blocks_numbers){
-                    Merge_data& pro_block = pro_blocks[pro_b];
+                    Merge_data_t<index>& pro_block = pro_blocks[pro_b];
                     // vec<index>& pro_block_blocks = pro_block.first;
                     // bitset& pro_support = pro_block.second;
                     Vertex internal_current_vertex = boost::vertex(pro_b, pro_graph);
                     vec<index> incoming_vertices = incoming_edges<index>(pro_graph, internal_current_vertex); // Those virtual blocks from which there are internal column operations to the current block.
                     vec<index> external_incoming_vertices = vec<index>(); // No other blocks in the component.
                     if(deleted_cocycles[0][pro_b]){
-                        deleted_cocycles[0][pro_b] = ! alpha_extension_decomposition(
+                        deleted_cocycles[0][pro_b] = ! alpha_extension_decomposition<Matrix>(
                             A, b, b_non_zero_columns, non_processed_blocks, pro_block, incoming_vertices, pro_blocks, deleted_cocycles[0],
                             hom_graph, hom_spaces, batch_transforms, base_change, external_incoming_vertices, component_transforms,
                             block_map, row_map, N_map);
@@ -1933,7 +1969,7 @@ inline vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, B
                 }
             } else if (pro_component_blocks_numbers.size() == 1){
                 index& pro_b = pro_component_blocks_numbers[0];
-                Merge_data& pro_block = pro_blocks[pro_b];
+                Merge_data_t<index>& pro_block = pro_blocks[pro_b];
                 // vec<index>& pro_block_blocks = pro_block.first;
                 // bitset& pro_support = pro_block.second;
                 Vertex internal_current_vertex = boost::vertex(pro_b, pro_graph);
@@ -1946,7 +1982,7 @@ inline vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, B
                     vec<index> external_incoming_vertices = incoming_edges<index>(component_graph, external_current_vertex); // Those blocks in the component from which there are row operations to the current block.
                     bitset& b_non_zero_columns = component_non_zero_columns[i];
                     if(deleted_cocycles[i][pro_b]){
-                        deleted_cocycles[i][pro_b] = ! alpha_extension_decomposition(
+                        deleted_cocycles[i][pro_b] = ! alpha_extension_decomposition<Matrix>(
                             A, b, b_non_zero_columns, non_processed_blocks, pro_block, internal_incoming_vertices, pro_blocks, deleted_cocycles[i],
                             hom_graph, hom_spaces, batch_transforms, base_change, external_incoming_vertices, component_transforms,
                             block_map, row_map, N_map); 
@@ -1984,7 +2020,7 @@ inline vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, B
                         bitset& c_non_zero_columns = component_non_zero_columns[j];
                         bitset& c_cocycles = deleted_cocycles[j];
                         // This should compute if the effect of a row operation on the cocycles can be reverted by column operations.
-                        // component_transforms[{i,j}] = compute_internal_row_ops(b_cocycles, c_cocycles);
+                        // component_transforms[{i,j}] = compute_internal_row_ops<index>(b_cocycles, c_cocycles);
                         //TO-DO: Implement this.
                     }
                 }
@@ -2002,16 +2038,16 @@ inline vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, B
         if (component_blocks.size() == 1){
             assert(deleted_cocycles.size() == 1);
             assert(component_non_zero_columns.size() == 1);
-            Merge_data new_pro_block = {component_blocks, component_non_zero_columns[0]};
+            Merge_data_t<index> new_pro_block = {component_blocks, component_non_zero_columns[0]};
             for(index j = deleted_cocycles[0].size()-1; j > -1 ; j--){
                 if(deleted_cocycles[0][j]){
-                    merge_virtual_blocks(new_pro_block, pro_blocks[j]);
+                    merge_virtual_blocks<index>(new_pro_block, pro_blocks[j]);
                     pro_blocks.erase(pro_blocks.begin() + j);
                 }
             }
             pro_blocks.push_back(new_pro_block);
         } else {
-            vec<Merge_data> new_pro_blocks = vec<Merge_data>();
+            vec<Merge_data_t<index>> new_pro_blocks = vec<Merge_data_t<index>>();
             for(index i = 0; i < component_blocks.size(); i++){
                 new_pro_blocks.push_back({{component_blocks[i]}, component_non_zero_columns[i]});
             }
@@ -2024,7 +2060,7 @@ inline vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, B
                     if(deleted_cocycles[b][j]){
                         if(first_false == -1){
                             first_false = b;
-                            merge_virtual_blocks(new_pro_blocks[b], pro_blocks[j]);
+                            merge_virtual_blocks<index>(new_pro_blocks[b], pro_blocks[j]);
                             pro_blocks.erase(pro_blocks.begin() + j);
                         } else {
                             component_block_merges.push_back(b);
@@ -2034,7 +2070,7 @@ inline vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, B
                 if (!component_block_merges.empty()){
                     // We can merge the blocks in the component and the bitsets indicating which of the cocycles have been deleted.
                     for(auto it = component_block_merges.rbegin(); it != component_block_merges.rend(); it++){
-                        merge_virtual_blocks(new_pro_blocks[first_false], new_pro_blocks[*it]);
+                        merge_virtual_blocks<index>(new_pro_blocks[first_false], new_pro_blocks[*it]);
                         new_pro_blocks.erase(new_pro_blocks.begin() + *it); // Is this a problem? will the iterator become invalid?
                         deleted_cocycles[first_false] |= deleted_cocycles[*it];
                         deleted_cocycles.erase(deleted_cocycles.begin() + *it);
@@ -2048,12 +2084,12 @@ inline vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, B
             for( auto it2 = pro_blocks.rbegin(); it2 != pro_blocks.rend(); it2++){
                 if( it != it2){
                 if( batch_transforms.find({*it, *it2}) == batch_transforms.end() ){
-                    batch_transforms[{*it, *it2}] = compute_internal_col_ops(*it, *it2, N_map, hom_spaces, row_map, k, block_map);
+                    batch_transforms[{*it, *it2}] = compute_internal_col_ops<Matrix>(*it, *it2, N_map, hom_spaces, row_map, k, block_map);
                 }
                 }
             }
         }
-        pro_graph = construct_batch_transform_graph(batch_transforms, pro_blocks);
+        pro_graph = construct_batch_transform_graph<index>(batch_transforms, pro_blocks);
         vec<index> component = vec<index>(boost::num_vertices(pro_graph));
         pro_condensation = compute_scc_and_condensation(pro_graph, component, pro_scc);
         pro_computation_order = compute_topological_order<index>(pro_condensation); 
@@ -2072,7 +2108,8 @@ inline vec< Merge_data > automorphism_sensitive_alpha_decomp( GradedMatrix& A, B
  * @param has_unresolvable_cycle 
  * @param has_multiple_cycles 
  */
-inline void get_cycle_information(vec<index>& pierced_blocks, vec<vec<index>>& scc, vec<Block_iterator>& block_map,
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline void get_cycle_information(vec<index>& pierced_blocks, vec<vec<index>>& scc, vec<Block_iterator_t<Matrix>>& block_map,
     bool& has_cycle,
     bool& has_unresolvable_cycle,
     bool& has_multiple_cycles,
@@ -2109,8 +2146,9 @@ inline void get_cycle_information(vec<index>& pierced_blocks, vec<vec<index>>& s
     }
 }
 
-inline void reduce_hom_alpha_graph(Hom_map& hom_spaces, vec<index>& local_pierced_blocks, 
-    Graph& hom_digraph, Degree& alpha, vec<Block_iterator>& block_map) {
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+inline void reduce_hom_alpha_graph(Hom_map_t<index>& hom_spaces, vec<index>& local_pierced_blocks,
+    Graph& hom_digraph, base_degree<Matrix>& alpha, vec<Block_iterator_t<Matrix>>& block_map) {
 
     auto edges = boost::edges(hom_digraph);
     std::vector<std::pair<Graph::vertex_descriptor, Graph::vertex_descriptor>> edges_to_remove;
@@ -2123,8 +2161,8 @@ inline void reduce_hom_alpha_graph(Hom_map& hom_spaces, vec<index>& local_pierce
         index b = local_pierced_blocks[target_vertex];
 
         // Access the blocks C and B
-        Block& C = *block_map[c];
-        Block& B = *block_map[b];
+        Block_t<Matrix>& C = *block_map[c];
+        Block_t<Matrix>& B = *block_map[b];
 
         // Perform the steps already present
         if (B.local_basislift_indices.empty()) {
@@ -2172,12 +2210,13 @@ inline void reduce_hom_alpha_graph(Hom_map& hom_spaces, vec<index>& local_pierce
  * @param acyclic_counter 
  * @return false if there are unresolvable cycles 
  */
+template<class Matrix, typename index = matrix_index_t<Matrix>>
 inline bool construct_graphs_from_hom(Graph& hom_digraph, std::vector<index>& component, vec<vec<index>>& scc, vec<bool>& is_resolvable_cycle,
-        Graph& condensation, vec<index>& computation_order, vec<index>& pierced_blocks, Hom_map& hom_spaces, 
-        AIDA_runtime_statistics& statistics, AIDA_config& config, index& t, vec<Block_iterator>& block_map, Degree& alpha){
+        Graph& condensation, vec<index>& computation_order, vec<index>& pierced_blocks, Hom_map_t<index>& hom_spaces,
+        AIDA_runtime_statistics& statistics, AIDA_config& config, index& t, vec<Block_iterator_t<Matrix>>& block_map, base_degree<Matrix>& alpha){
     
     // Graph on pierced blocks representing Hom(C,B) != 0 
-    hom_digraph = construct_hom_digraph(hom_spaces, pierced_blocks);
+    hom_digraph = construct_hom_digraph<index>(hom_spaces, pierced_blocks);
     
     bool test_alpha_cycles = true;
 
@@ -2191,11 +2230,11 @@ inline bool construct_graphs_from_hom(Graph& hom_digraph, std::vector<index>& co
         vec<vec<index>> test_scc;
         Graph test_condensation = compute_scc_and_condensation(hom_digraph, test_component, test_scc);
         test_is_resolvable_cycle = vec<bool>(test_scc.size(), true);
-        get_cycle_information(pierced_blocks, test_scc, block_map, test_has_cycle, test_has_unresolvable_cycle, test_has_multiple_cycles, test_is_resolvable_cycle);
+        get_cycle_information<Matrix>(pierced_blocks, test_scc, block_map, test_has_cycle, test_has_unresolvable_cycle, test_has_multiple_cycles, test_is_resolvable_cycle);
     }
 
     if(config.alpha_hom){
-      //  reduce_hom_alpha_graph(hom_spaces, pierced_blocks, hom_digraph, alpha, block_map);
+      //  reduce_hom_alpha_graph<Matrix>(hom_spaces, pierced_blocks, hom_digraph, alpha, block_map);
     }
 
     // Components assigns to each block the index of the strongly connected component it is in.
@@ -2221,7 +2260,7 @@ inline bool construct_graphs_from_hom(Graph& hom_digraph, std::vector<index>& co
     bool has_unresolvable_cycle = false;
     bool has_multiple_cycles = false;
 
-    get_cycle_information(pierced_blocks, scc, block_map, has_cycle, has_unresolvable_cycle, has_multiple_cycles, is_resolvable_cycle);
+    get_cycle_information<Matrix>(pierced_blocks, scc, block_map, has_cycle, has_unresolvable_cycle, has_multiple_cycles, is_resolvable_cycle);
 
     if(test_alpha_cycles){
         if(test_has_unresolvable_cycle && !has_unresolvable_cycle){
@@ -2267,10 +2306,11 @@ inline bool construct_graphs_from_hom(Graph& hom_digraph, std::vector<index>& co
  * @param support 
  * @return vec<Merge_data>
  */
-inline vec<Merge_data> find_prelim_decomposition(Sub_batch& N_map, const vec<index>& blocks, const bitset& support){
+template<typename index = int>
+inline vec<Merge_data_t<index>> find_prelim_decomposition(Sub_batch_t<index>& N_map, const vec<index>& blocks, const bitset& support){
     index k = support.size();
     assert(k == N_map[blocks[0]].get_num_cols());
-    vec<Merge_data> block_to_columns; 
+    vec<Merge_data_t<index>> block_to_columns;
     for(index i = 0; i< blocks.size(); i++){
         index b = blocks[i];
         block_to_columns.push_back({{b}, bitset(k, 0)});
@@ -2309,18 +2349,19 @@ inline vec<Merge_data> find_prelim_decomposition(Sub_batch& N_map, const vec<ind
  * @param merge_info_1 
  * @param merge_info_2 
  */
-inline void compare_merge_info(Full_merge_info& merge_info_1, Full_merge_info& merge_info_2){
+template<typename index = int>
+inline void compare_merge_info(Full_merge_info_t<index>& merge_info_1, Full_merge_info_t<index>& merge_info_2){
     assert(merge_info_1.size() == merge_info_2.size());
     bool success = true;
     for(index i = 0; i < merge_info_1.size(); i++){
         auto& merge_vec_1 = merge_info_1[i];
         auto& merge_vec_2 = merge_info_2[i];
 
-        for(Merge_data& merge : merge_vec_1){
+        for(Merge_data_t<index>& merge : merge_vec_1){
             std::sort(merge.first.begin(), merge.first.end());
             assert(is_sorted(merge.first));
         }
-        for(Merge_data& merge : merge_vec_2){
+        for(Merge_data_t<index>& merge : merge_vec_2){
             std::sort(merge.first.begin(), merge.first.end());
             assert(is_sorted(merge.first));
         }
@@ -2342,8 +2383,8 @@ inline void compare_merge_info(Full_merge_info& merge_info_1, Full_merge_info& m
         } else {
             
             for(index j = 0; j < merge_vec_1.size(); j++){
-                Merge_data& merge_1 = merge_vec_1[j];
-                Merge_data& merge_2 = merge_vec_2[j];
+                Merge_data_t<index>& merge_1 = merge_vec_1[j];
+                Merge_data_t<index>& merge_2 = merge_vec_2[j];
                 if(merge_1.first.size() != merge_2.first.size()){
                     success = false;
                     std::cout << "Different number of blocks in merge at batch " << i << std::endl;
@@ -2387,5 +2428,7 @@ inline void compare_merge_info(Full_merge_info& merge_info_1, Full_merge_info& m
 
 } // namespace aida
 
+
+#include "aida_functions_impl.hpp"
 
 #endif // AIDA_HPP

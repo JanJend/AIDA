@@ -1,26 +1,12 @@
-/**
- * @file aida_interface.cpp
- * @author Jan Jendrysiak
- */
-
-
-
-#include "aida_interface.hpp"
-#include <regex>
-#include <filesystem>
+#pragma once
 
 namespace aida {
 
-namespace fs = std::filesystem;
-
-AIDA_functor::AIDA_functor() 
-    : base_changes(), config(), statistics_vec(), runtime_statistics(), 
-      merge_data_vec(), cumulative_statistics(), cumulative_runtime_statistics() {}
-
-void AIDA_functor::load_vector_space_decompositions(int max_dim, std::string decomp_path) {
+template<typename Index>
+void AIDA_functor<Index>::load_vector_space_decompositions(std::size_t max_dim, const std::string& decomp_path) {
     std::string tran_path = decomp_path + "/transitions_reduced_";
-    int start = vector_space_decompositions.size();
-    for(int k = start + 2; k <= max_dim; k++) {
+    std::size_t start = vector_space_decompositions.size();
+    for(std::size_t k = start + 2; k <= max_dim; k++) {
         try {
             vector_space_decompositions.emplace_back(load_transition_list(tran_path + std::to_string(k) + ".bin"));
         } catch (std::exception& e) {
@@ -30,7 +16,8 @@ void AIDA_functor::load_vector_space_decompositions(int max_dim, std::string dec
     }
 }
 
-void AIDA_functor::load_existing_decompositions(int& k_max) {
+template<typename Index>
+void AIDA_functor<Index>::load_existing_decompositions(std::size_t k_max) {
     if(k_max > vector_space_decompositions.size() + 1) {
         std::string decomp_path = findDecompositionsDir();
         int largest_local_decomposition_list = findLargestNumberInFilenames(decomp_path);
@@ -42,39 +29,43 @@ void AIDA_functor::load_existing_decompositions(int& k_max) {
         } else {
             load_vector_space_decompositions(largest_local_decomposition_list, decomp_path);
             if(config.show_info) {
-                std::cout << "k_max is " << k_max << " but only found decompositions up to dim " 
-                          << largest_local_decomposition_list 
-                          << ". \n It is possible that the computation will produce an error if we need to decompose more relations at the same time." 
+                std::cout << "k_max is " << k_max << " but only found decompositions up to dim "
+                          << largest_local_decomposition_list
+                          << ". \n It is possible that the computation will produce an error if we need to decompose more relations at the same time."
                           << std::endl;
             }
         }
     }
 }
 
-void AIDA_functor::compute_vector_space_decompositions_faulty(const std::string& path) {
+template<typename Index>
+void AIDA_functor<Index>::compute_vector_space_decompositions_faulty(const std::string& path) {
     const std::string command = "../generate_decompositions -at -cover -transitions ";
     int result = system((command + std::to_string(9)).c_str());
 }
 
-void AIDA_functor::clear_decompositions() {
-    vector_space_decompositions.clear();
-}
-
-void AIDA_functor::operator()(GradedMatrix& A, Block_list& B_list) {
+template<typename Index>
+template<class Matrix>
+void AIDA_functor<Index>::decompose(Matrix& A, Block_list_t<Matrix>& B_list) {
     if (config.sort){
         A.sort_compatibly();
     }
+    if (!A.compatibly_sorted) {
+        const auto order = Degree_traits<base_degree<Matrix>>::lex_lambda();
+        A.compatibly_sorted = std::is_sorted(A.row_degrees.begin(), A.row_degrees.end(), order) &&
+                              std::is_sorted(A.col_degrees.begin(), A.col_degrees.end(), order);
+    }
     GRLINA_DEBUG_CHECK(if (!A.compatibly_sorted)
         throw std::invalid_argument("AIDA requires compatibly sorted rows and columns"));
-    const Column_batches batch_info(A);
-    int k_max = batch_info.k_max;
+    const Column_batches_t<Index> batch_info(A);
+    std::size_t k_max = batch_info.k_max;
     load_existing_decompositions(k_max);
 
     if(config.show_info) {
         std::cout << " Matrix has " << A.get_num_rows() << " rows and " << A.get_num_cols()
                   << " columns, k_max is " << batch_info.k_max << ", and there are " << batch_info.col_batches.size() << " batches." << std::endl;
     }
-    
+
     std::shared_ptr<Base_change_virtual> base_change;
     if(config.save_base_change) {
         base_change = std::make_shared<Base_change>();
@@ -91,14 +82,14 @@ void AIDA_functor::operator()(GradedMatrix& A, Block_list& B_list) {
     #endif
 
     AIDA(A, B_list, vector_space_decompositions, base_changes.back(), runtime_statistics.back(), config, merge_info, batch_info);
-    
+
     #if TIMERS
         runtime_statistics.back().evaluate_timers();
     #endif
 
     merge_data_vec.push_back(merge_info);
     statistics_vec.back().compute_statistics(B_list);
-    
+
     if(config.show_info) {
         std::cout << B_list.size() << " indecomposable summands." << std::endl;
     }
@@ -116,22 +107,5 @@ void AIDA_functor::operator()(GradedMatrix& A, Block_list& B_list) {
     }
 }
 
-Sparse_Matrix AIDA_functor::get_row_basis(index i, index m) {
-    vec<pair>& performed_row_ops = base_changes[i]->performed_row_ops;
-    Sparse_Matrix result = Sparse_Matrix(m, m, "Identity");
-    for(index j = performed_row_ops.size()-1; j > -1; j--) {
-        result.row_op_on_cols(performed_row_ops[j].first, performed_row_ops[j].second);
-    }
-    return result;
-}
-
-Sparse_Matrix AIDA_functor::get_row_basis(index m) {
-    vec<pair>& performed_row_ops = base_changes.back()->performed_row_ops;
-    Sparse_Matrix result = Sparse_Matrix(m, m, "Identity");
-    for(index j = performed_row_ops.size()-1; j > -1; j--) {
-        result.row_op_on_cols(performed_row_ops[j].first, performed_row_ops[j].second);
-    }
-    return result;
-}
 
 } // namespace aida

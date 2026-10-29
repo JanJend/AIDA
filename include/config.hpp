@@ -70,8 +70,8 @@ namespace aida{
     extern cpu_timer full_block_reduce_timer;
 #endif
 
-double calculateAverage(const vec<index>& values);
-double calculateMedian(vec<index> values);
+double calculateAverage(const vec<std::size_t>& values);
+double calculateMedian(vec<std::size_t> values);
 
 
 struct AIDA_config {
@@ -89,7 +89,7 @@ struct AIDA_config {
     bool compare_hom; // Compares the optimised and non-optimised hom space calculation.
     bool supress_col_sweep; // Does not try to delete subbatches with only the column operations.
     bool alpha_hom; // Turns the computation of alpha-homs on.
-    vec<vec<index>> decomp_failure;
+    vec<vec<std::size_t>> decomp_failure;
     
     AIDA_config(bool supress_col_sweep = false, bool sort_output = false, 
         bool sort = false, bool save_base_change = false, 
@@ -99,7 +99,7 @@ struct AIDA_config {
         bool show_info = false, bool exhaustive_test = false, 
         bool compare_hom = false, bool alpha_hom = false)
         : supress_col_sweep(supress_col_sweep), save_base_change(save_base_change), sort_output(sort_output), sort(sort), exhaustive(exhaustive), brute_force(brute_force), compare_both(compare_both), progress(progress), turn_off_hom_optimisation(turn_off_hom_optimisation), show_info(show_info), exhaustive_test(exhaustive_test), compare_hom(compare_hom), alpha_hom(alpha_hom) {
-            decomp_failure = vec<vec<int>>();
+
         }
 
 };
@@ -109,17 +109,19 @@ struct AIDA_config {
  * @brief Base class for base_change
  * 
  */
-struct Base_change_virtual {
-    vec<pair> performed_row_ops;
+template<typename index>
+struct Base_change_virtual_t {
+    vec<std::pair<index, index>> performed_row_ops;
     virtual void add_row_op(index source, index target) = 0;
-    virtual ~Base_change_virtual() = default; // Ensure a virtual destructor
+    virtual ~Base_change_virtual_t() = default; // Ensure a virtual destructor
 };
 
 /**
  * @brief In case we do not want to store the row_operations / basechange we need for decompostion.
  * 
  */
-struct Null_base_change : public Base_change_virtual {
+template<typename index>
+struct Null_base_change_t : public Base_change_virtual_t<index> {
     void add_row_op(index source, index target) override {}
 };
 
@@ -127,31 +129,64 @@ struct Null_base_change : public Base_change_virtual {
  * @brief In case we do want to store the row_operations / basechange.
  * 
  */
-struct Base_change : public Base_change_virtual {
+template<typename index>
+struct Base_change_t : public Base_change_virtual_t<index> {
     void add_row_op(index source, index target) override {
-        performed_row_ops.push_back({source, target});
+        this->performed_row_ops.push_back({source, target});
     }
 };
+
+using Base_change_virtual = Base_change_virtual_t<int>;
+using Null_base_change = Null_base_change_t<int>;
+using Base_change = Base_change_t<int>;
 
 /**
  * @brief Computes and processes statistics about indecomposables
  */
 struct AIDA_statistics {
-    index total_num_rows;
-    index num_of_summands;
-    index num_of_free;
-    index num_of_cyclic;
-    index num_of_intervals;
-    index num_of_non_intervals;
-    index gen_max;
-    index size_of_intervals;
-    index size_of_non_intervals;
+    std::size_t total_num_rows;
+    std::size_t num_of_summands;
+    std::size_t num_of_free;
+    std::size_t num_of_cyclic;
+    std::size_t num_of_intervals;
+    std::size_t num_of_non_intervals;
+    std::size_t gen_max;
+    std::size_t size_of_intervals;
+    std::size_t size_of_non_intervals;
     double interval_ratio;
     double interval_size_ratio;
 
     AIDA_statistics();
     
-    void compute_statistics(Block_list& B_list);
+    template<class Matrix>
+    void compute_statistics(const Block_list_t<Matrix>& B_list) {
+        num_of_summands = B_list.size();
+        for(const auto& B : B_list) {
+            if(B.type == BlockType::FREE) {
+                num_of_free++;
+                total_num_rows++;
+            } else if (B.type == BlockType::CYC) {
+                num_of_cyclic++;
+                total_num_rows++;
+            } else if (B.type == BlockType::INT) {
+                num_of_intervals++;
+                size_of_intervals += B.rows.size();
+                total_num_rows += B.rows.size();
+                if(B.rows.size() > gen_max) {
+                    gen_max = B.rows.size();
+                }
+            } else {
+                size_of_non_intervals += B.rows.size();
+                total_num_rows += B.rows.size();
+                if(B.rows.size() > gen_max) {
+                    gen_max = B.rows.size();
+                }
+            }
+        }
+        interval_ratio = static_cast<double>(num_of_intervals + num_of_free + num_of_cyclic) / num_of_summands;
+        interval_size_ratio = static_cast<double>(size_of_intervals + num_of_free + num_of_cyclic) / total_num_rows;
+    }
+
     void operator+=(const AIDA_statistics& other);
     void print_statistics();
 };
@@ -160,23 +195,23 @@ struct AIDA_statistics {
  * @brief Handles all statistical information gathered at runtime of the AIDA algorithm
  */
 struct AIDA_runtime_statistics {
-    vec<index> num_subspace_iterations;
-    index counter_no_comp;
-    index counter_only_col;
-    index counter_only_row;
-    vec<index> num_of_pierced_blocks;
-    index counter_naive_deletion;
-    index counter_naive_full_iteration;
-    index counter_extra_iterations;
-    index counter_col_deletion;
-    index counter_row_deletion;
-    index resolvable_cyclic_counter;
-    index cyclic_counter;
-    index acyclic_counter;
-    index alpha_cycle_avoidance;
-    index local_k_max;
-    index dim_hom_max;
-    vec<index> dim_hom_vec;
+    vec<std::size_t> num_subspace_iterations;
+    std::size_t counter_no_comp;
+    std::size_t counter_only_col;
+    std::size_t counter_only_row;
+    vec<std::size_t> num_of_pierced_blocks;
+    std::size_t counter_naive_deletion;
+    std::size_t counter_naive_full_iteration;
+    std::size_t counter_extra_iterations;
+    std::size_t counter_col_deletion;
+    std::size_t counter_row_deletion;
+    std::size_t resolvable_cyclic_counter;
+    std::size_t cyclic_counter;
+    std::size_t acyclic_counter;
+    std::size_t alpha_cycle_avoidance;
+    std::size_t local_k_max;
+    std::size_t dim_hom_max;
+    vec<std::size_t> dim_hom_vec;
 
     
     #if TIMERS

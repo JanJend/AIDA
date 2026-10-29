@@ -1,5 +1,5 @@
 /**
- * @file aida_decompose.cpp
+ * @file aida_decompose_impl.hpp
     * @author Jan Jendrysiak
     * @brief Decomposes a presentation matrix using AIDA
     * @version 0.9.0
@@ -10,43 +10,44 @@
    the Free Software Foundation, either version 3 of the License, or
    (at your option) any later version.
 */
-#include "aida_decompose.hpp"
+#pragma once
 
 
 namespace aida {
 
 /**
  * @brief Decomposes the matrix A into a direct sum of indecomposable submatrices.
- * 
- * @param A 
- * @param B_list 
- * @param base_change 
- * @param statistics 
+ *
+ * @param A
+ * @param B_list
+ * @param base_change
+ * @param statistics
  * @param config
- * @param merge_info 
+ * @param merge_info
  */
-void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_space_decompositions, std::shared_ptr<Base_change_virtual>& base_change, AIDA_runtime_statistics& statistics,
-    AIDA_config& config, Full_merge_info& merge_info, const Column_batches& batch_info) {
-    
+template<class Matrix, typename index>
+void AIDA(Matrix& A, Block_list_t<Matrix>& B_list, vec<vec<transition>>& vector_space_decompositions, std::shared_ptr<Base_change_virtual_t<index>>& base_change, AIDA_runtime_statistics& statistics,
+    AIDA_config& config, Full_merge_info_t<index>& merge_info, const Column_batches_t<index>& batch_info) {
+
     #if TIMERS
         aida::full_timer.start();
         aida::misc_timer.start();
     #endif
 
     index batches = batch_info.col_batches.size();
-    
+
 
     // Only for analysis and optimisation ->
-    
+
 
     #if OBSERVE
         // Continuous monitoring of the content of a batch
         observe_row_indices = vec<index>();
 
         std::cout << "Observing batch " << observe_batch_index << " with columns " << batch_info.col_batches[observe_batch_index] << " at " << std::endl;
-        Degree_traits<Degree>::print_degree(A.col_degrees[batch_info.col_batches[observe_batch_index][0]]);
+        Degree_traits<base_degree<Matrix>>::print_degree(A.col_degrees[batch_info.col_batches[observe_batch_index][0]]);
         std::cout << " and with content:" << std::endl;
-        Sparse_Matrix observed_batch_comparison = A.restricted_domain_copy(batch_info.col_batches[observe_batch_index]);
+        SparseMatrix<index> observed_batch_comparison = A.restricted_domain_copy(batch_info.col_batches[observe_batch_index]);
         observed_batch_comparison.print();
         // Save indices to see where the first change to this batch occurs.
         for(vec<index> column : observed_batch_comparison.data){
@@ -55,27 +56,27 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
     #endif
 
     vec<index> row_map(A.get_num_rows(), 0);
-    vec<Block_iterator> block_map;
+    vec<Block_iterator_t<Matrix>> block_map;
     #if TIMERS
         misc_timer.stop();
         update_block_timer.resume();
     #endif
-    initialise_block_list(A, B_list, block_map);
+    initialise_block_list<Matrix>(A, B_list, block_map);
     if(batches == 0){
         if(config.show_info){
-            std::cout << "The entered matrix has no columns and is thus trivially decomposable w.r.t. any basis." << std::endl;   
+            std::cout << "The entered matrix has no columns and is thus trivially decomposable w.r.t. any basis." << std::endl;
         }
         return;
-    } 
+    }
     #if TIMERS
         misc_timer.resume();
         update_block_timer.stop();
     #endif
 
-    Sub_batch N_map;
-    Hom_map hom_spaces; // Stores the hom-spaces for each pair of initials (c, b) where necessary
+    Sub_batch_t<index> N_map;
+    Hom_map_t<index> hom_spaces; // Stores the hom-spaces for each partition of initials (c, b) where necessary
     std::unordered_map< index, vec<index>> domain_keys; // For some c, stores the indices b for which hom_spaces has a key (c, b).
-    std::unordered_map< index, vec<index>> codomain_keys; // For some b, stores the indices c for which hom_spaces has a key (c, b).    
+    std::unordered_map< index, vec<index>> codomain_keys; // For some b, stores the indices c for which hom_spaces has a key (c, b).
     vec<bitset> e_vec = compute_standard_vectors(batch_info.k_max);
     vec<bitset> count_vector = compute_sum_of_standard_vectors(batch_info.k_max);
 
@@ -119,27 +120,27 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
 
         bool one_block_left = false;
         vec<index> batch_indices = batch_info.col_batches[t]; // Indices of the columns in the batch
-        int k_ = batch_indices.size(); // Number of columns in the batch
+        index k_ = batch_indices.size(); // Number of columns in the batch
         // TO-DO: Have seen rounding errors here, investigate.
-        Degree alpha = A.col_degrees[batch_indices[0]]; // Degree of the batch
-        
+        base_degree<Matrix> alpha = A.col_degrees[batch_indices[0]]; // matrix_degree of the batch
+
         #if DETAILS
             std::cout << "Processing batch " << t << " with " << k_ << " columns at the indices " << batch_indices <<  std::endl;
         #endif
-        N_map.clear(); bool no_further_comp = false; vec<Merge_data> block_partition = {}; indtree active_blocks;
-        
+        N_map.clear(); bool no_further_comp = false; vec<Merge_data_t<index>> block_partition = {}; indtree_t<index> active_blocks;
+
         // Get the batch as a set of columns from the rows and identify the blocks which need to be processed
         #if TIMERS
             misc_timer.stop();
             compute_N_timer.resume();
         #endif
-        compute_touched_blocks(active_blocks, block_map, A, batch_indices, N_map); 
+        compute_touched_blocks<Matrix>(active_blocks, block_map, A, batch_indices, N_map);
 
         #if OBSERVE
         if( t == observe_batch_index ){
             std::cout << "Analysing batch " << t << " at " << batch_indices << " - Printing B and N:" << std::endl;
             for(index b : active_blocks){
-                std::cout << "Block " << b << ": " << std::endl;
+                std::cout << "Block_t<Matrix> " << b << ": " << std::endl;
                 block_map[b]->print();
                 std::cout << "N[" << b << "]: " << std::endl;
                 N_map[b].print();
@@ -161,23 +162,23 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
         if(active_blocks.size() != 1) {
             for(auto it = active_blocks.begin(); it != active_blocks.end();){
                 index j = *it;
-                Block& B = *block_map[j];
-                // No need to do anything here if the block is empty. 
+                Block_t<Matrix>& B = *block_map[j];
+                // No need to do anything here if the block is empty.
                     if(B.columns.size() == 0){
                         it++;
-                        B.local_data = std::make_shared<Sparse_Matrix>(0,0);
+                        B.local_data = std::make_shared<SparseMatrix<index>>(0,0);
                         N_map[j].compute_rows_forward_map(row_map, B.rows.size());
                         continue;}
                 auto& N = N_map[j];
                 #if TIMERS
                     delete_with_col_timer.resume();
                     misc_timer.stop();
-                #endif 
+                #endif
                 bool only_col_ops = B.delete_with_col_ops(alpha, N, config.supress_col_sweep);
                 #if TIMERS
                     delete_with_col_timer.stop();
                     misc_timer.resume();
-                #endif 
+                #endif
                 if(only_col_ops){
                     #if DETAILS
                         std::cout << "      Deleted N at index " << j << " with column ops." << std::endl;
@@ -193,8 +194,8 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
                     #if TIMERS
                     misc_timer.stop();
                     compute_rows_timer.resume();
-                    #endif 
-                    B.compute_rows(row_map); 
+                    #endif
+                    B.compute_rows(row_map);
                     N_map[j].compute_rows_forward_map(row_map, B.rows.size());
                     #if TIMERS
                     compute_rows_timer.stop();
@@ -206,11 +207,11 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
             one_block_left = true;
             statistics.counter_no_comp++;
         }
-        
+
         // Next try to delete every whole sub-batch also with the help of row operations.
         // To find all row-operations needed, we need to compute the hom-spaces between the blocks.
 
-        if(active_blocks.size() != 1){ 
+        if(active_blocks.size() != 1){
             assert(active_blocks.size() > 0);
             #if OBSERVE
                 for(index r : observe_row_indices){
@@ -232,23 +233,23 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
                 }
             #endif
 
-            
+
             // Then delete with previously computed hom-spaces.
-            // We want to start with the blocks of lowest Degree, because the spaces of homomorphisms with these codomains are smaller.
+            // We want to start with the blocks of lowest matrix_degree, because the spaces of homomorphisms with these codomains are smaller.
 
             for(auto itr = active_blocks.rbegin(); itr != active_blocks.rend();) {
-                index b = *itr; vec<index> b_vec = {b}; 
+                index b = *itr; vec<index> b_vec = {b};
                 // This is ugly. Need to find a solution for the set / vector problem.
                 vec<index> active_blocks_vec(active_blocks.begin(), active_blocks.end());
 
                 if( !config.brute_force ){
-                    compute_hom_to_b(A, b, block_map, active_blocks, hom_spaces, domain_keys, codomain_keys, alpha, statistics, config);
+                    compute_hom_to_b<Matrix>(A, b, block_map, active_blocks, hom_spaces, domain_keys, codomain_keys, alpha, statistics, config);
                 }
 
                 #if TIMERS
                     full_block_reduce_timer.start();
                 #endif
-                bool deleted_N_b = use_either_block_reduce_full_support(A, b_vec, N_map, batch_indices, false, 
+                bool deleted_N_b = use_either_block_reduce_full_support<Matrix>(A, b_vec, N_map, batch_indices, false,
                     active_blocks_vec, block_map, base_change, row_map, hom_spaces, config.brute_force, config.compare_both);
 
                 #if TIMERS
@@ -256,7 +257,7 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
                     dispose_S_timer.stop();
                     misc_timer.resume();
                 #endif
-                
+
                 if( deleted_N_b){
                     #if DETAILS
                         std::cout << "      Deleted N at index " << b << " with row ops." << std::endl;
@@ -267,14 +268,14 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
                     auto it = active_blocks.erase(--itr.base());
                     itr = std::reverse_iterator<decltype(it)>(it);
                 } else {
-                    // It is imporant to have the local data be completely reduced 
+                    // It is imporant to have the local data be completely reduced
                     // ( that is, have a canonical representation in the quotient space )
                     bool further_reduce = block_map[b] -> reduce_N_fully(N_map[b], false);
-                    
+
                     #if TIMERS
                         misc_timer.stop();
                         compute_rows_timer.resume();
-                    #endif               
+                    #endif
                     N_map[b].compute_rows_forward_map(row_map, block_map[b]->rows.size());
                     #if TIMERS
                         misc_timer.resume();
@@ -318,7 +319,7 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
                 std::cout << "Either the input file was not minimised correctly or there is a bug in the algorithm." << std::endl;
                 #if DETAILS
                 for(index b: pierced_blocks){
-                    std::cout << "Block and N for " << b << std::endl;
+                    std::cout << "Block_t<Matrix> and N for " << b << std::endl;
                     block_map[b]->print();
                     N_map[b].print_rows();
                 }
@@ -327,16 +328,16 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
                 assert(false);
             }
             // TO-DO: Check how decomposed the matrix already is and pass the pieces to the next algorithm:
-            
-            vec<Merge_data> prelim_decomposition = find_prelim_decomposition(N_map, pierced_blocks, count_vector[k_-1]);
+
+            vec<Merge_data_t<index>> prelim_decomposition = find_prelim_decomposition<index>(N_map, pierced_blocks, count_vector[k_-1]);
             // Ordering is not strictly necessary, but some parts might (will!) not work because they have been coded in a way which assumes it.
-            for(Merge_data& merge : prelim_decomposition){
+            for(Merge_data_t<index>& merge : prelim_decomposition){
                 std::sort(merge.first.begin(), merge.first.end());
             }
             #if DETAILS
                 std::cout << "Prelim decomposition: " << std::endl;
-                for(auto& pair : prelim_decomposition){
-                    std::cout << "  " << pair.first << " -> " << pair.second << std::endl;
+                for(auto& partition : prelim_decomposition){
+                    std::cout << "  " << partition.first << " -> " << partition.second << std::endl;
                 }
             #endif
 
@@ -344,15 +345,15 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
                 pre_alpha_decomp_optimisation_timer.stop();
                 alpha_decomp_timer.resume();
             #endif
-            for( Merge_data& pair : prelim_decomposition){
-                vec<index>& local_pierced_blocks = pair.first;
-                bitset& N_column_indices = pair.second;
+            for( Merge_data_t<index>& partition : prelim_decomposition){
+                vec<index>& local_pierced_blocks = partition.first;
+                bitset& N_column_indices = partition.second;
                 if(N_column_indices.count() > statistics.local_k_max){
                     statistics.local_k_max = N_column_indices.count();
                 }
                 #if OBSERVE
                     if(std::find(local_pierced_blocks.begin(), local_pierced_blocks.end(), observe_block_index) != local_pierced_blocks.end()){
-                        
+
                         std::cout << " Found " << observe_block_index << " in local_pierced_blocks." << std::endl;
                         std::cout << "  Pierced blocks: " << active_blocks << std::endl;
                         std::cout << "  Local pierced blocks: " << local_pierced_blocks << std::endl;
@@ -361,21 +362,21 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
                 #endif
 
                 if(local_pierced_blocks.size() == 1 || N_column_indices.count() == 1){
-                    block_partition.push_back(pair);
+                    block_partition.push_back(partition);
                 } else {
                     Graph hom_digraph; std::vector<index> component; vec<vec<index>> scc; Graph condensation;
                     vec<bool> is_resolvable_cycle;
                     vec<index> computation_order;
-                    
-                    bool is_resolvable = construct_graphs_from_hom(hom_digraph, component, scc, is_resolvable_cycle, condensation, computation_order, 
+
+                    bool is_resolvable = construct_graphs_from_hom<Matrix>(hom_digraph, component, scc, is_resolvable_cycle, condensation, computation_order,
                             local_pierced_blocks, hom_spaces, statistics, config, t, block_map, alpha);
 
-                    vec<Merge_data> result;
+                    vec<Merge_data_t<index>> result;
                     if(is_resolvable && !config.exhaustive && !config.brute_force && !config.compare_both){
                         #if TIMERS
                             full_aida_timer.resume();
                         #endif
-                        result = automorphism_sensitive_alpha_decomp(A, B_list, block_map, local_pierced_blocks, batch_indices, N_column_indices, 
+                        result = automorphism_sensitive_alpha_decomp<Matrix>(A, B_list, block_map, local_pierced_blocks, batch_indices, N_column_indices,
                             e_vec, N_map, vector_space_decompositions, config, base_change, hom_spaces, row_map, hom_digraph,
                             computation_order, scc, condensation, is_resolvable_cycle);
                         #if TIMERS
@@ -385,7 +386,7 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
                         #if TIMERS
                             full_exhaustive_timer.resume();
                         #endif
-                        result = exhaustive_alpha_decomp(A, B_list, block_map, local_pierced_blocks, batch_indices, N_column_indices, 
+                        result = exhaustive_alpha_decomp<Matrix>(A, B_list, block_map, local_pierced_blocks, batch_indices, N_column_indices,
                             e_vec, N_map, vector_space_decompositions, config, base_change,
                             hom_spaces, row_map, config.brute_force, config.compare_both);
                         #if TIMERS
@@ -424,9 +425,9 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
             update_block_timer.resume();
             misc_timer.stop();
         #endif
-        
 
-        merge_blocks(B_list, N_map, block_map, block_partition, batch_indices, row_map, alpha);
+
+        merge_blocks<Matrix>(B_list, N_map, block_map, block_partition, batch_indices, row_map, alpha);
         #if TIMERS
             update_block_timer.stop();
             misc_timer.resume();
@@ -434,29 +435,29 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
         // If a block has changed, we delete its hom space. TO-DO: if the change is small, we could update them instead.
         if(!config.brute_force){
             #if TIMERS
-                misc_timer.stop();  
+                misc_timer.stop();
                 update_hom_timer.resume();
             #endif
-            update_hom_spaces(block_partition, hom_spaces, domain_keys, codomain_keys);
+            update_hom_spaces<index>(block_partition, hom_spaces, domain_keys, codomain_keys);
             #if TIMERS
                 update_hom_timer.stop();
-                misc_timer.resume();  
+                misc_timer.resume();
             #endif
         }
         merge_info.push_back(block_partition);
 
         #if OBSERVE
-        Sparse_Matrix observed_batch = A.restricted_domain_copy(batch_info.col_batches[observe_batch_index]);
+        SparseMatrix<index> observed_batch = A.restricted_domain_copy(batch_info.col_batches[observe_batch_index]);
         index changed_relation = observed_batch.equals_with_entry_check(observed_batch_comparison, true);
         if( changed_relation > -1 ){
             std::cout << " Observed batch was altered in batch " << t << " at " << batch_info.col_batches[t][changed_relation] << std::endl;
             vec<index> sorted_current = observed_batch.data[changed_relation];
             vec<index> sorted_old = observed_batch_comparison.data[changed_relation];
-            std::sort(sorted_current.begin(), sorted_current.end());   
+            std::sort(sorted_current.begin(), sorted_current.end());
             std::sort(sorted_old.begin(), sorted_old.end());
             convert_mod_2(sorted_current);
             convert_mod_2(sorted_old);
-            vec<index> diff = sorted_current + sorted_old; 
+            vec<index> diff = sorted_current + sorted_old;
             std::cout << "  First difference: " << diff << std::endl;
             std::cout << "  Before: " << std::endl;
             observed_batch_comparison.print();
@@ -470,12 +471,12 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
         }
         #endif
 
-    } 
+    }
 
     // Normalise the blocks
 
     for(auto it = B_list.begin(); it != B_list.end(); it++){
-        Block& B = *it;
+        Block_t<Matrix>& B = *it;
         B.transform_data(row_map);
     }
 
@@ -483,8 +484,8 @@ void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_spac
         full_timer.stop();
         misc_timer.stop();
     #endif
-    
-    /** 
+
+    /**
     #if DETAILS
         std::cout << "Full merge details: " << std::endl;
         for(index i = 0; i < merge_info.size(); i++){

@@ -60,13 +60,9 @@ endif()
 
 # Collect source files
 set(AIDA_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/aida_decompose.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/aida_functions.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/aida_helpers.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/aida_interface.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/option_parser.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/block.cpp
 )
 
 # Static library
@@ -109,4 +105,7 @@ if(BUILD_TESTING AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     add_executable(aida_runtime_grid_test tests/runtime_grid/runtime_grid.cpp)
     target_link_libraries(aida_runtime_grid_test PRIVATE aida_static)
     add_test(NAME aida_runtime_grid COMMAND aida_runtime_grid_test)
+    add_executable(aida_index_types_test tests/runtime_grid/index_types.cpp)
+    target_link_libraries(aida_index_types_test PRIVATE aida_static)
+    add_test(NAME aida_index_types COMMAND aida_index_types_test)
 endif()

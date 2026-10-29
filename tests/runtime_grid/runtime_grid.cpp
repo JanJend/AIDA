@@ -10,9 +10,9 @@
 static_assert(GRLINA_CSC_RUNTIME_WARNINGS == 1, "CSC boundary checks require active diagnostics");
 
 using CSCMatrix = aida::CSCGradedMatrix;
-static_assert(std::is_invocable_v<aida::AIDA_functor&, CSCMatrix&, aida::Block_list&>,
+static_assert(std::is_invocable_v<aida::AIDA_functor<>&, CSCMatrix&, aida::Block_list&>,
               "AIDA accepts CSC through an editable copy");
-static_assert(std::is_invocable_v<aida::AIDA_functor&, graded_linalg::Module<CSCMatrix>&, aida::Block_list&>,
+static_assert(std::is_invocable_v<aida::AIDA_functor<>&, graded_linalg::Module<CSCMatrix>&, aida::Block_list&>,
               "AIDA accepts modules with CSC presentations");
 
 static void interval_and_free() {
@@ -27,7 +27,7 @@ static void interval_and_free() {
     degree(10.75, 10.75); source << ";\n";
     std::istringstream input(source.str());
     aida::Module module{aida::GradedMatrix(input)};
-    aida::AIDA_functor decompose;
+    aida::AIDA_functor<> decompose;
     decompose.config.sort = true;
     decompose.config.sort_output = true;
     aida::Block_list blocks;
@@ -62,7 +62,7 @@ static void cyclic_hom_spaces(bool optimised) {
         "1.25 -0.5;\n"
         "2.25 2.5;\n");
     aida::GradedMatrix matrix(input);
-    aida::AIDA_functor decompose;
+    aida::AIDA_functor<> decompose;
     decompose.config.sort = true;
     decompose.config.supress_col_sweep = true;
     decompose.config.turn_off_hom_optimisation = !optimised;
@@ -103,7 +103,7 @@ static void wider_index_and_precise_scalar() {
     Matrix matrix(1, 2, {{1}}, {{next, 1.0L}},
                               {{first, 0.0L}, {next, 0.0L}});
     const auto original_grids = matrix.grid_;
-    aida::AIDA_functor decompose;
+    aida::AIDA_functor<long> decompose;
     decompose.config.sort = true;
     aida::vec<Matrix> summands;
     decompose(matrix, summands);
@@ -118,11 +118,7 @@ static void wider_index_and_precise_scalar() {
         if (degree[0] == next) found_next = true;
     }
     assert(found_first && found_next);
-    bool refused = false;
-    try { aida::detail::aida_checked_int(static_cast<long>(std::numeric_limits<int>::max()) + 1L); }
-    catch (const std::length_error&) { refused = true; }
-    assert(refused);
-    static_assert(!std::is_invocable_v<aida::AIDA_functor&, Matrix&, aida::Block_list&>);
+    static_assert(!std::is_invocable_v<aida::AIDA_functor<long>&, Matrix&, aida::Block_list&>);
 }
 
 template<class Left, class Right>
@@ -164,7 +160,7 @@ static void batches_and_stream_input() {
     const std::string repeated =
         "scc2020\n2\n2 2 0\n1 1; 0\n1 1; 1\n0 0;\n0 0;\n";
     const std::string free = "scc2020\n2\n0 1 0\n3 3;\n";
-    aida::AIDA_functor expected;
+    aida::AIDA_functor<> expected;
     expected.config.sort = true;
     aida::Block_list expected_blocks;
     for (const auto& source : {repeated, free}) {
@@ -178,7 +174,7 @@ static void batches_and_stream_input() {
     // The stream entry point also accepts input already supplied in order.
     for (bool sort : {false, true}) {
         std::istringstream input(repeated + "\n" + free);
-        aida::AIDA_functor actual;
+        aida::AIDA_functor<> actual;
         actual.config.sort = sort;
         aida::Block_list actual_blocks;
         actual(input, actual_blocks);
@@ -200,7 +196,7 @@ static void csc_matches_vector_columns() {
                          original.real_col_degrees(), original.real_row_degrees());
     auto raw = csc;
     graded_linalg::Module<CSCMatrix> module(csc);
-    aida::AIDA_functor expected, actual;
+    aida::AIDA_functor<> expected, actual;
     expected.config.sort = true;
     expected.config.sort_output = true;
     expected.config.supress_col_sweep = true;

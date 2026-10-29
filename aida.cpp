@@ -26,11 +26,11 @@ void write_to_file(std::ostringstream& ostream,
                    const std::string& file_without_extension,
                    const std::string& extension,
                    const std::string& output_string);
-void run_on_test_files(aida::AIDA_functor& decomposer, std::ostringstream& ostream);
+void run_on_test_files(aida::AIDA_functor<>& decomposer, std::ostringstream& ostream);
 
 int main(int argc, char** argv) {
     // Create decomposer with default config
-    aida::AIDA_functor decomposer;
+    aida::AIDA_functor<> decomposer;
     decomposer.config.progress = true;
     decomposer.config.show_info = true;
     decomposer.config.sort_output = true;
@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
         std::ifstream istream_test(matrix_path);
         std::ostringstream ostream_test;
         
-        aida::AIDA_functor test_decomposer;
+        aida::AIDA_functor<> test_decomposer;
         test_decomposer.config = decomposer.config;
         
         if (decomposer.config.exhaustive_test) {
@@ -184,7 +184,7 @@ void write_to_file(std::ostringstream& ostream,
     std::cout << "Output written to: " << output_path << std::endl;
 }
 
-void run_on_test_files(aida::AIDA_functor& decomposer, std::ostringstream& ostream) {
+void run_on_test_files(aida::AIDA_functor<>& decomposer, std::ostringstream& ostream) {
     // Implementation for running test files
     std::cout << "Running on test files..." << std::endl;
     // Your test file logic here

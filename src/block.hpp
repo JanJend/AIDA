@@ -12,42 +12,47 @@ namespace aida{
  * @brief Holds the indecomposable summands in the matrix
  * 
  */
-struct Block : GradedMatrix {
+template<class Matrix>
+struct Block_t : Matrix {
+    using index = matrix_index_t<Matrix>;
+    using Degree = base_degree<Matrix>;
+    using Sparse_Matrix = SparseMatrix<index>;
+    using CoordinateBase = typename Matrix::Base;
 
     vec<index> rows;
     vec<index> columns;
 
-    Block& operator= (const Block& other) {
+    Block_t& operator= (const Block_t& other) {
         if (this != &other) {
-            GradedMatrix::operator=(other);
+            Matrix::operator=(other);
             rows = other.rows;
             columns = other.columns;
         }
         return *this;
     }
 
-    Block& operator= (Block&& other) {
+    Block_t& operator= (Block_t&& other) {
         if (this != &other) {
-            GradedMatrix::operator=(std::move(other));
+            Matrix::operator=(std::move(other));
             rows = std::move(other.rows);
             columns = std::move(other.columns);
         }
         return *this;
     }
 
-    explicit Block(const GradedMatrix& matrix) : GradedMatrix(matrix) {}
-    explicit Block(GradedMatrix&& matrix) : GradedMatrix(std::move(matrix)) {}
+    explicit Block_t(const Matrix& matrix) : Matrix(matrix) {}
+    explicit Block_t(Matrix&& matrix) : Matrix(std::move(matrix)) {}
 
-    Block() : GradedMatrix() {
+    Block_t() : Matrix() {
         rows = vec<index>();
         columns = vec<index>();
     }
 
-    Block(const Block& other) : GradedMatrix(other) {
+    Block_t(const Block_t& other) : Matrix(other) {
         rows = other.rows;
         columns = other.columns;
     }
-    Block(Block&& other) : GradedMatrix(std::move(other)) {
+    Block_t(Block_t&& other) : Matrix(std::move(other)) {
         rows = std::move(other.rows);
         columns = std::move(other.columns);
     }
@@ -59,7 +64,7 @@ struct Block : GradedMatrix {
     vec<index> local_basislift_indices; // Stores a set of indices defining a subset of local_admissible_rows which forms a basis at the local Degree.
     // Careful, these are indices only locally for this block!
 
-    // This will store the columns which can be added to the current batch, i.e. local_data = data | admissible_cols.
+    // This will store the columns which can be added to the current batch, i.e. local_data = this->data | admissible_cols.
     std::shared_ptr<Sparse_Matrix> local_data; 
     std::shared_ptr<Sparse_Matrix> local_data_normalised; // Stores the normalised local_data.
     std::shared_ptr<Sparse_Matrix> local_cokernel; // Stores the cokernel of the local_data.
@@ -89,8 +94,8 @@ struct Block : GradedMatrix {
      */
     vec<Degree> endpoints(){
         vec<Degree> result;
-        for(index i = 0; i < get_num_cols(); i++){
-            if(data[i].size() == 1){
+        for(index i = 0; i < this->get_num_cols(); i++){
+            if(this->data[i].size() == 1){
                 result.push_back(this->col_degrees[i]);
             }
         }
@@ -105,11 +110,13 @@ struct Block : GradedMatrix {
      */
     // NEW: blocks retain source row indices until the final normalisation.
     // Restrict degrees without validating those temporary indices as local rows.
-    std::pair<Sparse_Matrix, vec<index>> map_at_grid_degree_pair(const Degree& degree,
+    std::pair<Sparse_Matrix, vec<index>> map_at_stored_degree_pair(const Degree& degree,
                                                                bool shifted = true) const {
-        auto selected_rows = this->admissible_row_indices_at_grid_degree(degree);
+        vec<index> selected_rows;
+        for (index i = 0; i < this->get_num_rows(); ++i)
+            if (CoordinateBase::is_admissible_row_operation(degree, i)) selected_rows.push_back(i);
         vec<index> selected_columns;
-        auto matrix = this->map_at_grid_degree(degree, selected_columns);
+        auto matrix = CoordinateBase::map_at_degree(degree, selected_columns);
         matrix.set_num_rows(selected_rows.size());
         if (selected_rows.empty()) {
             matrix.data.clear();
@@ -122,7 +129,7 @@ struct Block : GradedMatrix {
 
     void compute_local_data(Degree d){
         // TO-DO: Can we make it so that this is already reduced?
-        local_data = std::make_shared<Sparse_Matrix>(this->map_at_grid_degree(d, local_admissible_cols));
+        local_data = std::make_shared<Sparse_Matrix>(CoordinateBase::map_at_degree(d, local_admissible_cols));
     }
 
     /**
@@ -132,8 +139,8 @@ struct Block : GradedMatrix {
      */
     void compute_local_generators(Degree d){
         local_admissible_rows = vec<index>();
-        for( index i = 0; i < get_num_rows(); i++){
-            if( is_admissible_row_operation_at_grid_degree(d, i)){
+        for( index i = 0; i < this->get_num_rows(); i++){
+            if( CoordinateBase::is_admissible_row_operation(d, i)){
                 local_admissible_rows.push_back(rows[i]);
             }
         }
@@ -229,17 +236,17 @@ struct Block : GradedMatrix {
      * 
      */
     void compute_rows(vec<index>& row_map){
-        compute_rows_forward_map(row_map);
+        this->compute_rows_forward_map(row_map);
     }
 
 
-    //To-Do: Update the constructors, so that memory for the data  is reserved??
-    Block(const vec<index>& c, const vec<index>& r) : GradedMatrix(c.size(), r.size(), 0){
+    //To-Do: Update the constructors, so that memory for the data is reserved??
+    Block_t(const vec<index>& c, const vec<index>& r) : Matrix(c.size(), r.size()){
         std::copy(c.begin(),c.end(),std::back_inserter(this->columns));
         std::copy(r.begin(),r.end(),std::back_inserter(this->rows));
     }
 
-    Block(const vec<index>& c, const vec<index>& r, BlockType t) : GradedMatrix(c.size(), r.size(), 0){
+    Block_t(const vec<index>& c, const vec<index>& r, BlockType t) : Matrix(c.size(), r.size()){
         std::copy(c.begin(),c.end(),std::back_inserter(this->columns));
         std::copy(r.begin(),r.end(),std::back_inserter(this->rows));
         this->type = t;
@@ -269,23 +276,25 @@ struct Block : GradedMatrix {
             this->print(false, true);
         }
     }
-}; //Block	
+}; //Block_t
 
 // NEW: compare exported summands by real coordinates, including separate grids.
 struct CompareBlocksByDegrees {
-    bool operator()(const Block& lhs, const Block& rhs) const {
-        using DT = Degree_traits<GridD>;
+    template<class Matrix>
+    bool operator()(const Block_t<Matrix>& lhs, const Block_t<Matrix>& rhs) const {
+        using index = matrix_index_t<Matrix>;
+        using DT = Degree_traits<typename Matrix::degree_type>;
         if (lhs.parameter_count() != rhs.parameter_count())
             return lhs.parameter_count() < rhs.parameter_count();
         for (index i = 0; i < std::min(lhs.get_num_rows(), rhs.get_num_rows()); ++i) {
-            auto a = lhs.real_row_degree(i), b = rhs.real_row_degree(i);
+            auto a = geometric_degree(static_cast<const Matrix&>(lhs), lhs.row_degrees[i]), b = geometric_degree(static_cast<const Matrix&>(rhs), rhs.row_degrees[i]);
             if (DT::lex_order(a, b)) return true;
             if (DT::lex_order(b, a)) return false;
         }
         if (lhs.get_num_rows() != rhs.get_num_rows())
             return lhs.get_num_rows() < rhs.get_num_rows();
         for (index i = 0; i < std::min(lhs.get_num_cols(), rhs.get_num_cols()); ++i) {
-            auto a = lhs.real_col_degree(i), b = rhs.real_col_degree(i);
+            auto a = geometric_degree(static_cast<const Matrix&>(lhs), lhs.col_degrees[i]), b = geometric_degree(static_cast<const Matrix&>(rhs), rhs.col_degrees[i]);
             if (DT::lex_order(a, b)) return true;
             if (DT::lex_order(b, a)) return false;
         }
@@ -293,22 +302,31 @@ struct CompareBlocksByDegrees {
     }
 };
 
-typedef std::list<Block> Block_list;
-typedef Block_list::iterator Block_iterator;
-using block_position = std::pair<index, Block_list::iterator>; 
+template<class Matrix>
+using Block_list_t = std::list<Block_t<Matrix>>;
+template<class Matrix>
+using Block_iterator_t = typename Block_list_t<Matrix>::iterator;
+template<class Matrix>
+using block_position_t = std::pair<matrix_index_t<Matrix>, Block_iterator_t<Matrix>>;
+using Block = Block_t<GradedMatrix>;
+using Block_list = Block_list_t<GradedMatrix>;
+using Block_iterator = Block_iterator_t<GradedMatrix>;
+using block_position = block_position_t<GradedMatrix>;
 
 /**
  * @brief Returns *lhs < *rhs
  * 
  */
 struct compare_block_position_row {
-    bool operator()(const block_position& lhs, const block_position& rhs) const {
+    template<class Position>
+    bool operator()(const Position& lhs, const Position& rhs) const {
         return lhs.second->rows[lhs.first] > rhs.second->rows[rhs.first];
     }
 };
 
 struct compare_block_position_column {
-    bool operator()(const block_position& lhs, const block_position& rhs) const {
+    template<class Position>
+    bool operator()(const Position& lhs, const Position& rhs) const {
         return lhs.second->columns[lhs.first] > rhs.second->columns[rhs.first];
     }
 };
@@ -320,8 +338,9 @@ struct compare_block_position_column {
  * @param B_list 
  * @param block_map 
  */
-void initialise_block_list(const GradedMatrix& A, Block_list& B_list, 
-    vec<Block_list::iterator>& block_map);
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+void initialise_block_list(const Matrix& A, Block_list_t<Matrix>& B_list,
+    vec<Block_iterator_t<Matrix>>& block_map);
 
 
 /**
@@ -329,7 +348,8 @@ void initialise_block_list(const GradedMatrix& A, Block_list& B_list,
  * 
  * @param B_list 
  */
-void print_block_list_status(Block_list& B_list);
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+void print_block_list_status(Block_list_t<Matrix>& B_list);
 
 
 
@@ -341,9 +361,10 @@ void print_block_list_status(Block_list& B_list);
  * @param batch_positions 
  * @param batch_indices 
  */
-void extend_block(Block& B, Sparse_Matrix& N, 
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+void extend_block(Block_t<Matrix>& B, SparseMatrix<index>& N,
     vec<index> batch_indices, bitset& batch_positions, 
-    Degree& alpha);
+    base_degree<Matrix>& alpha);
 
 
 
@@ -359,9 +380,10 @@ void extend_block(Block& B, Sparse_Matrix& N,
  * @param batch_positions 
  * @param batch_indices 
  */
-void merge_blocks_into_block(vec<index>& block_indices, vec<Block_list::iterator>& block_map, Block& new_block, 
-                            Sub_batch& N_map, bitset& batch_positions, vec<index>& batch_indices, 
-                            vec<index>& row_map, Degree& alpha);
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+void merge_blocks_into_block(vec<index>& block_indices, vec<Block_iterator_t<Matrix>>& block_map, Block_t<Matrix>& new_block,
+                            Sub_batch_t<index>& N_map, bitset& batch_positions, vec<index>& batch_indices,
+                            vec<index>& row_map, base_degree<Matrix>& alpha);
 
                             
 /**
@@ -373,10 +395,13 @@ void merge_blocks_into_block(vec<index>& block_indices, vec<Block_list::iterator
  * @param block_map 
  * @param block_partition 
  */
-void merge_blocks(Block_list& B_list, Sub_batch& N_map, 
-                    vec<Block_list::iterator>& block_map, vec<Merge_data>& block_partition, vec<index>& batch_indices, 
-                    vec<index>& row_map, Degree& alpha);
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+void merge_blocks(Block_list_t<Matrix>& B_list, Sub_batch_t<index>& N_map,
+                    vec<Block_iterator_t<Matrix>>& block_map, vec<Merge_data_t<index>>& block_partition, vec<index>& batch_indices,
+                    vec<index>& row_map, base_degree<Matrix>& alpha);
 
 } //namespace aida
+
+#include "block_impl.hpp"
 
 #endif // AIDA_BLOCK_HPP

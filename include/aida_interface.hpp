@@ -35,7 +35,6 @@
 
 #include "config.hpp"
 #include "aida_decompose.hpp"
-#include "grid_aida_adapter.hpp"
 #include <grlina/matrices/coord.hpp>
 #include <grlina/subspaces.hpp>
 #include <grlina/matrices/io.hpp>
@@ -57,7 +56,16 @@ struct multipers_interface_output {
 /**
  * @brief Applies AIDA to streams.
  */
+template<typename Index = int>
 struct AIDA_functor {
+    using GradedMatrix = GridGradedSparseMatrix<double, 2, Index>;
+    using CSCGradedMatrix = R2GradedSparseMatrix<Index, CSCStorage<Index>>;
+    using Block_list = Block_list_t<GradedMatrix>;
+    using Full_merge_info = Full_merge_info_t<Index>;
+    using Base_change_virtual = Base_change_virtual_t<Index>;
+    using Base_change = Base_change_t<Index>;
+    using Null_base_change = Null_base_change_t<Index>;
+
     AIDA_config config;
     vec<AIDA_statistics> statistics_vec;
     AIDA_statistics cumulative_statistics;
@@ -67,21 +75,33 @@ struct AIDA_functor {
     vec<Full_merge_info> merge_data_vec;
     vec<std::shared_ptr<Base_change_virtual>> base_changes;
 
-    AIDA_functor();
-
-    void load_vector_space_decompositions(int max_dim, std::string decomp_path);
-    void load_existing_decompositions(int& k_max);
+    void load_vector_space_decompositions(std::size_t max_dim, const std::string& decomp_path);
+    void load_existing_decompositions(std::size_t k_max);
     void compute_vector_space_decompositions_faulty(const std::string& path);
-    void clear_decompositions();
-    
-    void operator()(GradedMatrix& A, Block_list& B_list);
+    void clear_decompositions() { vector_space_decompositions.clear(); }
+
+    template<class Matrix,
+             std::enable_if_t<std::is_same_v<matrix_index_t<Matrix>, Index>, int> = 0>
+    void operator()(Matrix& matrix, Block_list_t<Matrix>& blocks) {
+        decompose(matrix, blocks);
+    }
+
+    template<class Matrix>
+    void operator()(Matrix& matrix, vec<Matrix>& summands) {
+        Block_list_t<Matrix> blocks;
+        operator()(matrix, blocks);
+        vec<Matrix> result;
+        result.reserve(blocks.size());
+        for (auto& block : blocks) result.emplace_back(std::move(static_cast<Matrix&>(block)));
+        summands = std::move(result);
+    }
+
     // Edit vector columns once, then rebuild the caller's CSC storage in a batch.
-    void operator()(CSCGradedMatrix& matrix,
-                    Block_list& blocks) {
+    void operator()(CSCGradedMatrix& matrix, Block_list& blocks) {
         GradedMatrix editable(matrix.get_num_cols(), matrix.get_num_rows(),
                               matrix.col_degrees, matrix.row_degrees);
-        array<index> columns;
-        for (index i = 0; i < matrix.get_num_cols(); ++i) columns.push_back(matrix.get_col(i));
+        array<Index> columns;
+        for (Index i = 0; i < matrix.get_num_cols(); ++i) columns.push_back(matrix.get_col(i));
         editable.assign_data(std::move(columns));
         editable.compatibly_sorted = matrix.compatibly_sorted;
         operator()(editable, blocks);
@@ -89,167 +109,89 @@ struct AIDA_functor {
                                  editable.real_col_degrees(), editable.real_row_degrees());
         matrix.compatibly_sorted = editable.compatibly_sorted;
     }
-    void operator()(graded_linalg::Module<CSCGradedMatrix>& module,
-                    Block_list& blocks) {
-        module.proj_res_.differentials().resize(1);
-        module.res_complete_ = false;
-        module.inj_res_.clear();
-        operator()(module.presentation(), blocks);
-    }
-    // Typed summand presentations preserve scalar and index types.
-    template<class Scalar, class Index>
-    void operator()(GridGradedSparseMatrix<Scalar, 2, Index>& matrix,
-                    vec<GridGradedSparseMatrix<Scalar, 2, Index>>& summands) {
-        grid_aida_decompose(*this, matrix, summands);
-    }
-    template<class Scalar, class Index>
-    void operator()(graded_linalg::Module<GridGradedSparseMatrix<Scalar, 2, Index>>& module,
-                    vec<GridGradedSparseMatrix<Scalar, 2, Index>>& summands) {
-        module.proj_res_.differentials().resize(1);
-        module.res_complete_ = false;
-        module.inj_res_.clear();
-        operator()(module.presentation(), summands);
-    }
-    // Block_list stores double/int; use vec<Matrix> for other scalar/index types.
-    template<class Scalar, class Index,
-             std::enable_if_t<!std::is_same_v<GridGradedSparseMatrix<Scalar, 2, Index>, GradedMatrix>, int> = 0>
-    void operator()(GridGradedSparseMatrix<Scalar, 2, Index>&, Block_list&) = delete;
 
-    /** Module-owning entry point; the matrix overload remains for compatibility. */
-    void operator()(Module& module, Block_list& B_list) {
+    template<class Matrix, class Output>
+    void operator()(graded_linalg::Module<Matrix>& module, Output& output) {
         module.proj_res_.differentials().resize(1);
         module.res_complete_ = false;
         module.inj_res_.clear();
-        operator()(module.presentation(), B_list);
+        operator()(module.presentation(), output);
     }
-    Sparse_Matrix get_row_basis(index i, index m);
-    Sparse_Matrix get_row_basis(index m);
 
-    template<typename InputStream,
+    template<class InputStream,
              std::enable_if_t<std::is_base_of_v<std::istream, InputStream>, int> = 0>
-    void operator()(InputStream& ifstr, Block_list& B_list_cumulative) {
+    void operator()(InputStream& input, Block_list& blocks) {
         vec<GradedMatrix> matrices;
         #if TIMERS
-            aida::load_matrices_timer.start();
+            load_matrices_timer.start();
         #endif
-        construct_matrices_from_stream(matrices, ifstr, config.sort);
-        vec<Column_batches> batch_data;
-        batch_data.reserve(matrices.size());
-        int k_max = 0;
-        for (const auto& matrix : matrices) {
-            batch_data.emplace_back(matrix);
-            k_max = std::max(k_max, batch_data.back().k_max);
-        }
-        vec<Module> modules;
-        modules.reserve(matrices.size());
-        for (auto& matrix : matrices) modules.emplace_back(std::move(matrix));
+        construct_matrices_from_stream(matrices, input, config.sort);
         #if TIMERS
-            aida::load_matrices_timer.stop();
-            double load_matrices = aida::load_matrices_timer.elapsed().wall/1e9;
-            if(config.show_info){
-                std::cout << "Loaded " << matrices.size() << " matrix/ces in time: "
-                << load_matrices << " s." << std::endl;
-            }
+            load_matrices_timer.stop();
+            if (config.show_info)
+                std::cout << "Loaded " << matrices.size() << " matrices in "
+                          << load_matrices_timer.elapsed().wall / 1e9 << " s.\n";
         #endif
-        load_existing_decompositions(k_max);
-
-        for (std::size_t i = 0; i < modules.size(); ++i) {
-            GradedMatrix& A = modules[i].presentation();
-            const Column_batches& batch_info = batch_data[i];
-            if(config.show_info && modules.size() == 1){
-                std::cout << " Matrix has " << A.get_num_rows() << " rows and " << A.get_num_cols() <<
-                " columns, k_max is " << batch_info.k_max << ", and there are " << batch_info.col_batches.size() << " batches." << std::endl;
-            }
-            std::shared_ptr<Base_change_virtual> base_change;
-            if(config.save_base_change){
-                base_change = std::make_shared<Base_change>();
-            } else {
-                base_change = std::make_shared<Null_base_change>();
-            }
-            base_changes.push_back(base_change);
-            statistics_vec.push_back(AIDA_statistics());
-            runtime_statistics.push_back(AIDA_runtime_statistics());
-            Block_list B_list;
-            Full_merge_info merge_info;
-
-            #if TIMERS
-                runtime_statistics.back().initialise_timers();
-            #endif
-
-            AIDA(A, B_list, vector_space_decompositions, base_changes.back(), runtime_statistics.back(), config, merge_info, batch_info);
-            
-            #if TIMERS
-                runtime_statistics.back().evaluate_timers();
-            #endif
-
-            merge_data_vec.push_back(merge_info);
-            statistics_vec.back().compute_statistics(B_list);
-            B_list_cumulative.splice(B_list_cumulative.end(), B_list);
+        for (auto& matrix : matrices) {
+            Block_list summands;
+            operator()(matrix, summands);
+            blocks.splice(blocks.end(), summands);
         }
-        if(config.show_info){
-            std::cout << B_list_cumulative.size() << " indecomposable summands." << std::endl;
-        }
-
         cumulative_statistics = AIDA_statistics();
-        cumulative_statistics.compute_statistics(B_list_cumulative);
-        cumulative_runtime_statistics = AIDA_runtime_statistics();
-        for(auto& runtime_stat : runtime_statistics){
-            cumulative_runtime_statistics += runtime_stat;
-        }
+        cumulative_statistics.compute_statistics(blocks);
+        if (config.show_info) std::cout << blocks.size() << " indecomposable summands.\n";
+        if (config.sort_output) blocks.sort(CompareBlocksByDegrees{});
+    }
 
-        if(config.sort_output){
-            B_list_cumulative.sort(CompareBlocksByDegrees{});
+    template<class InputStream, class OutputStream>
+    void to_stream(InputStream& input, OutputStream& output) {
+        Block_list blocks;
+        operator()(input, blocks);
+        output << "scc2020sum\n" << blocks.size() << "\n";
+        for (auto& block : blocks) {
+            output << "\n" << block.get_type() << "\n";
+            block.to_stream(output);
         }
     }
 
-    template<typename InputStream, typename OutputStream>
-    void to_stream(InputStream& ifstr, OutputStream& ofstr) {
-        Block_list B_list;
-        operator()(ifstr, B_list);
-        ofstr << "scc2020sum" << "\n";
-        ofstr << B_list.size() << "\n";
-        for (Block& B : B_list) {
-            ofstr << "\n";
-            ofstr << B.get_type() << "\n";
-            B.to_stream(ofstr);
-        }
-    }
-
-    template<typename index>
-    multipers_interface_output<index> multipers_interface(multipers_interface_input<index>& input){
-        static_assert(std::is_same_v<index, aida::index>, "AIDA uses int matrix indices");
-        CoordGradedSparseMatrix<double, 2, index> coordinates(
-            input.col_degrees.size(), input.row_degrees.size());
-        coordinates.data = input.matrix;
-        for (index i = 0; i < coordinates.get_num_cols(); ++i)
-            coordinates.col_degrees[i] = input.col_degrees[i];
-        for (index i = 0; i < coordinates.get_num_rows(); ++i)
-            coordinates.row_degrees[i] = input.row_degrees[i];
-        GradedMatrix presentation(coordinates);
-        presentation.sort_compatibly();
-        Module module(std::move(presentation));
-        Block_list B_list;
-        this->operator()(module, B_list);
-        multipers_interface_output<index> result;
-        for(auto& B : B_list){
-            multipers_interface_input<index> summand;
-            for (index i = 0; i < B.get_num_cols(); ++i) {
-                auto degree = B.real_col_degree(i);
-                summand.col_degrees.push_back({degree[0], degree[1]});
-            }
-            for (index i = 0; i < B.get_num_rows(); ++i) {
-                auto degree = B.real_row_degree(i);
-                summand.row_degrees.push_back({degree[0], degree[1]});
-            }
-            summand.matrix = B.data;
-            result.summands.push_back(summand);
+    multipers_interface_output<Index> multipers_interface(multipers_interface_input<Index>& input) {
+        using Coordinates = CoordGradedSparseMatrix<double, 2, Index>;
+        Coordinates matrix(input.col_degrees.size(), input.row_degrees.size());
+        matrix.data = input.matrix;
+        for (Index i = 0; i < matrix.get_num_cols(); ++i) matrix.col_degrees[i] = input.col_degrees[i];
+        for (Index i = 0; i < matrix.get_num_rows(); ++i) matrix.row_degrees[i] = input.row_degrees[i];
+        matrix.sort_compatibly();
+        Block_list_t<Coordinates> blocks;
+        operator()(matrix, blocks);
+        multipers_interface_output<Index> result;
+        for (auto& block : blocks) {
+            multipers_interface_input<Index> summand;
+            for (const auto& degree : block.col_degrees) summand.col_degrees.push_back({degree[0], degree[1]});
+            for (const auto& degree : block.row_degrees) summand.row_degrees.push_back({degree[0], degree[1]});
+            summand.matrix = std::move(block.data);
+            result.summands.push_back(std::move(summand));
         }
         return result;
     }
 
+    SparseMatrix<Index> get_row_basis(Index i, Index m) {
+        const auto& operations = base_changes[i]->performed_row_ops;
+        SparseMatrix<Index> result(m, m, "Identity");
+        for (auto op = operations.rbegin(); op != operations.rend(); ++op)
+            result.row_op_on_cols(op->first, op->second);
+        return result;
+    }
+    SparseMatrix<Index> get_row_basis(Index m) {
+        return get_row_basis(static_cast<Index>(base_changes.size() - 1), m);
+    }
 
+private:
+    template<class Matrix>
+    void decompose(Matrix& matrix, Block_list_t<Matrix>& blocks);
 };
 
 } // namespace aida
+
+#include "aida_interface_impl.hpp"
 
 #endif // AIDA_INTERFACE_HPP

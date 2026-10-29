@@ -30,21 +30,53 @@ namespace aida {
  * @param config
  * @param merge_info 
  */
-void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_space_decompositions, std::shared_ptr<Base_change_virtual>& base_change, AIDA_runtime_statistics& statistics,
-    AIDA_config& config, Full_merge_info& merge_info, const Column_batches& batch_info);
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+void AIDA(Matrix& A, Block_list_t<Matrix>& blocks, vec<vec<transition>>& decompositions,
+          std::shared_ptr<Base_change_virtual_t<index>>& base_change, AIDA_runtime_statistics& statistics,
+          AIDA_config& config, Full_merge_info_t<index>& merge_info, const Column_batches_t<index>& batches);
 
-inline void AIDA(GradedMatrix& A, Block_list& B_list, vec<vec<transition>>& vector_space_decompositions,
-                 std::shared_ptr<Base_change_virtual>& base_change, AIDA_runtime_statistics& statistics,
-                 AIDA_config& config, Full_merge_info& merge_info) {
-    AIDA(A, B_list, vector_space_decompositions, base_change, statistics, config, merge_info, Column_batches(A));
+// Decompose stored integer degrees and attach the unchanged physical grid to each result.
+template<class Scalar, std::size_t Dimension, typename index>
+void AIDA(GridGradedSparseMatrix<Scalar, Dimension, index>& matrix,
+          Block_list_t<GridGradedSparseMatrix<Scalar, Dimension, index>>& blocks,
+          vec<vec<transition>>& decompositions,
+          std::shared_ptr<Base_change_virtual_t<index>>& base_change, AIDA_runtime_statistics& statistics,
+          AIDA_config& config, Full_merge_info_t<index>& merge_info, const Column_batches_t<index>& batches) {
+    using GridMatrix = GridGradedSparseMatrix<Scalar, Dimension, index>;
+    using Coordinates = CoordGradedSparseMatrix<index, Dimension, index>;
+    Coordinates coordinates(matrix.get_num_cols(), matrix.get_num_rows(), matrix.data,
+                            matrix.col_degrees, matrix.row_degrees);
+    coordinates.compatibly_sorted = matrix.compatibly_sorted;
+    Block_list_t<Coordinates> coordinate_blocks;
+    AIDA(coordinates, coordinate_blocks, decompositions, base_change, statistics, config, merge_info, batches);
+
+    Block_list_t<GridMatrix> result;
+    for (auto& block : coordinate_blocks) {
+        result.emplace_back(GridMatrix(static_cast<const Coordinates&>(block), matrix.grid_));
+        result.back().rows = std::move(block.rows);
+        result.back().columns = std::move(block.columns);
+        result.back().type = block.type;
+    }
+    matrix = GridMatrix(coordinates, matrix.grid_);
+    blocks = std::move(result);
 }
 
-// NEW: the editable algorithm keeps vector columns; CSC is rebuilt only at the boundary.
-inline void AIDA(CSCGradedMatrix& matrix,
-                 Block_list& blocks, vec<vec<transition>>& decompositions,
-                 std::shared_ptr<Base_change_virtual>& base_change,
-                 AIDA_runtime_statistics& statistics, AIDA_config& config,
-                 Full_merge_info& merge_info) {
+template<class Matrix, typename index = matrix_index_t<Matrix>>
+void AIDA(Matrix& A, Block_list_t<Matrix>& blocks, vec<vec<transition>>& decompositions,
+          std::shared_ptr<Base_change_virtual_t<index>>& base_change, AIDA_runtime_statistics& statistics,
+          AIDA_config& config, Full_merge_info_t<index>& merge_info) {
+    AIDA(A, blocks, decompositions, base_change, statistics, config, merge_info, Column_batches_t<index>(A));
+}
+
+// The editable algorithm keeps vector columns; CSC is rebuilt only at the boundary.
+template<typename index>
+void AIDA(R2GradedSparseMatrix<index, CSCStorage<index>>& matrix,
+          Block_list_t<GridGradedSparseMatrix<double, 2, index>>& blocks, vec<vec<transition>>& decompositions,
+          std::shared_ptr<Base_change_virtual_t<index>>& base_change,
+          AIDA_runtime_statistics& statistics, AIDA_config& config,
+          Full_merge_info_t<index>& merge_info) {
+    using GradedMatrix = GridGradedSparseMatrix<double, 2, index>;
+    using CSCGradedMatrix = R2GradedSparseMatrix<index, CSCStorage<index>>;
     GradedMatrix editable(matrix.get_num_cols(), matrix.get_num_rows(),
                           matrix.col_degrees, matrix.row_degrees);
     array<index> columns;
@@ -59,5 +91,7 @@ inline void AIDA(CSCGradedMatrix& matrix,
 }
 
 } // namespace aida
+
+#include "aida_decompose_impl.hpp"
 
 #endif // AIDA_DECOMPOSE_HPP
