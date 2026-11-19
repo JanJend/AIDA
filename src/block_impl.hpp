@@ -183,7 +183,7 @@ void merge_blocks_into_block(vec<index>& block_indices, vec<Block_iterator_t<Mat
         new_block.col_degrees.push_back(alpha);
         new_block.data.push_back(vec<index>());
         for(index j : block_indices){
-            new_block.data.back().insert(new_block.data.back().end(), N_map[j].data[i].begin(), N_map[j].data[i].end());
+            std::copy(N_map[j].data[i].begin(), N_map[j].data[i].end(), std::back_inserter(new_block.data.back()));
             /*
             if( N_map[j].data[i].empty() ){
                 N_iterators[j].push_back({batch_indices[i], N_map[j].data[i].begin()});

@@ -116,7 +116,9 @@ struct Block_t : Matrix {
         for (index i = 0; i < this->get_num_rows(); ++i)
             if (CoordinateBase::is_admissible_row_operation(degree, i)) selected_rows.push_back(i);
         vec<index> selected_columns;
-        auto matrix = CoordinateBase::map_at_degree(degree, selected_columns);
+        const auto restricted = CoordinateBase::map_at_degree(degree, selected_columns);
+        Sparse_Matrix matrix(restricted.get_num_cols(), restricted.get_num_rows());
+        matrix.assign_data(restricted.data);
         matrix.set_num_rows(selected_rows.size());
         if (selected_rows.empty()) {
             matrix.data.clear();
@@ -129,7 +131,9 @@ struct Block_t : Matrix {
 
     void compute_local_data(Degree d){
         // TO-DO: Can we make it so that this is already reduced?
-        local_data = std::make_shared<Sparse_Matrix>(CoordinateBase::map_at_degree(d, local_admissible_cols));
+        const auto restricted = CoordinateBase::map_at_degree(d, local_admissible_cols);
+        local_data = std::make_shared<Sparse_Matrix>(restricted.get_num_cols(), restricted.get_num_rows());
+        local_data->assign_data(restricted.data);
     }
 
     /**
